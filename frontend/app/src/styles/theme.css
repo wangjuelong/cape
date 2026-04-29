@@ -1,0 +1,41 @@
+/*
+ * Design tokens migrated from frontend/web-design/styles.css to Tailwind v4 @theme.
+ * Keeps severity / background / foreground naming aligned with the design canvas
+ * so existing JSX previews remain a faithful spec.
+ */
+
+@theme {
+  --color-sev-crit: oklch(0.66 0.2 22);
+  --color-sev-high: oklch(0.74 0.16 50);
+  --color-sev-med: oklch(0.81 0.14 88);
+  --color-sev-low: oklch(0.85 0.1 230);
+  --color-sev-clean: oklch(0.78 0.12 155);
+
+  --color-bg-0: #0a0d12;
+  --color-bg-1: #0f131a;
+  --color-bg-2: #161b24;
+  --color-bg-3: #1f2530;
+
+  --color-fg-0: #e6e9ef;
+  --color-fg-1: #b3b9c5;
+  --color-fg-2: #6b7280;
+
+  --color-border: #232a36;
+  --color-border-strong: #3a4250;
+
+  --color-accent: oklch(0.78 0.13 220);
+  --color-accent-strong: oklch(0.86 0.13 220);
+  --color-accent-soft: oklch(0.78 0.13 220 / 0.14);
+
+  --font-mono:
+    ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+  --spacing-row-dense: 28px;
+  --spacing-row-regular: 36px;
+  --spacing-row-comfy: 44px;
+
+  --radius-xs: 2px;
+  --radius-sm: 3px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+}
