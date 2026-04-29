@@ -26,6 +26,7 @@ admin.site.site_title = "CAPE Administration"
 
 from analysis import urls as analysis
 from apiv2 import urls as apiv2
+from apiv3 import urls as apiv3
 from compare import urls as compare
 from dashboard import urls as dashboard
 from submission import urls as submission
@@ -44,6 +45,7 @@ urlpatterns = [
     re_path(r"^compare/", include(compare)),
     re_path(r"^submit/", include(submission)),
     re_path(r"^apiv2/", include(apiv2)),
+    re_path(r"^api/v3/", include(apiv3)),
     re_path(r"^file/(?P<category>\w+)/(?P<task_id>\d+)/(?P<dlfile>\w+)/$", analysis_views.file, name="file"),
     re_path(
         r"^vtupload/(?P<category>\w+)/(?P<task_id>\d+)/(?P<filename>.+)/(?P<dlfile>\w+)/$", analysis_views.vtupload, name="vtupload"

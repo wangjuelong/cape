@@ -270,6 +270,8 @@ INSTALLED_APPS = [
     "django_recaptcha",  # https://pypi.org/project/django-recaptcha/
     "rest_framework",
     "rest_framework.authtoken",
+    "drf_spectacular",
+    "apiv3",
 ]
 
 AUDIT_FRAMEWORK = web_cfg.audit_framework.get("enabled", False)
@@ -286,13 +288,31 @@ if api_cfg.api.token_auth_enabled:
             "user": api_cfg.api.default_user_ratelimit,
             "subscription": api_cfg.api.default_subscription_ratelimit,
         },
+        "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     }
 
 else:
     REST_FRAMEWORK = {
         "DEFAULT_AUTHENTICATION_CLASSES": [],
         "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.AllowAny"],
+        "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     }
+
+# drf-spectacular settings (PRD D-13). Only apiv3 endpoints get serialized
+# into the OpenAPI document; legacy /apiv2/ stays out of it on purpose
+# (PRD R8).
+SPECTACULAR_SETTINGS = {
+    "TITLE": "CAPE API v3",
+    "DESCRIPTION": (
+        "Modern JSON API for the CAPEv2 SPA. Coexists with /apiv2/, which is "
+        "preserved verbatim for existing clients (PRD D-02)."
+    ),
+    "VERSION": "v3",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "SCHEMA_PATH_PREFIX": r"/api/v3",
+    "COMPONENT_SPLIT_REQUEST": True,
+    "ENUM_NAME_OVERRIDES": {},
+}
 
 TWOFA = web_cfg.web_auth.get("2fa", False)
 
