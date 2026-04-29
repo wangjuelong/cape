@@ -1,8 +1,4 @@
-import axios, {
-  type AxiosInstance,
-  type InternalAxiosRequestConfig,
-  AxiosHeaders,
-} from "axios";
+import axios, { type AxiosInstance, type InternalAxiosRequestConfig, AxiosHeaders } from "axios";
 
 import { ensureCsrfToken } from "./csrf";
 
