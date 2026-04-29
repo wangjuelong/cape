@@ -363,10 +363,14 @@ interface AttackTechnique {
 ```typescript
 type SSEEvent =
   | { type: 'task.status'; task_id: number; status: TaskStatus; ts: string }
-  | { type: 'task.added';  task: TaskSummary; ts: string }
+  | { type: 'task.added';  task_id: number; status: TaskStatus; ts: string }
   | { type: 'task.deleted'; task_id: number; ts: string }
   | { type: 'machine.status'; name: string; status: 'running' | 'idle' | 'maintenance'; ts: string }
-  | { type: 'heartbeat'; ts: string };     // 每 30s 一次，防代理超时
+  | { type: 'heartbeat'; ts: string };     // 每 ~30s 一次，防代理超时
+
+// 注：task.added 不内嵌完整 TaskSummary——SPA 收到事件后用 task_id
+// invalidate TanStack Query 缓存，由列表/详情查询自然 refetch（D-31）。
+// 这样减少 SSE 流的负载并避免 schema 漂移。
 ```
 
 ### 5.6 错误响应 Schema（v3 强制）
@@ -943,6 +947,7 @@ es.addEventListener('task.status', (e) => {
 | D-26 | i18n | 单语 / 双语 | **英文 + 简体中文** | 上游英文 / 团队中文 |
 | D-27 | 报告页可视化主库 | React Flow / Cytoscape / vis-network / D3 | **React Flow + Recharts + D3 兜底** | React-idiomatic、TS 一流、bundle 适中 |
 | D-28 | 自动布局算法 | dagre / elkjs / 手动 | **dagre 默认**，复杂场景 elkjs | 业界标配，与 React Flow 配套例子多 |
+| D-31 | SSE `task.added` 载荷 | 内嵌 TaskSummary / 仅 task_id | **仅 task_id**（D-12.1 配套） | 减少 SSE 流负载；前端 invalidate cache 触发常规 GET 即可，避免 schema 漂移 |
 
 ---
 

@@ -105,7 +105,7 @@ export interface AttackMatrix {
 
 export type SSEEvent =
   | { type: "task.status"; task_id: number; status: TaskStatus; ts: string }
-  | { type: "task.added"; task: TaskSummary; ts: string }
+  | { type: "task.added"; task_id: number; status: TaskStatus; ts: string }
   | { type: "task.deleted"; task_id: number; ts: string }
   | {
       type: "machine.status";

@@ -14,8 +14,10 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { LiveIndicator } from "@/components/recent/LiveIndicator";
 import { TaskTable } from "@/components/recent/TaskTable";
 import { useTaskList } from "@/hooks/useTaskList";
+import { useTaskEvents } from "@/hooks/useTaskEvents";
 import type { TaskListFilters, TaskStatus } from "@/types/api";
 
 const STATUS_OPTIONS: Array<{ value: string; label: string }> = [
@@ -61,6 +63,7 @@ export default function RecentRoute() {
   };
 
   const query = useTaskList(filters);
+  const { connected } = useTaskEvents();
 
   return (
     <>
@@ -114,12 +117,13 @@ export default function RecentRoute() {
               onChange={(e) => setParam("q", e.target.value)}
             />
           </div>
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-3">
             {query.isFetching && <Spinner size={12} />}
             <span className="text-[10px]" style={{ color: "var(--color-fg-2)" }}>
               {query.tasks.length} loaded
               {query.hasNextPage ? " · more available" : ""}
             </span>
+            <LiveIndicator connected={connected} />
           </div>
         </div>
 
@@ -156,10 +160,9 @@ export default function RecentRoute() {
   );
 }
 
-function applyLocalFilter<T extends { target: string; sha256: string | null; sha1: string | null; md5: string | null }>(
-  rows: T[],
-  query: string,
-): T[] {
+function applyLocalFilter<
+  T extends { target: string; sha256: string | null; sha1: string | null; md5: string | null },
+>(rows: T[], query: string): T[] {
   const q = query.trim().toLowerCase();
   if (!q) return rows;
   return rows.filter((r) => {

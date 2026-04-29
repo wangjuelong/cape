@@ -10,7 +10,7 @@ from drf_spectacular.views import (
     SpectacularSwaggerView,
 )
 
-from apiv3 import views
+from apiv3 import sse, views
 
 app_name = "apiv3"
 
@@ -32,6 +32,9 @@ urlpatterns = [
     # Machines
     path("machines/", views.machines_list, name="machines-list"),
     path("machines/<str:name>/", views.machine_detail, name="machine-detail"),
+
+    # Events (SSE; PRD §6.5 — session auth only, requires ASGI / daphne)
+    path("events/tasks", sse.task_events, name="events-tasks"),
 
     # OpenAPI
     path("schema/", SpectacularAPIView.as_view(api_version="v3"), name="schema"),
