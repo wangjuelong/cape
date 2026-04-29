@@ -1,9 +1,16 @@
 import { useNavigate } from "react-router-dom";
 
 import { Icon } from "./icons";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 export function Topbar() {
   const navigate = useNavigate();
+  const meQuery = useCurrentUser();
+  const username = meQuery.data?.username ?? "guest";
+  const initials = (meQuery.data?.username ?? "??")
+    .slice(0, 2)
+    .toUpperCase();
+
   return (
     <div
       className="flex h-12 items-center gap-3 border-b px-3"
@@ -74,9 +81,9 @@ export function Topbar() {
             color: "var(--color-accent-strong)",
           }}
         >
-          AK
+          {initials}
         </span>
-        <span style={{ color: "var(--color-fg-1)" }}>analyst</span>
+        <span style={{ color: "var(--color-fg-1)" }}>{username}</span>
       </div>
     </div>
   );
