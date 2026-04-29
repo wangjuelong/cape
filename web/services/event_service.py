@@ -34,19 +34,21 @@ class TaskEvent:
 
 def snapshot_active_tasks() -> dict[int, str]:
     """Returns {task_id: status} for everything currently worth tracking."""
+    from lib.cuckoo.core.data.task import Task
     from lib.cuckoo.core.database import Database
 
     db = Database()
     cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - _RECENT_TERMINAL_WINDOW
+    order = Task.id.desc()
 
     snapshot: dict[int, str] = {}
 
     for status in _ACTIVE_STATUSES:
-        for task in db.list_tasks(status=status, limit=500, order_by="-id"):
+        for task in db.list_tasks(status=status, limit=500, order_by=order):
             snapshot[task.id] = task.status
 
     # Tasks that transitioned to a terminal state recently.
-    for task in db.list_tasks(completed_after=cutoff, limit=500, order_by="-id"):
+    for task in db.list_tasks(completed_after=cutoff, limit=500, order_by=order):
         snapshot[task.id] = task.status
 
     return snapshot
