@@ -38,6 +38,32 @@ POLL_INTERVAL_SECONDS = 2.0
 HEARTBEAT_EVERY = 15  # heartbeat each N polls (≈ 30s)
 
 
+async def _resolve_token_user(request: HttpRequest):
+    """Best-effort DRF Token resolution for non-browser clients.
+
+    Returns the auth user if the ``Authorization: Token <key>`` header
+    matches a row in ``authtoken_token``; otherwise ``None``.
+    """
+    header = request.headers.get("Authorization", "")
+    if not header.startswith("Token "):
+        return None
+    key = header[len("Token ") :].strip()
+    if not key:
+        return None
+    try:
+        from rest_framework.authtoken.models import Token
+    except ImportError:
+        return None
+
+    def _lookup():
+        try:
+            return Token.objects.select_related("user").get(key=key).user
+        except Token.DoesNotExist:
+            return None
+
+    return await sync_to_async(_lookup)()
+
+
 def _format_event(event_type: str, data: dict) -> str:
     return f"event: {event_type}\ndata: {json.dumps(data)}\n\n"
 
@@ -69,11 +95,17 @@ async def _stream(initial_snapshot: dict[int, str]) -> AsyncIterator[str]:
 async def task_events(request: HttpRequest) -> HttpResponse:
     """Plain Django async view (no DRF wrapper).
 
-    Auth: relies on session middleware to populate ``request.user``.
-    Token-bearing clients should keep using v2 polling — see D-12.1.
+    Auth precedence:
+        1. Django session (set by AuthenticationMiddleware) — used by SPA
+        2. ``Authorization: Token <key>`` — fallback so curl / scripts
+           can subscribe in dev / smoke tests. Browser EventSource cannot
+           send custom headers, so the SPA path remains session-only
+           (D-12.1).
     """
     user = await request.auser() if hasattr(request, "auser") else request.user
     if not user.is_authenticated:
+        user = await _resolve_token_user(request)
+    if user is None or not user.is_authenticated:
         return HttpResponse(status=401)
 
     initial = await sync_to_async(event_service.snapshot_active_tasks)()
