@@ -46,8 +46,10 @@ const advancedSchema = z.object({
 });
 
 const fileSchema = z.object({
-  files: z
-    .custom<FileList>((v) => v instanceof FileList && v.length > 0, "Select at least one file"),
+  files: z.custom<FileList>(
+    (v) => v instanceof FileList && v.length > 0,
+    "Select at least one file",
+  ),
   pcap: z.boolean().default(false),
   ...advancedSchema.shape,
 });
@@ -105,7 +107,14 @@ function FileSubmitForm() {
     formState: { errors, isSubmitting },
   } = useForm<FileFields>({
     resolver: zodResolver(fileSchema),
-    defaultValues: { priority: 1, memory: false, enforce_timeout: false, unique: false, static: false, pcap: false },
+    defaultValues: {
+      priority: 1,
+      memory: false,
+      enforce_timeout: false,
+      unique: false,
+      static: false,
+      pcap: false,
+    },
   });
 
   const mutation = useMutation({
@@ -179,7 +188,13 @@ function UrlSubmitForm() {
     formState: { errors, isSubmitting },
   } = useForm<UrlFields>({
     resolver: zodResolver(urlSchema),
-    defaultValues: { priority: 1, memory: false, enforce_timeout: false, unique: false, static: false },
+    defaultValues: {
+      priority: 1,
+      memory: false,
+      enforce_timeout: false,
+      unique: false,
+      static: false,
+    },
   });
 
   const mutation = useMutation({
@@ -296,7 +311,10 @@ function AdvancedOptions({ control, register }: AdvancedOptionsProps) {
             <Input placeholder="windows / linux" {...register("platform")} />
           </Field>
           <Field label="Route">
-            <Input placeholder="none / internet / inetsim / tor / vpn:<name>" {...register("route")} />
+            <Input
+              placeholder="none / internet / inetsim / tor / vpn:<name>"
+              {...register("route")}
+            />
           </Field>
           <Field label="Tags (sample)">
             <Input placeholder="comma-separated" {...register("tags")} />

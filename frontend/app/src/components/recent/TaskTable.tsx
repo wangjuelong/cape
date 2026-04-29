@@ -1,12 +1,14 @@
-import {
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-  type ColumnDef,
-} from "@tanstack/react-table";
+import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from "@tanstack/react-table";
 import { Link } from "react-router-dom";
 
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ScoreBadge } from "./ScoreBadge";
 import { StatusPill } from "./StatusPill";
@@ -139,7 +141,9 @@ export function TaskTable({ data }: TaskTableProps) {
           table.getRowModel().rows.map((r) => (
             <TableRow key={r.id}>
               {r.getVisibleCells().map((c) => (
-                <TableCell key={c.id}>{flexRender(c.column.columnDef.cell, c.getContext())}</TableCell>
+                <TableCell key={c.id}>
+                  {flexRender(c.column.columnDef.cell, c.getContext())}
+                </TableCell>
               ))}
             </TableRow>
           ))

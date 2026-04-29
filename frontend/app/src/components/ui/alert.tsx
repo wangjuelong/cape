@@ -8,10 +8,10 @@ const alertVariants = cva(
   {
     variants: {
       variant: {
-        default:
-          "border-[var(--color-border)] bg-[var(--color-bg-2)] text-[var(--color-fg-0)]",
+        default: "border-[var(--color-border)] bg-[var(--color-bg-2)] text-[var(--color-fg-0)]",
         info: "border-[var(--color-accent)]/40 bg-[var(--color-accent-soft)] text-[var(--color-fg-0)]",
-        warning: "border-[var(--color-sev-med)]/50 bg-[var(--color-sev-med)]/10 text-[var(--color-fg-0)]",
+        warning:
+          "border-[var(--color-sev-med)]/50 bg-[var(--color-sev-med)]/10 text-[var(--color-fg-0)]",
         destructive:
           "border-[var(--color-sev-crit)]/60 bg-[var(--color-sev-crit)]/10 text-[var(--color-fg-0)]",
       },

@@ -7,9 +7,7 @@ export function Topbar() {
   const navigate = useNavigate();
   const meQuery = useCurrentUser();
   const username = meQuery.data?.username ?? "guest";
-  const initials = (meQuery.data?.username ?? "??")
-    .slice(0, 2)
-    .toUpperCase();
+  const initials = (meQuery.data?.username ?? "??").slice(0, 2).toUpperCase();
 
   return (
     <div
