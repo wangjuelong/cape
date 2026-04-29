@@ -23,6 +23,16 @@ urlpatterns = [
     path("system/info/", views.system_info, name="system-info"),
     path("system/feature-flags/", views.feature_flags, name="feature-flags"),
 
+    # Tasks
+    path("tasks/", views.tasks_list, name="tasks-list"),
+    path("tasks/<int:task_id>/", views.task_detail, name="task-detail"),
+    path("tasks/file/", views.tasks_create_file, name="tasks-create-file"),
+    path("tasks/url/", views.tasks_create_url, name="tasks-create-url"),
+
+    # Machines
+    path("machines/", views.machines_list, name="machines-list"),
+    path("machines/<str:name>/", views.machine_detail, name="machine-detail"),
+
     # OpenAPI
     path("schema/", SpectacularAPIView.as_view(api_version="v3"), name="schema"),
     path("docs/", SpectacularSwaggerView.as_view(url_name="apiv3:schema"), name="docs"),
