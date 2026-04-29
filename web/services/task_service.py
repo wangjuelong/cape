@@ -52,6 +52,7 @@ def list_tasks(filters: TaskListFilters) -> TaskListResult:
     in ``reported`` status and Mongo is available.
     """
     from lib.cuckoo.core.database import Database
+    from lib.cuckoo.core.data.task import Task
 
     db = Database()
 
@@ -65,7 +66,7 @@ def list_tasks(filters: TaskListFilters) -> TaskListResult:
         status="|".join(statuses) if statuses else None,
         added_before=filters.added_before,
         id_before=id_before,
-        order_by="-id",
+        order_by=Task.id.desc(),
         include_hashes=True,
     )
 
