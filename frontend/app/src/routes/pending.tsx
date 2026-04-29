@@ -12,10 +12,7 @@ import type { TaskListFilters, TaskStatus } from "@/types/api";
 const ACTIVE_STATUSES: TaskStatus[] = ["pending", "running", "completed"];
 
 export default function PendingRoute() {
-  const filters = useMemo<TaskListFilters>(
-    () => ({ status: ACTIVE_STATUSES, limit: 100 }),
-    [],
-  );
+  const filters = useMemo<TaskListFilters>(() => ({ status: ACTIVE_STATUSES, limit: 100 }), []);
   const list = useTaskList(filters);
   const { connected } = useTaskEvents();
 

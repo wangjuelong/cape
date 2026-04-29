@@ -34,14 +34,16 @@ export function openTaskEventStream(handler: TaskEventHandler): TaskEventStream 
   const es = new EventSource("/api/v3/events/tasks", { withCredentials: true });
   let lastError: Event | null = null;
 
-  const wrap = <T extends SSEEvent>(name: T["type"]) => (e: MessageEvent) => {
-    try {
-      const data = JSON.parse(e.data) as Omit<T, "type">;
-      handler({ ...(data as object), type: name } as SSEEvent);
-    } catch {
-      // ignore malformed frames
-    }
-  };
+  const wrap =
+    <T extends SSEEvent>(name: T["type"]) =>
+    (e: MessageEvent) => {
+      try {
+        const data = JSON.parse(e.data) as Omit<T, "type">;
+        handler({ ...(data as object), type: name } as SSEEvent);
+      } catch {
+        // ignore malformed frames
+      }
+    };
 
   es.addEventListener("task.status", wrap<TaskStatusEvent>("task.status"));
   es.addEventListener("task.added", wrap<TaskAddedEvent>("task.added"));

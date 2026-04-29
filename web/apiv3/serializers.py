@@ -132,3 +132,33 @@ class ApiErrorSerializer(serializers.Serializer):
     error_code = serializers.CharField()
     error_value = serializers.CharField()
     details = serializers.DictField(required=False)
+
+
+# ---------------------------------------------------------------------------
+# Reports
+# ---------------------------------------------------------------------------
+
+
+class SignatureLiteSerializer(serializers.Serializer):
+    """Compact signature shape used by the Summary findings rail.
+
+    Marks (per-API-call evidence) intentionally omitted; the full
+    Signature shape is exposed under /api/v3/reports/<id>/signatures/.
+    """
+
+    name = serializers.CharField()
+    description = serializers.CharField(allow_blank=True)
+    severity = serializers.IntegerField()
+    ttp = serializers.ListField(child=serializers.CharField())
+
+
+class ReportSummarySerializer(serializers.Serializer):
+    task = TaskSummarySerializer()
+    available_sections = serializers.ListField(child=serializers.CharField())
+    tab_counts = serializers.DictField()  # int | str values; Spectacular doesn't model unions cleanly
+    signatures = SignatureLiteSerializer(many=True)
+    score = serializers.FloatField(allow_null=True)
+    severity = serializers.ChoiceField(choices=SEVERITY_CHOICES)
+    verdict = serializers.ChoiceField(choices=VERDICT_CHOICES)
+    family = serializers.CharField(allow_null=True)
+    behavior_summary = serializers.DictField(required=False)

@@ -35,13 +35,14 @@ from apiv3.serializers import (
     CurrentUserSerializer,
     FeatureFlagsSerializer,
     MachineSerializer,
+    ReportSummarySerializer,
     SystemInfoSerializer,
     TaskCreateResponseSerializer,
     TaskListResponseSerializer,
     TaskSummarySerializer,
     TaskUrlSubmitSerializer,
 )
-from services import machine_service, task_service
+from services import machine_service, report_service, task_service
 
 
 # ---------------------------------------------------------------------------
@@ -302,6 +303,56 @@ def tasks_create_url(request: Request) -> Response:
 def machines_list(_request: Request) -> Response:
     machines = machine_service.list_machines()
     return Response(MachineSerializer(machines, many=True).data)
+
+
+# ---------------------------------------------------------------------------
+# Reports
+# ---------------------------------------------------------------------------
+
+
+@extend_schema(
+    tags=["reports"],
+    summary="Report header + tab counts + findings rail.",
+    description=(
+        "Drives the report page chrome. Returns enough data to render the "
+        "verdict banner (via the embedded TaskSummary), decide which tabs "
+        "to show (`available_sections`), populate tab badges (`tab_counts`), "
+        "and fill the findings rail (`signatures`). Heavy per-tab content "
+        "lives at /api/v3/reports/<id>/<section>/."
+    ),
+    responses={
+        200: ReportSummarySerializer,
+        404: ApiErrorSerializer,
+    },
+)
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def report_summary(_request: Request, task_id: int) -> Response:
+    task = task_service.view_task(task_id)
+    if not task:
+        return _error("task_not_found", f"Task {task_id} not found", http_code=http_status.HTTP_404_NOT_FOUND)
+
+    summary = report_service.fetch_summary(task_id)
+    if summary is None:
+        # Mongo lookup failed or no doc. Still return the Postgres-known
+        # task so the SPA can render the header; available_sections will
+        # be just ["summary"] so other tabs hide gracefully.
+        summary = {
+            "available_sections": ["summary"],
+            "tab_counts": {},
+            "signatures": [],
+            "score": task.get("score"),
+            "severity": task.get("severity") or "clean",
+            "verdict": task.get("verdict") or "clean",
+            "family": task.get("family"),
+            "behavior_summary": {},
+        }
+
+    payload = {
+        "task": task,
+        **summary,
+    }
+    return Response(ReportSummarySerializer(payload).data)
 
 
 @extend_schema(

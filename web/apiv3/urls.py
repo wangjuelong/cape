@@ -29,6 +29,9 @@ urlpatterns = [
     path("tasks/file/", views.tasks_create_file, name="tasks-create-file"),
     path("tasks/url/", views.tasks_create_url, name="tasks-create-url"),
 
+    # Reports
+    path("reports/<int:task_id>/summary/", views.report_summary, name="report-summary"),
+
     # Machines
     path("machines/", views.machines_list, name="machines-list"),
     path("machines/<str:name>/", views.machine_detail, name="machine-detail"),
