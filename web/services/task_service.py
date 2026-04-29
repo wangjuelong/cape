@@ -206,12 +206,14 @@ def _submit_request(request: Any, *, mode: str) -> dict[str, Any]:
 
     for content, tmp_path, _ in list_of_tasks:
         if pcap_flag:
-            task_id = db.add_pcap(file_path=tmp_path)
-            details["task_ids"].append(task_id)
+            _extend_task_ids(details["task_ids"], db.add_pcap(file_path=tmp_path))
             continue
         if static:
-            task_id = db.add_static(file_path=tmp_path, priority=priority, user_id=user_id)
-            details["task_ids"].append(task_id)
+            # add_static returns a list (one entry per extracted file)
+            _extend_task_ids(
+                details["task_ids"],
+                db.add_static(file_path=tmp_path, priority=priority, user_id=user_id),
+            )
             continue
         details["path"] = tmp_path
         details["content"] = content
@@ -224,6 +226,17 @@ def _submit_request(request: Any, *, mode: str) -> dict[str, Any]:
                 details["errors"].extend(tasks_details["errors"])
 
     return _submit_response(details, machines=task_machines)
+
+
+def _extend_task_ids(bucket: list[int], result: Any) -> None:
+    """Normalises return values from db.add_pcap (single int) and
+    db.add_static (list[int]) into a flat int list."""
+    if result is None:
+        return
+    if isinstance(result, (list, tuple)):
+        bucket.extend(int(x) for x in result if x is not None)
+    else:
+        bucket.append(int(result))
 
 
 def _submit_response(details: dict[str, Any], *, machines: list[str]) -> dict[str, Any]:
