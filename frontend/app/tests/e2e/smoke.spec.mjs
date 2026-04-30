@@ -25,6 +25,17 @@ async function login(page) {
   });
 }
 
+test("00 login page uses new SPA-skinned theme", async ({ page }) => {
+  await page.goto(BASE + "/accounts/login/");
+  await page.waitForLoadState("domcontentloaded", { timeout: 10000 });
+  await page.screenshot({ path: "test-results/00-login-page.png", fullPage: true });
+  // Must use the new auth layout
+  await expect(page.locator(".cape-auth__brand")).toBeVisible();
+  await expect(page.locator(".cape-auth__card")).toBeVisible();
+  // Must NOT carry the legacy navbar
+  await expect(page.locator(".navbar-brand")).toHaveCount(0);
+});
+
 test("01 login → SPA renders shell with real username", async ({ page }) => {
   const events = [];
   page.on("console", (msg) => events.push(`console.${msg.type()}: ${msg.text()}`));
