@@ -27,15 +27,26 @@ export async function fetchTaskDetail(id: number): Promise<TaskSummary> {
   return data;
 }
 
-export interface SubmitFileResponse {
+export interface SubmitResponse {
   task_ids: number[];
   message: string;
   machines: string[];
   errors: unknown[];
 }
 
-export async function submitFile(form: FormData): Promise<SubmitFileResponse> {
-  const { data } = await apiClient.post<SubmitFileResponse>("/tasks/file/", form, {
+/** Backwards-compat alias — older imports refer to this. */
+export type SubmitFileResponse = SubmitResponse;
+
+/**
+ * Multipart file submission. The same endpoint accepts:
+ *   - normal sample (default)
+ *   - PCAP analysis (set form field `pcap=1`)
+ *   - static-only (set form field `static=1`)
+ *
+ * Caller is responsible for setting the right boolean flag.
+ */
+export async function submitFile(form: FormData): Promise<SubmitResponse> {
+  const { data } = await apiClient.post<SubmitResponse>("/tasks/file/", form, {
     headers: { "Content-Type": "multipart/form-data" },
   });
   return data;
@@ -60,7 +71,44 @@ export interface UrlSubmitPayload {
   route?: string;
 }
 
-export async function submitUrl(payload: UrlSubmitPayload): Promise<SubmitFileResponse> {
-  const { data } = await apiClient.post<SubmitFileResponse>("/tasks/url/", payload);
+export async function submitUrl(payload: UrlSubmitPayload): Promise<SubmitResponse> {
+  const { data } = await apiClient.post<SubmitResponse>("/tasks/url/", payload);
+  return data;
+}
+
+export interface DlnexecSubmitPayload {
+  dlnexec: string;
+  package?: string;
+  timeout?: number;
+  priority?: number;
+  options?: string;
+  machine?: string;
+  platform?: string;
+  tags?: string;
+  custom?: string;
+  memory?: boolean;
+  enforce_timeout?: boolean;
+  clock?: string;
+  tlp?: string;
+  tags_tasks?: string;
+  route?: string;
+}
+
+export async function submitDlnexec(payload: DlnexecSubmitPayload): Promise<SubmitResponse> {
+  const { data } = await apiClient.post<SubmitResponse>("/tasks/dlnexec/", payload);
+  return data;
+}
+
+export interface DownloadServicesPayload {
+  hashes: string;
+  options?: string;
+  custom?: string;
+  machine?: string;
+}
+
+export async function submitDownloadServices(
+  payload: DownloadServicesPayload,
+): Promise<SubmitResponse> {
+  const { data } = await apiClient.post<SubmitResponse>("/tasks/download_services/", payload);
   return data;
 }

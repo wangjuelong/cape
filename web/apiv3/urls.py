@@ -28,6 +28,12 @@ urlpatterns = [
     path("tasks/<int:task_id>/", views.task_detail, name="task-detail"),
     path("tasks/file/", views.tasks_create_file, name="tasks-create-file"),
     path("tasks/url/", views.tasks_create_url, name="tasks-create-url"),
+    path("tasks/dlnexec/", views.tasks_create_dlnexec, name="tasks-create-dlnexec"),
+    path(
+        "tasks/download_services/",
+        views.tasks_create_download_services,
+        name="tasks-create-download-services",
+    ),
 
     # Reports
     path("reports/<int:task_id>/summary/", views.report_summary, name="report-summary"),

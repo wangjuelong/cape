@@ -103,6 +103,33 @@ class TaskUrlSubmitSerializer(serializers.Serializer):
     route = serializers.CharField(required=False, allow_blank=True)
 
 
+class TaskDlnexecSubmitSerializer(serializers.Serializer):
+    """``DL & Exec`` submission — host fetches the URL then runs the file."""
+    dlnexec = serializers.URLField()
+    package = serializers.CharField(required=False, allow_blank=True)
+    timeout = serializers.IntegerField(required=False)
+    priority = serializers.IntegerField(required=False, default=1)
+    options = serializers.CharField(required=False, allow_blank=True)
+    machine = serializers.CharField(required=False, allow_blank=True)
+    platform = serializers.CharField(required=False, allow_blank=True)
+    tags = serializers.CharField(required=False, allow_blank=True)
+    custom = serializers.CharField(required=False, allow_blank=True)
+    memory = serializers.BooleanField(required=False, default=False)
+    enforce_timeout = serializers.BooleanField(required=False, default=False)
+    clock = serializers.CharField(required=False, allow_blank=True)
+    tlp = serializers.CharField(required=False, allow_blank=True)
+    tags_tasks = serializers.CharField(required=False, allow_blank=True)
+    route = serializers.CharField(required=False, allow_blank=True)
+
+
+class TaskDownloadServicesSubmitSerializer(serializers.Serializer):
+    """Pull samples from VirusTotal / MalwareBazaar / etc by hash."""
+    hashes = serializers.CharField(help_text="comma-separated hashes")
+    options = serializers.CharField(required=False, allow_blank=True)
+    custom = serializers.CharField(required=False, allow_blank=True)
+    machine = serializers.CharField(required=False, allow_blank=True)
+
+
 # ---------------------------------------------------------------------------
 # Machines
 # ---------------------------------------------------------------------------

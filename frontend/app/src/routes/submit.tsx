@@ -1,387 +1,433 @@
-import { useState } from "react";
-import { useForm, Controller } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { AlertTriangle, Upload as UploadIcon, Globe } from "lucide-react";
+import {
+  AlertTriangle,
+  Bolt,
+  CloudDownload,
+  FileCode,
+  Files,
+  Globe,
+  Network,
+  Upload,
+} from "lucide-react";
 
 import { PageHead } from "@/components/shared/PageHead";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
+import { AdvancedOptionsCard } from "@/components/submit/AdvancedOptionsCard";
+import { CapeTogglesCard } from "@/components/submit/CapeTogglesCard";
+import {
+  SUBMIT_DEFAULTS,
+  type SubmitFormValues,
+  type SubmitMode,
+} from "@/components/submit/form-types";
+
+import { useFeatureFlags } from "@/hooks/useFeatureFlags";
 import { useMachines } from "@/hooks/useMachines";
-import { submitFile, submitUrl, type SubmitFileResponse } from "@/lib/api/tasks";
+import {
+  submitDlnexec,
+  submitDownloadServices,
+  submitFile,
+  submitUrl,
+  type SubmitResponse,
+} from "@/lib/api/tasks";
+import { buildOptionsString, type CapeToggles } from "@/lib/cape-options";
+import { cn } from "@/lib/utils";
 
-const advancedSchema = z.object({
-  package: z.string().optional(),
-  timeout: z.coerce.number().int().min(0).optional(),
-  priority: z.coerce.number().int().min(1).max(5).default(1),
-  options: z.string().optional(),
-  machine: z.string().optional(),
-  platform: z.string().optional(),
-  tags: z.string().optional(),
-  tags_tasks: z.string().optional(),
-  custom: z.string().optional(),
-  clock: z.string().optional(),
-  memory: z.boolean().default(false),
-  enforce_timeout: z.boolean().default(false),
-  unique: z.boolean().default(false),
-  referrer: z.string().url().optional().or(z.literal("")),
-  tlp: z.string().optional(),
-  route: z.string().optional(),
-  cape: z.string().optional(),
-  static: z.boolean().default(false),
-});
+interface TabDef {
+  key: SubmitMode;
+  label: string;
+  icon: React.ReactNode;
+  flag?: string;
+  hint: string;
+}
 
-const fileSchema = z.object({
-  files: z.custom<FileList>(
-    (v) => v instanceof FileList && v.length > 0,
-    "Select at least one file",
-  ),
-  pcap: z.boolean().default(false),
-  ...advancedSchema.shape,
-});
-
-type FileFields = z.infer<typeof fileSchema>;
-
-const urlSchema = z.object({
-  url: z.string().url("Enter a valid URL"),
-  ...advancedSchema.shape,
-});
-
-type UrlFields = z.infer<typeof urlSchema>;
-
-type Mode = "file" | "url";
+const TABS: TabDef[] = [
+  {
+    key: "file",
+    label: "File(s)",
+    icon: <Files size={14} />,
+    flag: "filecreate",
+    hint: "Upload one or more samples for analysis",
+  },
+  {
+    key: "downloading_service",
+    label: "Download",
+    icon: <CloudDownload size={14} />,
+    flag: "downloading_services",
+    hint: "Pull from VirusTotal / MalwareBazaar by hash",
+  },
+  {
+    key: "url",
+    label: "URL",
+    icon: <Globe size={14} />,
+    flag: "urlcreate",
+    hint: "Open URL inside the VM browser",
+  },
+  {
+    key: "dlnexec",
+    label: "DL & Exec",
+    icon: <Bolt size={14} />,
+    flag: "dlnexeccreate",
+    hint: "Host fetches the URL, then runs it as a sample",
+  },
+  {
+    key: "pcap",
+    label: "PCAP",
+    icon: <Network size={14} />,
+    flag: "filecreate",
+    hint: "Re-process a capture (no VM analysis)",
+  },
+  {
+    key: "static",
+    label: "Static",
+    icon: <FileCode size={14} />,
+    flag: "staticextraction",
+    hint: "Static-only analysis, skip the VM",
+  },
+];
 
 export default function SubmitRoute() {
-  const [mode, setMode] = useState<Mode>("file");
+  const navigate = useNavigate();
+  const flagsQuery = useFeatureFlags();
+  const flags = flagsQuery.data;
+
+  const visibleTabs = useMemo(
+    () => TABS.filter((t) => !t.flag || (flags?.[t.flag] ?? true)),
+    [flags],
+  );
+  const [mode, setMode] = useState<SubmitMode>(visibleTabs[0]?.key ?? "file");
+  const [error, setError] = useState<string | null>(null);
+
+  const {
+    control,
+    register,
+    handleSubmit,
+    reset,
+    formState: { isSubmitting },
+  } = useForm<SubmitFormValues>({ defaultValues: SUBMIT_DEFAULTS });
+
+  const machinesQuery = useMachines();
+  const machines = machinesQuery.data ?? [];
+
+  const mutation = useMutation<SubmitResponse, Error, SubmitFormValues>({
+    mutationFn: async (values) => {
+      const optionsString = buildOptionsString(values.options ?? "", values as CapeToggles);
+
+      if (mode === "url") {
+        return submitUrl({
+          url: values.url ?? "",
+          package: values.package,
+          timeout: values.timeout,
+          priority: values.priority,
+          options: optionsString,
+          machine: values.machine,
+          platform: values.platform,
+          tags: values.tags,
+          custom: values.custom,
+          memory: values.memory,
+          enforce_timeout: values.enforce_timeout,
+          clock: values.clock,
+          referrer: values.referrer,
+          tlp: values.tlp,
+          tags_tasks: values.tags_tasks,
+          route: values.route,
+        });
+      }
+
+      if (mode === "dlnexec") {
+        return submitDlnexec({
+          dlnexec: values.dlnexec ?? "",
+          package: values.package,
+          timeout: values.timeout,
+          priority: values.priority,
+          options: optionsString,
+          machine: values.machine,
+          platform: values.platform,
+          tags: values.tags,
+          custom: values.custom,
+          memory: values.memory,
+          enforce_timeout: values.enforce_timeout,
+          clock: values.clock,
+          tlp: values.tlp,
+          tags_tasks: values.tags_tasks,
+          route: values.route,
+        });
+      }
+
+      if (mode === "downloading_service") {
+        return submitDownloadServices({
+          hashes: values.hashes ?? "",
+          options: optionsString,
+          custom: values.custom,
+          machine: values.machine,
+        });
+      }
+
+      // file / pcap / static — multipart
+      const form = new FormData();
+      const files = values.files;
+      if (!files || files.length === 0) throw new Error("Select at least one file.");
+      for (const f of Array.from(files)) form.append("file", f);
+      if (mode === "pcap") form.set("pcap", "1");
+      if (mode === "static") form.set("static", "1");
+
+      const stringFields: Array<keyof SubmitFormValues> = [
+        "package",
+        "timeout",
+        "priority",
+        "machine",
+        "platform",
+        "tags",
+        "tags_tasks",
+        "custom",
+        "clock",
+        "referrer",
+        "tlp",
+        "route",
+      ];
+      for (const k of stringFields) {
+        const v = values[k];
+        if (v !== undefined && v !== "" && v !== null) form.set(k, String(v));
+      }
+      if (optionsString) form.set("options", optionsString);
+      if (values.memory) form.set("memory", "1");
+      if (values.enforce_timeout) form.set("enforce_timeout", "1");
+      if (values.unique) form.set("unique", "1");
+
+      if (values.pre_script && values.pre_script[0]) form.append("pre_script", values.pre_script[0]);
+      if (values.during_script && values.during_script[0])
+        form.append("during_script", values.during_script[0]);
+
+      return submitFile(form);
+    },
+    onSuccess: (resp) => {
+      reset(SUBMIT_DEFAULTS);
+      if (resp.task_ids.length > 0) navigate(`/tasks/${resp.task_ids[0]}`);
+    },
+    onError: (err) => setError(err.message),
+  });
+
+  function onSubmit(values: SubmitFormValues) {
+    setError(null);
+    mutation.mutate(values);
+  }
 
   return (
     <>
       <PageHead crumbs={["CAPE", "Submit"]} />
       <div className="flex-1 overflow-auto p-4">
-        <div className="mx-auto max-w-3xl">
-          <div className="mb-3 flex gap-2">
-            <Button
-              variant={mode === "file" ? "default" : "secondary"}
-              onClick={() => setMode("file")}
-            >
-              <UploadIcon size={14} />
-              File
-            </Button>
-            <Button
-              variant={mode === "url" ? "default" : "secondary"}
-              onClick={() => setMode("url")}
-            >
-              <Globe size={14} />
-              URL
-            </Button>
-          </div>
-          {mode === "file" ? <FileSubmitForm /> : <UrlSubmitForm />}
+        <div className="mx-auto max-w-4xl">
+          <ModeTabs value={mode} onChange={setMode} tabs={visibleTabs} />
+
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
+            <PrimaryInputCard mode={mode} register={register} />
+
+            <AdvancedOptionsCard
+              control={control}
+              register={register}
+              machines={machines}
+              showReferrer={mode === "url" || mode === "dlnexec"}
+              showPreScripts={mode === "file"}
+            />
+
+            <CapeTogglesCard control={control} />
+
+            {error && (
+              <Alert variant="destructive">
+                <AlertTriangle size={14} />
+                <AlertTitle>Submission failed</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            <div className="flex items-center justify-end gap-2">
+              <Button type="button" variant="secondary" onClick={() => reset(SUBMIT_DEFAULTS)}>
+                Reset
+              </Button>
+              <Button
+                type="submit"
+                variant="default"
+                disabled={isSubmitting || mutation.isPending}
+              >
+                {mutation.isPending ? <Spinner size={12} /> : <Upload size={14} />}
+                Submit
+              </Button>
+            </div>
+          </form>
         </div>
       </div>
     </>
   );
 }
 
-function FileSubmitForm() {
-  const navigate = useNavigate();
-  const [error, setError] = useState<string | null>(null);
-
-  const {
-    control,
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<FileFields>({
-    resolver: zodResolver(fileSchema),
-    defaultValues: {
-      priority: 1,
-      memory: false,
-      enforce_timeout: false,
-      unique: false,
-      static: false,
-      pcap: false,
-    },
-  });
-
-  const mutation = useMutation({
-    mutationFn: (form: FormData) => submitFile(form),
-    onSuccess: (resp) => navigate(`/tasks/${resp.task_ids[0]}`),
-    onError: (err: Error) => setError(err.message),
-  });
-
-  function onSubmit(values: FileFields) {
-    setError(null);
-    const form = new FormData();
-    Array.from(values.files).forEach((f) => form.append("file", f));
-    if (values.pcap) form.set("pcap", "1");
-    for (const [k, v] of Object.entries(values)) {
-      if (k === "files" || k === "pcap" || v === undefined || v === "" || v === false) continue;
-      form.set(k, typeof v === "boolean" ? "1" : String(v));
-    }
-    mutation.mutate(form);
-  }
-
-  return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
-      <Card>
-        <CardHeader>
-          <CardTitle>Sample</CardTitle>
-          <CardDescription>
-            Upload one or more files. PCAP and static-only modes are toggles below.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div>
-            <Label htmlFor="files">Files</Label>
-            <Input id="files" type="file" multiple {...register("files")} />
-            {errors.files && (
-              <p className="mt-1 text-[11px] text-[var(--color-sev-crit)]">
-                {errors.files.message as string}
-              </p>
-            )}
-          </div>
-          <ToggleRow control={control} name="pcap" label="Treat as PCAP / SAZ" />
-          <ToggleRow control={control} name="static" label="Static-only analysis (no VM)" />
-        </CardContent>
-      </Card>
-
-      <AdvancedOptions control={control} register={register} />
-
-      {error && (
-        <Alert variant="destructive">
-          <AlertTriangle size={14} />
-          <AlertTitle>Submission failed</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-
-      <Button type="submit" variant="default" disabled={isSubmitting || mutation.isPending}>
-        {mutation.isPending ? <Spinner size={12} /> : <UploadIcon size={14} />}
-        Submit
-      </Button>
-    </form>
-  );
+interface ModeTabsProps {
+  value: SubmitMode;
+  onChange: (v: SubmitMode) => void;
+  tabs: TabDef[];
 }
 
-function UrlSubmitForm() {
-  const navigate = useNavigate();
-  const [error, setError] = useState<string | null>(null);
-
-  const {
-    control,
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<UrlFields>({
-    resolver: zodResolver(urlSchema),
-    defaultValues: {
-      priority: 1,
-      memory: false,
-      enforce_timeout: false,
-      unique: false,
-      static: false,
-    },
-  });
-
-  const mutation = useMutation({
-    mutationFn: (data: UrlFields): Promise<SubmitFileResponse> =>
-      submitUrl({
-        url: data.url,
-        package: data.package,
-        timeout: data.timeout,
-        priority: data.priority,
-        options: data.options,
-        machine: data.machine,
-        platform: data.platform,
-        tags: data.tags,
-        custom: data.custom,
-        clock: data.clock,
-        memory: data.memory,
-        enforce_timeout: data.enforce_timeout,
-        referrer: data.referrer || undefined,
-        tlp: data.tlp,
-        tags_tasks: data.tags_tasks,
-        route: data.route,
-      }),
-    onSuccess: (resp) => navigate(`/tasks/${resp.task_ids[0]}`),
-    onError: (err: Error) => setError(err.message),
-  });
-
+function ModeTabs({ value, onChange, tabs }: ModeTabsProps) {
   return (
-    <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-3">
-      <Card>
-        <CardHeader>
-          <CardTitle>Target URL</CardTitle>
-          <CardDescription>
-            CAPE will fetch the URL inside the VM with the configured browser package.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Label htmlFor="url">URL</Label>
-          <Input id="url" type="url" placeholder="https://example.com/path" {...register("url")} />
-          {errors.url && (
-            <p className="mt-1 text-[11px] text-[var(--color-sev-crit)]">{errors.url.message}</p>
-          )}
-        </CardContent>
-      </Card>
-
-      <AdvancedOptions control={control} register={register} />
-
-      {error && (
-        <Alert variant="destructive">
-          <AlertTriangle size={14} />
-          <AlertTitle>Submission failed</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-
-      <Button type="submit" variant="default" disabled={isSubmitting || mutation.isPending}>
-        {mutation.isPending ? <Spinner size={12} /> : <UploadIcon size={14} />}
-        Submit
-      </Button>
-    </form>
-  );
-}
-
-interface AdvancedOptionsProps {
-  control: any;
-  register: any;
-}
-
-function AdvancedOptions({ control, register }: AdvancedOptionsProps) {
-  const machinesQuery = useMachines();
-  const machines = machinesQuery.data ?? [];
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Advanced options</CardTitle>
-        <CardDescription>
-          The 18 shared submission parameters (PRD §A.1). Leave blank to inherit defaults.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <Field label="Package">
-            <Input placeholder="exe, dll, doc, pdf, ie..." {...register("package")} />
-          </Field>
-          <Field label="Timeout (s)">
-            <Input type="number" min={0} placeholder="120" {...register("timeout")} />
-          </Field>
-          <Field label="Priority">
-            <Input type="number" min={1} max={5} {...register("priority")} />
-          </Field>
-          <Field label="Machine">
-            <Controller
-              control={control}
-              name="machine"
-              render={({ field }) => {
-                // Radix Select forbids "" as an item value (reserved for
-                // "clear"); translate to a sentinel and back.
-                const ANY = "__any__";
-                const value = field.value && field.value !== "" ? field.value : ANY;
-                return (
-                  <Select value={value} onValueChange={(v) => field.onChange(v === ANY ? "" : v)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="(any available)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={ANY}>(any available)</SelectItem>
-                      <SelectItem value="all">all machines</SelectItem>
-                      {machines.map((m) => (
-                        <SelectItem key={m.label} value={m.label}>
-                          {m.label} {m.platform ? `· ${m.platform}` : ""}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                );
+    <div className="mb-3">
+      <div className="flex flex-wrap gap-1.5">
+        {tabs.map((t) => {
+          const active = t.key === value;
+          return (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => onChange(t.key)}
+              className={cn(
+                "flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors",
+                active
+                  ? "text-[var(--color-fg-0)]"
+                  : "text-[var(--color-fg-1)] hover:text-[var(--color-fg-0)]",
+              )}
+              style={{
+                borderColor: active ? "var(--color-accent)" : "var(--color-border)",
+                background: active ? "var(--color-accent-soft)" : "var(--color-bg-1)",
               }}
-            />
-          </Field>
-          <Field label="Platform">
-            <Input placeholder="windows / linux" {...register("platform")} />
-          </Field>
-          <Field label="Route">
-            <Input
-              placeholder="none / internet / inetsim / tor / vpn:<name>"
-              {...register("route")}
-            />
-          </Field>
-          <Field label="Tags (sample)">
-            <Input placeholder="comma-separated" {...register("tags")} />
-          </Field>
-          <Field label="Tags (task)">
-            <Input placeholder="comma-separated" {...register("tags_tasks")} />
-          </Field>
-          <Field label="TLP">
-            <Input placeholder="white / green / amber / red" {...register("tlp")} />
-          </Field>
-          <Field label="Clock">
-            <Input placeholder="MM-DD-YYYY HH:MM:SS" {...register("clock")} />
-          </Field>
-          <Field label="Custom">
-            <Input placeholder="free text" {...register("custom")} />
-          </Field>
-          <Field label="Referrer">
-            <Input placeholder="https://..." {...register("referrer")} />
-          </Field>
-          <div className="md:col-span-2">
-            <Field label="Options (CAPE comma-separated)">
-              <Input placeholder="procdump=1,human=1,unpacker=2" {...register("options")} />
-            </Field>
-          </div>
-          <ToggleRow control={control} name="memory" label="Take guest memory dump" />
-          <ToggleRow control={control} name="enforce_timeout" label="Enforce timeout" />
-          <ToggleRow control={control} name="unique" label="Reject if sample already exists" />
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-1.5">
-      <Label>{label}</Label>
-      {children}
+            >
+              {t.icon}
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+      <p className="mt-1.5 text-[11px]" style={{ color: "var(--color-fg-2)" }}>
+        {tabs.find((t) => t.key === value)?.hint}
+      </p>
     </div>
   );
 }
 
-interface ToggleRowProps {
-  control: any;
-  name: string;
-  label: string;
+interface PrimaryInputCardProps {
+  mode: SubmitMode;
+  register: ReturnType<typeof useForm<SubmitFormValues>>["register"];
 }
 
-function ToggleRow({ control, name, label }: ToggleRowProps) {
-  return (
-    <Controller
-      control={control}
-      name={name}
-      render={({ field }) => (
-        <div className="flex items-center gap-2">
-          <Switch checked={!!field.value} onCheckedChange={field.onChange} />
-          <span className="text-xs" style={{ color: "var(--color-fg-1)" }}>
-            {label}
-          </span>
-        </div>
-      )}
-    />
-  );
+function PrimaryInputCard({ mode, register }: PrimaryInputCardProps) {
+  switch (mode) {
+    case "file":
+      return (
+        <Card>
+          <CardHeader>
+            <CardTitle>File(s)</CardTitle>
+            <CardDescription>
+              Multiple files supported. Each becomes a separate task.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Label htmlFor="files">Sample files</Label>
+            <Input id="files" type="file" multiple required {...register("files")} />
+          </CardContent>
+        </Card>
+      );
+    case "pcap":
+      return (
+        <Card>
+          <CardHeader>
+            <CardTitle>PCAP file(s)</CardTitle>
+            <CardDescription>
+              Network captures. SAZ files are auto-converted to PCAP.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Label htmlFor="pcap-files">PCAP / SAZ files</Label>
+            <Input id="pcap-files" type="file" multiple required {...register("files")} />
+          </CardContent>
+        </Card>
+      );
+    case "static":
+      return (
+        <Card>
+          <CardHeader>
+            <CardTitle>Static analysis</CardTitle>
+            <CardDescription>
+              Run static extractors only — no VM allocated. Useful for quick PE / Office / config triage.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Label htmlFor="static-files">Files</Label>
+            <Input id="static-files" type="file" multiple required {...register("files")} />
+          </CardContent>
+        </Card>
+      );
+    case "url":
+      return (
+        <Card>
+          <CardHeader>
+            <CardTitle>URL</CardTitle>
+            <CardDescription>
+              Open the URL inside the VM with the configured browser package.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Label htmlFor="url">URL</Label>
+            <Input
+              id="url"
+              type="url"
+              placeholder="https://example.com/path"
+              required
+              {...register("url")}
+            />
+          </CardContent>
+        </Card>
+      );
+    case "dlnexec":
+      return (
+        <Card>
+          <CardHeader>
+            <CardTitle>DL &amp; Exec</CardTitle>
+            <CardDescription>
+              Host downloads the URL, then submits the resulting file as a normal sample.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Label htmlFor="dlnexec">URL pointing at the binary</Label>
+            <Input
+              id="dlnexec"
+              type="url"
+              placeholder="https://malware.example/sample.exe"
+              required
+              {...register("dlnexec")}
+            />
+          </CardContent>
+        </Card>
+      );
+    case "downloading_service":
+      return (
+        <Card>
+          <CardHeader>
+            <CardTitle>Download from threat-intel service</CardTitle>
+            <CardDescription>
+              Pull samples from VirusTotal / MalwareBazaar / etc. by hash. Configure providers
+              under <code>[downloading_services]</code> in <code>api.conf</code>.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Label htmlFor="hashes">Hashes</Label>
+            <Input
+              id="hashes"
+              type="text"
+              placeholder="md5/sha1/sha256, comma-separated"
+              required
+              {...register("hashes")}
+            />
+            <p className="mt-1.5 text-[11px]" style={{ color: "var(--color-fg-2)" }}>
+              Tip: pass <code>options=apikey=&lt;vt_api_key&gt;</code> below to override the
+              configured VT key.
+            </p>
+          </CardContent>
+        </Card>
+      );
+  }
 }

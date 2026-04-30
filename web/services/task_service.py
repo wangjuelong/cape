@@ -119,6 +119,24 @@ def submit_url_request(request: Any) -> dict[str, Any]:
     return _submit_request(request, mode="url")
 
 
+def submit_dlnexec_request(request: Any) -> dict[str, Any]:
+    """Drives a 'download-and-execute' submission (request.data['dlnexec']).
+
+    The host fetches the URL, stages the file, and submits it as a normal
+    file analysis. Wraps v2's existing process_new_dlnexec_task helper.
+    """
+    return _submit_request(request, mode="dlnexec")
+
+
+def submit_download_services_request(request: Any) -> dict[str, Any]:
+    """Drives a third-party hash-based pull (VirusTotal / MalwareBazaar).
+
+    Caller passes ``hashes`` (comma-separated) and optional
+    ``options=apikey=<vt>`` etc. via the v2 download_from_3rdparty path.
+    """
+    return _submit_request(request, mode="download_services")
+
+
 def _submit_request(request: Any, *, mode: str) -> dict[str, Any]:
     from lib.cuckoo.common.web_utils import (
         download_file,
@@ -132,23 +150,23 @@ def _submit_request(request: Any, *, mode: str) -> dict[str, Any]:
 
     (
         static,
-        package,  # noqa: F841 — used implicitly via download_file
-        timeout,  # noqa: F841
+        package,
+        timeout,
         priority,
         options,
         machine,
-        platform,  # noqa: F841
-        tags,  # noqa: F841
+        platform,
+        tags,
         custom,
-        memory,  # noqa: F841
-        clock,  # noqa: F841
-        enforce_timeout,  # noqa: F841
+        memory,
+        clock,
+        enforce_timeout,
         unique,
-        referrer,  # noqa: F841
-        tlp,  # noqa: F841
-        tags_tasks,  # noqa: F841
-        route,  # noqa: F841
-        cape,  # noqa: F841
+        referrer,
+        tlp,
+        tags_tasks,
+        route,
+        cape,
     ) = parse_request_arguments(request, keyword="data")
 
     # Validate machine
@@ -185,13 +203,71 @@ def _submit_request(request: Any, *, mode: str) -> dict[str, Any]:
         url = request.data.get("url")
         if not url:
             return {"ok": False, "error_code": "url_required", "error_value": "url is required"}
-        details["url"] = url
-        status, payload = download_file(**details)
+        # add_url path: persist directly (matches v2 submit view, line 592+)
+        for entry in task_machines:
+            tid = db.add_url(
+                url=url,
+                package=package,
+                timeout=timeout,
+                priority=priority,
+                options=options,
+                machine=entry,
+                platform=platform,
+                tags=tags,
+                custom=custom,
+                memory=memory,
+                enforce_timeout=enforce_timeout,
+                clock=clock,
+                tlp=tlp,
+                route=route,
+                cape=cape,
+                tags_tasks=tags_tasks,
+                user_id=user_id,
+            )
+            _extend_task_ids(details["task_ids"], tid)
+        return _submit_response(details, machines=task_machines)
+
+    if mode == "dlnexec":
+        url = request.data.get("dlnexec") or request.data.get("url")
+        if not url:
+            return {"ok": False, "error_code": "url_required", "error_value": "dlnexec URL is required"}
+        try:
+            from lib.cuckoo.common.web_utils import process_new_dlnexec_task
+        except ImportError:
+            return {
+                "ok": False,
+                "error_code": "dlnexec_unavailable",
+                "error_value": "DL & exec helper not available in this build",
+            }
+        path, content, sha256 = process_new_dlnexec_task(url, route, options, custom)
+        if not path:
+            return {"ok": False, "error_code": "download_failed", "error_value": "Could not download from URL"}
+        details["path"] = path
+        details["content"] = content
+        details["service"] = "DLnExec"
+        details["source_url"] = url
+        status, tasks_details = download_file(**details)
         if status == "error":
-            return {"ok": False, "error_code": "submit_failed", "error_value": str(payload)}
-        details["task_ids"] = payload.get("task_ids", [])
-        if payload.get("errors"):
-            details["errors"].extend(payload["errors"])
+            return {"ok": False, "error_code": "submit_failed", "error_value": str(tasks_details)}
+        _extend_task_ids(details["task_ids"], tasks_details.get("task_ids"))
+        if tasks_details.get("errors"):
+            details["errors"].extend(tasks_details["errors"])
+        return _submit_response(details, machines=task_machines)
+
+    if mode == "download_services":
+        hashes = request.data.get("hashes", "")
+        if not hashes:
+            return {"ok": False, "error_code": "hashes_required", "error_value": "hashes is required"}
+        try:
+            from lib.cuckoo.common.web_utils import download_from_3rdparty, get_user_filename as _get_filename
+        except ImportError:
+            return {
+                "ok": False,
+                "error_code": "download_services_unavailable",
+                "error_value": "Download services helper not available",
+            }
+        opt_filename = _get_filename(options, custom)
+        details = download_from_3rdparty(hashes.strip(), opt_filename, details)
         return _submit_response(details, machines=task_machines)
 
     # mode == "file"

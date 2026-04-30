@@ -47,6 +47,8 @@ from apiv3.serializers import (
     StaticReportSerializer,
     SystemInfoSerializer,
     TaskCreateResponseSerializer,
+    TaskDlnexecSubmitSerializer,
+    TaskDownloadServicesSubmitSerializer,
     TaskListResponseSerializer,
     TaskSummarySerializer,
     TaskUrlSubmitSerializer,
@@ -282,6 +284,88 @@ def tasks_create_url(request: Request) -> Response:
         return _error("invalid_request", "validation failed", http_code=http_status.HTTP_400_BAD_REQUEST, **serializer.errors)
 
     result = task_service.submit_url_request(request)
+    if not result.get("ok"):
+        return _error(
+            result.get("error_code", "submit_failed"),
+            result.get("error_value", "submission failed"),
+            http_code=http_status.HTTP_400_BAD_REQUEST,
+        )
+    payload = {
+        "task_ids": result["task_ids"],
+        "message": result["message"],
+        "machines": result.get("machines", []),
+        "errors": result.get("errors", []),
+    }
+    return Response(TaskCreateResponseSerializer(payload).data, status=http_status.HTTP_201_CREATED)
+
+
+@extend_schema(
+    tags=["tasks"],
+    summary="Submit a URL for download-and-execute analysis.",
+    description=(
+        "Host fetches `dlnexec` URL, stores it as a sample, and runs it "
+        "as a normal file analysis. Useful when the URL points at the "
+        "actual binary rather than a landing page."
+    ),
+    request=TaskDlnexecSubmitSerializer,
+    responses={201: TaskCreateResponseSerializer, 400: ApiErrorSerializer},
+)
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def tasks_create_dlnexec(request: Request) -> Response:
+    from lib.cuckoo.common.web_utils import apiconf
+
+    if not apiconf.dlnexeccreate.get("enabled"):
+        return _error("dlnexec_disabled", "DL & exec API is disabled", http_code=http_status.HTTP_403_FORBIDDEN)
+
+    serializer = TaskDlnexecSubmitSerializer(data=request.data)
+    if not serializer.is_valid():
+        return _error("invalid_request", "validation failed", http_code=http_status.HTTP_400_BAD_REQUEST, **serializer.errors)
+
+    result = task_service.submit_dlnexec_request(request)
+    if not result.get("ok"):
+        return _error(
+            result.get("error_code", "submit_failed"),
+            result.get("error_value", "submission failed"),
+            http_code=http_status.HTTP_400_BAD_REQUEST,
+        )
+    payload = {
+        "task_ids": result["task_ids"],
+        "message": result["message"],
+        "machines": result.get("machines", []),
+        "errors": result.get("errors", []),
+    }
+    return Response(TaskCreateResponseSerializer(payload).data, status=http_status.HTTP_201_CREATED)
+
+
+@extend_schema(
+    tags=["tasks"],
+    summary="Pull samples from third-party services by hash and submit.",
+    description=(
+        "Wraps v2's `download_from_3rdparty` (VirusTotal / MalwareBazaar "
+        "/ etc, depending on what's configured under `[downloading_services]` "
+        "in api.conf). Optional `options=apikey=<vt_api_key>` for VT pulls."
+    ),
+    request=TaskDownloadServicesSubmitSerializer,
+    responses={201: TaskCreateResponseSerializer, 400: ApiErrorSerializer},
+)
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def tasks_create_download_services(request: Request) -> Response:
+    from lib.cuckoo.common.web_utils import apiconf
+
+    if not apiconf.downloading_services.get("enabled"):
+        return _error(
+            "download_services_disabled",
+            "Download services API is disabled",
+            http_code=http_status.HTTP_403_FORBIDDEN,
+        )
+
+    serializer = TaskDownloadServicesSubmitSerializer(data=request.data)
+    if not serializer.is_valid():
+        return _error("invalid_request", "validation failed", http_code=http_status.HTTP_400_BAD_REQUEST, **serializer.errors)
+
+    result = task_service.submit_download_services_request(request)
     if not result.get("ok"):
         return _error(
             result.get("error_code", "submit_failed"),
