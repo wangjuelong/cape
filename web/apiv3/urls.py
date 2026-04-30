@@ -27,6 +27,8 @@ urlpatterns = [
     # Tasks
     path("tasks/", views.tasks_list, name="tasks-list"),
     path("tasks/<int:task_id>/", views.task_detail, name="task-detail"),
+    path("tasks/<int:task_id>/delete/", views.task_delete, name="task-delete"),
+    path("tasks/<int:task_id>/errors/", views.task_errors, name="task-errors"),
     path("tasks/file/", views.tasks_create_file, name="tasks-create-file"),
     path("tasks/url/", views.tasks_create_url, name="tasks-create-url"),
     path("tasks/dlnexec/", views.tasks_create_dlnexec, name="tasks-create-dlnexec"),

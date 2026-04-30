@@ -245,6 +245,59 @@ def task_detail(_request: Request, task_id: int) -> Response:
 
 @extend_schema(
     tags=["tasks"],
+    summary="Delete a task and its on-disk + Mongo data.",
+    description=(
+        "Mirrors upstream `web/analysis/views.py:remove()`. Gated by the "
+        "`web.conf [delete] enabled` flag for non-staff users; staff can "
+        "always delete."
+    ),
+    responses={
+        200: OpenApiResponse(description="Task deleted"),
+        403: ApiErrorSerializer,
+        404: ApiErrorSerializer,
+    },
+)
+@api_view(["DELETE"])
+@permission_classes([IsAuthenticated])
+def task_delete(request: Request, task_id: int) -> Response:
+    from lib.cuckoo.common.config import Config
+
+    web_conf = Config("web")
+    delete_enabled = bool(getattr(web_conf.delete, "enabled", False))
+    if not delete_enabled and not getattr(request.user, "is_staff", False):
+        return _error(
+            "delete_disabled",
+            "Task deletion is disabled in web.conf and you are not staff.",
+            http_code=http_status.HTTP_403_FORBIDDEN,
+        )
+    result = task_service.delete_task(task_id)
+    if not result.get("ok"):
+        return _error(
+            result.get("error_code", "delete_failed"),
+            result.get("error_value", "delete failed"),
+            http_code=http_status.HTTP_404_NOT_FOUND,
+        )
+    return Response(result)
+
+
+@extend_schema(
+    tags=["tasks"],
+    summary="Cuckoo task error rows attached to this task.",
+    description=(
+        "Mirrors upstream `db.view_errors(task_id)` — used by the Recent "
+        "page to render an error indicator on rows that hit a problem "
+        "during analysis or processing."
+    ),
+)
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def task_errors(_request: Request, task_id: int) -> Response:
+    rows = task_service.view_task_errors(task_id)
+    return Response({"errors": rows})
+
+
+@extend_schema(
+    tags=["tasks"],
     summary="Submit a file for analysis (multipart).",
     description=(
         "Accepts multipart/form-data with a `file` field plus the 18 shared "

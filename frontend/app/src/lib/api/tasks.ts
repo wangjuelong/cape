@@ -27,6 +27,22 @@ export async function fetchTaskDetail(id: number): Promise<TaskSummary> {
   return data;
 }
 
+export interface TaskErrorRow {
+  message?: string;
+  action?: string | null;
+  [key: string]: unknown;
+}
+
+export async function fetchTaskErrors(id: number): Promise<TaskErrorRow[]> {
+  const { data } = await apiClient.get<{ errors: TaskErrorRow[] }>(`/tasks/${id}/errors/`);
+  return data.errors;
+}
+
+export async function deleteTask(id: number): Promise<{ ok: boolean }> {
+  const { data } = await apiClient.delete<{ ok: boolean }>(`/tasks/${id}/delete/`);
+  return data;
+}
+
 export interface SubmitResponse {
   task_ids: number[];
   message: string;

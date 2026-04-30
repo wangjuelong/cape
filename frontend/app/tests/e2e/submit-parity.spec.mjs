@@ -205,8 +205,6 @@ async function scrapeSPA(browser) {
 // Test
 // ---------------------------------------------------------------------------
 
-test.describe.configure({ mode: "serial" });
-
 test("submit form parity: upstream /submit/  ↔  SPA /submit", async ({ browser }) => {
   const upstreamFields = await scrapeUpstream(browser);
   const spaFields = await scrapeSPA(browser);

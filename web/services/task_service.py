@@ -98,6 +98,77 @@ def view_task(task_id: int) -> dict[str, Any] | None:
     return summary
 
 
+def view_task_errors(task_id: int) -> list[dict[str, Any]]:
+    """Mirror upstream `db.view_errors(task_id)` — returns the list of
+    Cuckoo task error rows attached to this task. Used by Recent page to
+    surface red banners when something went wrong during analysis."""
+    from lib.cuckoo.core.database import Database
+
+    db = Database()
+    rows = db.view_errors(task_id) or []
+    out: list[dict[str, Any]] = []
+    for r in rows:
+        if hasattr(r, "to_dict"):
+            d = r.to_dict()
+        else:
+            d = {"message": str(r)}
+        out.append(d)
+    return out
+
+
+def delete_task(task_id: int) -> dict[str, Any]:
+    """Mirror upstream `web/analysis/views.py:remove()` — delete DB row,
+    Mongo doc and storage folder. Caller is responsible for permission
+    checks (web.conf [delete] enabled OR is_staff)."""
+    import os
+
+    from django.conf import settings
+
+    from lib.cuckoo.common.path_utils import path_exists
+    from lib.cuckoo.core.database import Database
+
+    db = Database()
+    task = db.view_task(task_id)
+    if not task:
+        return {"ok": False, "error_code": "not_found", "error_value": f"task {task_id} not found"}
+
+    deleted_mongo = False
+    deleted_folder = False
+
+    # Delete Mongo doc if Mongo is enabled
+    try:
+        from dev_utils.mongodb import mongo_delete_data
+
+        try:
+            mongo_delete_data(int(task_id))
+            deleted_mongo = True
+        except Exception as exc:  # pragma: no cover — Mongo connectivity errors
+            log.debug("mongo_delete_data failed for task %s: %s", task_id, exc)
+    except ImportError:
+        pass
+
+    # Delete the storage/analyses/<task_id> folder if present
+    cuckoo_root = getattr(settings, "CUCKOO_PATH", None)
+    if cuckoo_root:
+        analyses_path = os.path.join(cuckoo_root, "storage", "analyses", str(task_id))
+        if path_exists(analyses_path):
+            try:
+                from lib.cuckoo.common.path_utils import delete_folder
+
+                delete_folder(analyses_path)
+                deleted_folder = True
+            except Exception as exc:  # pragma: no cover
+                log.debug("delete_folder failed for %s: %s", analyses_path, exc)
+
+    db.delete_task(task_id)
+    return {
+        "ok": True,
+        "task_id": task_id,
+        "deleted_mongo": deleted_mongo,
+        "deleted_folder": deleted_folder,
+    }
+
+
 # ---------------------------------------------------------------------------
 # Submission (thin wrapper around v2 helpers)
 # ---------------------------------------------------------------------------

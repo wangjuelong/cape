@@ -34,6 +34,13 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/_upstream\/submit/, "/submit"),
       },
+      // Same idea for /analysis/ — Recent page falls back to scraping
+      // when /api/v3/tasks/ is unavailable.
+      "/_upstream/analysis": {
+        target: apiTarget,
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/_upstream\/analysis/, "/analysis"),
+      },
     },
   },
   build: {

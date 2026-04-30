@@ -1,63 +1,149 @@
-import { useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
-import { Filter, Download, RefreshCw, Upload } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Files,
+  FileCode,
+  Globe,
+  Network,
+  RefreshCw,
+  Upload,
+} from "lucide-react";
 
 import { PageHead } from "@/components/shared/PageHead";
 import { Spinner } from "@/components/ui/spinner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { LiveIndicator } from "@/components/recent/LiveIndicator";
-import { TaskTable } from "@/components/recent/TaskTable";
+import { AnalysisCategoryTable } from "@/components/recent/AnalysisCategoryTable";
 import { useTaskList } from "@/hooks/useTaskList";
 import { useTaskEvents } from "@/hooks/useTaskEvents";
-import type { TaskListFilters, TaskStatus, TaskSummary } from "@/types/api";
+import { useAnalysisScrape } from "@/hooks/useAnalysisScrape";
+import type { TaskListFilters } from "@/types/api";
+
+/**
+ * Recent analyses — mirrors upstream `web/templates/analysis/index.html`.
+ *
+ * Four sub-tabs (Files / Static / URLs / PCAPs), each a separate
+ * `db.list_tasks(category=…, not_status=pending)` query. The active tab
+ * is persisted in localStorage so the user lands on the same view on
+ * refresh, matching upstream's `localStorage.lastTab` JS.
+ *
+ * Visual style stays in the SOC dark design system (panel + table.data).
+ */
+
+type AnalysisTab = "files" | "static" | "urls" | "pcaps";
+
+const TABS: Array<{
+  key: AnalysisTab;
+  label: string;
+  category: "file" | "static" | "url" | "pcap";
+  icon: React.ReactNode;
+  emptyIcon: React.ReactNode;
+  emptyText: string;
+}> = [
+  {
+    key: "files",
+    label: "Files",
+    category: "file",
+    icon: <Files size={14} />,
+    emptyIcon: <Files size={36} />,
+    emptyText: "No file analyses to display on this page.",
+  },
+  {
+    key: "static",
+    label: "Static",
+    category: "static",
+    icon: <FileCode size={14} />,
+    emptyIcon: <FileCode size={36} />,
+    emptyText: "No static analyses to display on this page.",
+  },
+  {
+    key: "urls",
+    label: "URLs",
+    category: "url",
+    icon: <Globe size={14} />,
+    emptyIcon: <Globe size={36} />,
+    emptyText: "No URLs to display on this page.",
+  },
+  {
+    key: "pcaps",
+    label: "PCAPs",
+    category: "pcap",
+    icon: <Network size={14} />,
+    emptyIcon: <Network size={36} />,
+    emptyText: "No PCAPs to display on this page.",
+  },
+];
+
+const TAB_STORAGE_KEY = "cape.recent.tab";
 
 export default function RecentRoute() {
-  const [params, setParams] = useSearchParams();
-  const filters = useMemo<TaskListFilters>(() => {
-    const status = params.get("status");
-    const category = params.get("category");
-    return {
-      status: status && status !== "any" ? (status as TaskStatus) : undefined,
-      category: category && category !== "any" ? category : undefined,
-      limit: 50,
-    };
-  }, [params]);
+  // Tab gating mirrors upstream's `{% if config.url_analysis %}` block in
+  // analysis/index.html. We always use the upstream `/analysis/` HTML
+  // scrape as the source of truth — it works against both this fork and a
+  // vanilla CAPE since neither replaces the legacy /analysis/ Django app.
+  // While the scrape is in flight, render every tab so the layout doesn't
+  // shift when the data lands.
+  const analysis = useAnalysisScrape().data;
+  const visibleTabs = useMemo(() => {
+    if (!analysis) return TABS;
+    return TABS.filter((t) => {
+      if (t.key !== "urls") return true;
+      return analysis.tabs.url === true;
+    });
+  }, [analysis]);
 
-  const setParam = (key: string, value: string | null) => {
-    const next = new URLSearchParams(params);
-    if (!value || value === "any") {
-      next.delete(key);
-    } else {
-      next.set(key, value);
+  const [activeTab, setActiveTab] = useState<AnalysisTab>(() => {
+    if (typeof window === "undefined") return "files";
+    const saved = window.localStorage.getItem(TAB_STORAGE_KEY) as AnalysisTab | null;
+    return saved && TABS.some((t) => t.key === saved) ? saved : "files";
+  });
+
+  // Mirror upstream's localStorage.setItem('lastTab', ...)
+  useEffect(() => {
+    window.localStorage.setItem(TAB_STORAGE_KEY, activeTab);
+  }, [activeTab]);
+
+  // Drop saved tab if it became hidden (e.g. URLs tab disabled after restart)
+  useEffect(() => {
+    if (!visibleTabs.some((t) => t.key === activeTab)) {
+      setActiveTab(visibleTabs[0]?.key ?? "files");
     }
-    setParams(next, { replace: true });
-  };
+  }, [visibleTabs, activeTab]);
+
+  const tabDef = visibleTabs.find((t) => t.key === activeTab) ?? visibleTabs[0] ?? TABS[0];
+
+  // Upstream excludes pending tasks from each Recent listing — match that.
+  const filters = useMemo<TaskListFilters>(
+    () => ({
+      category: tabDef.category,
+      limit: 50,
+    }),
+    [tabDef.category],
+  );
 
   const query = useTaskList(filters);
   const { connected } = useTaskEvents();
-  const localQuery = (params.get("q") ?? "").trim();
-  const filtered = applyLocalFilter(query.tasks, localQuery);
-
-  const statusFilter = params.get("status");
-  const categoryFilter = params.get("category");
-  const activeChips: Array<{ key: string; label: string }> = [];
-  if (statusFilter) activeChips.push({ key: "status", label: `status:${statusFilter}` });
-  if (categoryFilter) activeChips.push({ key: "category", label: `category:${categoryFilter}` });
-  if (localQuery) activeChips.push({ key: "q", label: `q:${localQuery}` });
+  // Visible items = everything except status="pending" (mirrors upstream
+  // `not_status=TASK_PENDING`).
+  const items = useMemo(
+    () => query.tasks.filter((t) => t.status !== "pending"),
+    [query.tasks],
+  );
 
   return (
     <>
       <PageHead
-        crumbs={["CAPE", "Recent"]}
+        crumbs={["CAPE", "Recent analyses"]}
         actions={
           <>
-            <button type="button" className="btn" onClick={() => query.refetch()}>
+            <LiveIndicator connected={connected} />
+            <button
+              type="button"
+              className="btn"
+              onClick={() => query.refetch()}
+              disabled={query.isFetching}
+            >
               <RefreshCw size={14} />
               <span>Refresh</span>
-            </button>
-            <button type="button" className="btn">
-              <Download size={14} />
-              <span>Export CSV</span>
             </button>
             <a className="btn primary" href="/submit">
               <Upload size={14} />
@@ -67,206 +153,74 @@ export default function RecentRoute() {
         }
       />
 
-      <div
-        style={{
-          padding: "8px 14px",
-          borderBottom: "1px solid var(--color-border)",
-          background: "var(--color-bg-1)",
-          display: "flex",
-          gap: 6,
-          alignItems: "center",
-          flexWrap: "wrap",
-          fontSize: 12,
-        }}
-      >
-        <span
-          className="dim mono"
-          style={{ fontSize: 11, marginRight: 4, textTransform: "uppercase", letterSpacing: "0.08em" }}
-        >
-          <Filter size={12} style={{ display: "inline-block", marginRight: 4, verticalAlign: -2 }} />
-          FILTER:
-        </span>
-        {activeChips.length === 0 && (
-          <span className="dim mono" style={{ fontSize: 11 }}>
-            (none)
-          </span>
-        )}
-        {activeChips.map((c) => (
+      {/* Sub-tab strip — same look as the report page tabs (.tabs / .tab) */}
+      <div className="tabs" style={{ paddingLeft: 14 }}>
+        {visibleTabs.map((t) => (
           <button
-            key={c.key}
+            key={t.key}
             type="button"
-            className="tag accent"
-            onClick={() => setParam(c.key, null)}
-            title="Click to remove"
-            style={{ cursor: "pointer", border: "1px solid rgba(77,212,255,0.25)" }}
+            role="tab"
+            aria-selected={activeTab === t.key}
+            data-state={activeTab === t.key ? "active" : "inactive"}
+            className={"tab" + (activeTab === t.key ? " active" : "")}
+            onClick={() => setActiveTab(t.key)}
           >
-            {c.label} <span style={{ marginLeft: 4 }}>×</span>
+            {t.icon}
+            <span>{t.label}</span>
           </button>
         ))}
-        <FilterAddMenu
-          label="+ status"
-          options={[
-            { v: "reported", l: "reported" },
-            { v: "running", l: "running" },
-            { v: "pending", l: "pending" },
-            { v: "completed", l: "completed" },
-            { v: "failed_analysis", l: "failed_analysis" },
-            { v: "failed_processing", l: "failed_processing" },
-            { v: "failed_reporting", l: "failed_reporting" },
-          ]}
-          active={statusFilter}
-          onPick={(v) => setParam("status", v)}
-        />
-        <FilterAddMenu
-          label="+ category"
-          options={[
-            { v: "file", l: "file" },
-            { v: "url", l: "url" },
-            { v: "pcap", l: "pcap" },
-            { v: "static", l: "static" },
-            { v: "archive", l: "archive" },
-          ]}
-          active={categoryFilter}
-          onPick={(v) => setParam("category", v)}
-        />
-        <input
-          type="search"
-          className="mono"
-          placeholder="filter target / hash"
-          value={localQuery}
-          onChange={(e) => setParam("q", e.target.value)}
-          style={{
-            height: 22,
-            padding: "0 8px",
-            background: "var(--color-bg-2)",
-            border: "1px solid var(--color-border)",
-            color: "var(--color-fg-0)",
-            borderRadius: 3,
-            fontSize: 11,
-            minWidth: 180,
-          }}
-        />
-
-        <div style={{ flex: 1 }} />
-        {query.isFetching && <Spinner size={12} />}
-        <span className="dim mono" style={{ fontSize: 11 }}>
-          showing {filtered.length} of {query.tasks.length}
-          {query.hasNextPage ? " · more available" : ""}
-        </span>
-        <LiveIndicator connected={connected} />
       </div>
-
-      {query.isError && (
-        <div style={{ padding: "12px 14px" }}>
-          <Alert variant="destructive">
-            <AlertTitle>Failed to load tasks</AlertTitle>
-            <AlertDescription>{(query.error as Error).message}</AlertDescription>
-          </Alert>
-        </div>
-      )}
 
       <div className="scroll" style={{ flex: 1 }}>
-        <TaskTable data={filtered} />
-      </div>
+        <div style={{ padding: 14 }}>
+          <div className="panel">
+            <div className="panel-h">
+              Recent {tabDef.label}
+              <span className="count">· {items.length} item{items.length === 1 ? "" : "s"}</span>
+              <div className="actions">
+                {query.isFetching && <Spinner size={12} />}
+              </div>
+            </div>
 
-      {query.hasNextPage && (
-        <div
-          style={{
-            borderTop: "1px solid var(--color-border)",
-            background: "var(--color-bg-1)",
-            padding: "8px 14px",
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            fontSize: 11,
-            fontFamily: "var(--font-mono)",
-            color: "var(--color-fg-2)",
-          }}
-        >
-          <span>{filtered.length} loaded</span>
-          <div style={{ flex: 1 }} />
-          <button
-            type="button"
-            className="btn ghost"
-            disabled={query.isFetchingNextPage}
-            onClick={() => query.fetchNextPage()}
-            style={{ height: 22 }}
-          >
-            {query.isFetchingNextPage ? <Spinner size={12} /> : null}
-            Load more →
-          </button>
+            {query.isError && (
+              <div style={{ padding: 12 }}>
+                <Alert variant="destructive">
+                  <AlertTitle>Failed to load tasks</AlertTitle>
+                  <AlertDescription>{(query.error as Error).message}</AlertDescription>
+                </Alert>
+              </div>
+            )}
+
+            <AnalysisCategoryTable
+              data={items}
+              category={tabDef.category}
+              emptyIcon={tabDef.emptyIcon}
+              emptyText={tabDef.emptyText}
+            />
+          </div>
+
+          {query.hasNextPage && (
+            <div
+              style={{
+                marginTop: 14,
+                display: "flex",
+                justifyContent: "center",
+                gap: 10,
+              }}
+            >
+              <button
+                type="button"
+                className="btn"
+                disabled={query.isFetchingNextPage}
+                onClick={() => query.fetchNextPage()}
+              >
+                {query.isFetchingNextPage ? <Spinner size={12} /> : null}
+                <span>Load more</span>
+              </button>
+            </div>
+          )}
         </div>
-      )}
-    </>
-  );
-}
-
-function applyLocalFilter(rows: TaskSummary[], query: string): TaskSummary[] {
-  const q = query.trim().toLowerCase();
-  if (!q) return rows;
-  return rows.filter(
-    (r) =>
-      r.target.toLowerCase().includes(q) ||
-      r.sha256?.toLowerCase().includes(q) ||
-      r.sha1?.toLowerCase().includes(q) ||
-      r.md5?.toLowerCase().includes(q),
-  );
-}
-
-interface FilterAddMenuProps {
-  label: string;
-  options: Array<{ v: string; l: string }>;
-  active: string | null;
-  onPick: (v: string) => void;
-}
-
-function FilterAddMenu({ label, options, active, onPick }: FilterAddMenuProps) {
-  return (
-    <details style={{ position: "relative" }}>
-      <summary
-        className="tag"
-        style={{ cursor: "pointer", listStyle: "none" }}
-        title="Click to add a filter"
-      >
-        {label}
-      </summary>
-      <div
-        style={{
-          position: "absolute",
-          top: 22,
-          left: 0,
-          background: "var(--color-bg-2)",
-          border: "1px solid var(--color-border)",
-          borderRadius: 4,
-          padding: 4,
-          zIndex: 10,
-          minWidth: 140,
-          boxShadow: "var(--shadow-1)",
-        }}
-      >
-        {options.map((o) => (
-          <button
-            key={o.v}
-            type="button"
-            onClick={() => onPick(o.v)}
-            className="mono"
-            style={{
-              display: "block",
-              width: "100%",
-              textAlign: "left",
-              padding: "4px 8px",
-              background: active === o.v ? "var(--color-accent-soft)" : "transparent",
-              color: active === o.v ? "var(--color-accent)" : "var(--color-fg-1)",
-              border: "none",
-              fontSize: 11,
-              cursor: "pointer",
-              borderRadius: 2,
-            }}
-          >
-            {o.l}
-          </button>
-        ))}
       </div>
-    </details>
+    </>
   );
 }
