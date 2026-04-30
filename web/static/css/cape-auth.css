@@ -55,7 +55,8 @@ body {
   background: var(--color-bg-0);
   color: var(--color-fg-0);
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: 15px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -83,23 +84,23 @@ a:hover {
 .cape-auth__brand {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 20px;
-  font-size: 16px;
+  gap: 12px;
+  margin-bottom: 28px;
+  font-size: 22px;
   font-weight: 600;
   letter-spacing: 0.02em;
   color: var(--color-fg-0);
 }
 .cape-auth__brand-mark {
-  width: 14px;
-  height: 14px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   background: var(--color-accent);
-  box-shadow: 0 0 18px var(--color-accent-soft);
+  box-shadow: 0 0 24px var(--color-accent-soft);
 }
 .cape-auth__brand-version {
-  margin-left: 4px;
-  font-size: 10px;
+  margin-left: 6px;
+  font-size: 12px;
   font-weight: 400;
   color: var(--color-fg-2);
 }
@@ -107,41 +108,42 @@ a:hover {
 /* Card */
 .cape-auth__card {
   width: 100%;
-  max-width: 380px;
+  max-width: 480px;
   background: var(--color-bg-1);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  border-radius: 10px;
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.5);
   overflow: hidden;
 }
 .cape-auth__card-header {
-  padding: 18px 22px 8px;
+  padding: 28px 32px 12px;
 }
 .cape-auth__card-header h1 {
-  margin: 0 0 4px;
-  font-size: 16px;
+  margin: 0 0 6px;
+  font-size: 22px;
   font-weight: 600;
   color: var(--color-fg-0);
+  letter-spacing: -0.01em;
 }
 .cape-auth__card-header p {
   margin: 0;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--color-fg-1);
   line-height: 1.55;
 }
 .cape-auth__card-body {
-  padding: 14px 22px 22px;
+  padding: 18px 32px 28px;
 }
 .cape-auth__card-footer {
-  padding: 12px 22px 16px;
-  font-size: 11px;
+  padding: 16px 32px 20px;
+  font-size: 13px;
   color: var(--color-fg-2);
   border-top: 1px solid var(--color-border);
   background: var(--color-bg-2);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   flex-wrap: wrap;
 }
 
@@ -149,14 +151,14 @@ a:hover {
 .cape-auth__field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin-bottom: 12px;
+  gap: 6px;
+  margin-bottom: 16px;
 }
 .cape-auth__label {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   color: var(--color-fg-2);
 }
 .cape-auth__input,
@@ -166,14 +168,14 @@ a:hover {
 .cape-auth__card input[type="url"],
 .cape-auth__card input[type="number"] {
   width: 100%;
-  height: 32px;
-  padding: 0 10px;
+  height: 42px;
+  padding: 0 14px;
   background: var(--color-bg-2);
   color: var(--color-fg-0);
   border: 1px solid var(--color-border);
-  border-radius: 4px;
+  border-radius: 6px;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 14px;
   outline: none;
   transition: border-color 120ms ease, box-shadow 120ms ease;
 }
@@ -189,12 +191,14 @@ a:hover {
 .cape-auth__checkbox {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12px;
+  gap: 10px;
+  font-size: 13px;
   color: var(--color-fg-1);
-  margin: 6px 0 14px;
+  margin: 8px 0 18px;
 }
 .cape-auth__checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
   accent-color: var(--color-accent);
 }
 
@@ -203,16 +207,19 @@ a:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  height: 32px;
-  padding: 0 14px;
-  font-size: 12px;
+  gap: 8px;
+  height: 42px;
+  padding: 0 18px;
+  font-size: 14px;
   font-weight: 600;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
   text-decoration: none;
-  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease, transform 80ms ease;
   border: 1px solid transparent;
+}
+.cape-auth__btn:active {
+  transform: translateY(1px);
 }
 .cape-auth__btn--primary {
   background: var(--color-accent);
@@ -237,16 +244,17 @@ a:hover {
 
 /* Validation / messages */
 .cape-auth__error {
-  margin-top: 4px;
-  font-size: 11px;
+  margin-top: 6px;
+  font-size: 12px;
   color: var(--color-sev-crit);
 }
 .cape-auth__alert {
-  padding: 10px 12px;
-  border-radius: 4px;
-  font-size: 12px;
+  padding: 12px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.55;
   border: 1px solid var(--color-border);
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 .cape-auth__alert--error {
   background: color-mix(in oklch, var(--color-sev-crit) 12%, transparent);
@@ -266,7 +274,7 @@ a:hover {
 
 /* Help text under fields */
 .cape-auth__help {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--color-fg-2);
   line-height: 1.5;
 }
@@ -287,7 +295,7 @@ a:hover {
 .cape-auth__card .form-group,
 .cape-auth__card .mb-3,
 .cape-auth__card .form-floating {
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 .cape-auth__card .form-control,
 .cape-auth__card .textinput,
@@ -297,31 +305,32 @@ a:hover {
   background: var(--color-bg-2) !important;
   color: var(--color-fg-0) !important;
   border: 1px solid var(--color-border) !important;
-  height: 32px;
-  padding: 0 10px;
+  height: 42px;
+  padding: 0 14px;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 14px;
+  border-radius: 6px;
 }
 .cape-auth__card label {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   color: var(--color-fg-2);
   display: block;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 .cape-auth__card .form-text,
 .cape-auth__card small {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--color-fg-2);
 }
 .cape-auth__card .invalid-feedback,
 .cape-auth__card .errorlist {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--color-sev-crit);
   list-style: none;
-  margin: 4px 0 0;
+  margin: 6px 0 0;
   padding: 0;
 }
 
@@ -329,11 +338,11 @@ a:hover {
 .cape-auth__oauth-divider {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin: 16px 0 12px;
-  font-size: 10px;
+  gap: 12px;
+  margin: 22px 0 16px;
+  font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.10em;
   color: var(--color-fg-2);
 }
 .cape-auth__oauth-divider::before,
@@ -345,18 +354,18 @@ a:hover {
 }
 .cape-auth__oauth-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
-  gap: 6px;
+  grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
+  gap: 8px;
 }
 .cape-auth__oauth-btn {
   display: grid;
   place-items: center;
-  height: 36px;
+  height: 44px;
   border: 1px solid var(--color-border);
   background: var(--color-bg-2);
   color: var(--color-fg-1);
-  border-radius: 4px;
-  font-size: 14px;
+  border-radius: 6px;
+  font-size: 16px;
   text-decoration: none;
   transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
 }
