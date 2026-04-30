@@ -1,38 +1,110 @@
 /*
- * Design tokens migrated from frontend/web-design/styles.css to Tailwind v4 @theme.
- * Keeps severity / background / foreground naming aligned with the design canvas
- * so existing JSX previews remain a faithful spec.
+ * CAPEv2 SOC analyst design tokens.
+ * Direct port of frontend/web-design/styles.css (the design canvas) so that
+ * the SPA renders pixel-equivalent to "CAPEv2 Redesign.html".
+ *
+ * Light mode is also defined; a future toggle can flip [data-theme="light"]
+ * on <html>.
  */
 
-@theme {
-  --color-sev-crit: oklch(0.66 0.2 22);
-  --color-sev-high: oklch(0.74 0.16 50);
-  --color-sev-med: oklch(0.81 0.14 88);
-  --color-sev-low: oklch(0.85 0.1 230);
-  --color-sev-clean: oklch(0.78 0.12 155);
-
+:root {
+  /* dark default */
   --color-bg-0: #0a0d12;
-  --color-bg-1: #0f131a;
-  --color-bg-2: #161b24;
-  --color-bg-3: #1f2530;
+  --color-bg-1: #0f141b;
+  --color-bg-2: #151b25;
+  --color-bg-3: #1c2330;
+  --color-bg-hover: #232c3c;
+  --color-border: #232c3a;
+  --color-border-strong: #2e3a4d;
+  --color-fg-0: #e6ecf2;
+  --color-fg-1: #b6c0cc;
+  --color-fg-2: #7a8696;
+  --color-fg-3: #56627a;
 
-  --color-fg-0: #e6e9ef;
-  --color-fg-1: #b3b9c5;
-  --color-fg-2: #6b7280;
+  /* accent (cyan) */
+  --color-accent: #4dd4ff;
+  --color-accent-soft: rgba(77, 212, 255, 0.12);
+  --color-accent-strong: #88e2ff;
 
-  --color-border: #232a36;
-  --color-border-strong: #3a4250;
+  /* severity ramp */
+  --color-sev-clean: #2bd97a;
+  --color-sev-low: #c7d640;
+  --color-sev-med: #f0b347;
+  --color-sev-high: #ff7a3a;
+  --color-sev-crit: #ff4f6b;
 
-  --color-accent: oklch(0.78 0.13 220);
-  --color-accent-strong: oklch(0.86 0.13 220);
-  --color-accent-soft: oklch(0.78 0.13 220 / 0.14);
+  --color-sev-clean-bg: rgba(43, 217, 122, 0.12);
+  --color-sev-low-bg: rgba(199, 214, 64, 0.12);
+  --color-sev-med-bg: rgba(240, 179, 71, 0.14);
+  --color-sev-high-bg: rgba(255, 122, 58, 0.14);
+  --color-sev-crit-bg: rgba(255, 79, 107, 0.14);
 
-  --font-mono:
-    ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --font-mono: "JetBrains Mono", "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 
-  --spacing-row-dense: 28px;
-  --spacing-row-regular: 36px;
-  --spacing-row-comfy: 44px;
+  --row-h: 32px;
+  --radius: 4px;
+  --shadow-1:
+    0 1px 0 rgba(255, 255, 255, 0.02), 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+[data-theme="light"] {
+  --color-bg-0: #f4f6f8;
+  --color-bg-1: #ffffff;
+  --color-bg-2: #f8fafc;
+  --color-bg-3: #eef2f6;
+  --color-bg-hover: #e6ecf2;
+  --color-border: #e2e8ee;
+  --color-border-strong: #cbd3dc;
+  --color-fg-0: #0f1721;
+  --color-fg-1: #2d3a4d;
+  --color-fg-2: #5a6878;
+  --color-fg-3: #8d99a8;
+  --color-accent: #0a8fc1;
+  --color-accent-soft: rgba(10, 143, 193, 0.1);
+  --color-accent-strong: #066c93;
+  --color-sev-clean: #1aa75e;
+  --color-sev-low: #888c2e;
+  --color-sev-med: #cb8a1a;
+  --color-sev-high: #d85e1d;
+  --color-sev-crit: #d63a55;
+  --color-sev-clean-bg: rgba(26, 167, 94, 0.1);
+  --color-sev-low-bg: rgba(136, 140, 46, 0.1);
+  --color-sev-med-bg: rgba(203, 138, 26, 0.12);
+  --color-sev-high-bg: rgba(216, 94, 29, 0.12);
+  --color-sev-crit-bg: rgba(214, 58, 85, 0.12);
+}
+
+[data-density="comfy"] {
+  --row-h: 40px;
+}
+
+/*
+ * Tailwind v4 @theme bindings — expose the same tokens to Tailwind so
+ * `bg-[var(--color-bg-1)]`, `text-fg-0`, etc. continue to work.
+ */
+@theme {
+  --color-bg-0: var(--color-bg-0);
+  --color-bg-1: var(--color-bg-1);
+  --color-bg-2: var(--color-bg-2);
+  --color-bg-3: var(--color-bg-3);
+  --color-fg-0: var(--color-fg-0);
+  --color-fg-1: var(--color-fg-1);
+  --color-fg-2: var(--color-fg-2);
+  --color-fg-3: var(--color-fg-3);
+  --color-border: var(--color-border);
+  --color-border-strong: var(--color-border-strong);
+  --color-accent: var(--color-accent);
+  --color-accent-soft: var(--color-accent-soft);
+  --color-accent-strong: var(--color-accent-strong);
+  --color-sev-clean: var(--color-sev-clean);
+  --color-sev-low: var(--color-sev-low);
+  --color-sev-med: var(--color-sev-med);
+  --color-sev-high: var(--color-sev-high);
+  --color-sev-crit: var(--color-sev-crit);
+
+  --font-mono: var(--font-mono);
+  --font-sans: var(--font-sans);
 
   --radius-xs: 2px;
   --radius-sm: 3px;

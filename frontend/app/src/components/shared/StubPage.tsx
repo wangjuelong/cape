@@ -7,43 +7,66 @@ interface StubPageProps {
   todo?: string[];
 }
 
+/**
+ * Placeholder for routes that have not yet wired to v3 data. Renders the
+ * design's `.panel` shell so the SOC look is preserved even on stub pages.
+ */
 export function StubPage({ title, crumbs, description, todo }: StubPageProps) {
   return (
     <>
       <PageHead crumbs={crumbs ?? ["CAPE", title]} />
-      <div className="flex-1 p-6">
-        <div
-          className="max-w-2xl rounded-md border p-6"
-          style={{
-            background: "var(--color-bg-1)",
-            borderColor: "var(--color-border)",
-          }}
-        >
-          <h1 className="mb-2 text-base font-semibold" style={{ color: "var(--color-fg-0)" }}>
+      <div className="scroll" style={{ padding: 14 }}>
+        <div className="panel" style={{ maxWidth: 720 }}>
+          <div className="panel-h">
             {title}
-          </h1>
-          {description && (
-            <p className="mb-4 text-xs leading-relaxed" style={{ color: "var(--color-fg-1)" }}>
-              {description}
-            </p>
-          )}
-          {todo && todo.length > 0 && (
-            <>
-              <div
-                className="mb-2 text-[10px] font-semibold uppercase tracking-wider"
-                style={{ color: "var(--color-fg-2)" }}
+            <span className="count">· pending implementation</span>
+          </div>
+          <div style={{ padding: 14 }}>
+            {description && (
+              <p
+                style={{
+                  margin: 0,
+                  marginBottom: 14,
+                  fontSize: 12,
+                  color: "var(--color-fg-1)",
+                  lineHeight: 1.6,
+                }}
               >
-                Pending implementation
-              </div>
-              <ul className="list-disc pl-5 text-xs" style={{ color: "var(--color-fg-1)" }}>
-                {todo.map((item) => (
-                  <li key={item} className="mb-1">
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
+                {description}
+              </p>
+            )}
+            {todo && todo.length > 0 && (
+              <>
+                <div
+                  className="dim mono"
+                  style={{
+                    fontSize: 10.5,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.08em",
+                    fontWeight: 600,
+                    marginBottom: 6,
+                  }}
+                >
+                  Pending wires
+                </div>
+                <ul
+                  style={{
+                    margin: 0,
+                    paddingLeft: 18,
+                    fontSize: 11.5,
+                    color: "var(--color-fg-1)",
+                    fontFamily: "var(--font-mono)",
+                  }}
+                >
+                  {todo.map((item) => (
+                    <li key={item} style={{ marginBottom: 4 }}>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </>

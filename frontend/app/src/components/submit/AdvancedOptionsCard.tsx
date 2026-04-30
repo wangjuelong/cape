@@ -105,7 +105,10 @@ export function AdvancedOptionsCard({
               control={control}
               name="platform"
               render={({ field }) => (
-                <Select value={field.value || "any"} onValueChange={(v) => field.onChange(v === "any" ? "" : v)}>
+                <Select
+                  value={field.value || "any"}
+                  onValueChange={(v) => field.onChange(v === "any" ? "" : v)}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -138,7 +141,10 @@ export function AdvancedOptionsCard({
               control={control}
               name="tlp"
               render={({ field }) => (
-                <Select value={field.value || "none"} onValueChange={(v) => field.onChange(v === "none" ? "" : v)}>
+                <Select
+                  value={field.value || "none"}
+                  onValueChange={(v) => field.onChange(v === "none" ? "" : v)}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -168,10 +174,7 @@ export function AdvancedOptionsCard({
 
           <div className="md:col-span-2">
             <Field label="Options (raw, comma-separated key=val)">
-              <Input
-                placeholder="bp0=ep,base-on-api=NtReadFile,..."
-                {...register("options")}
-              />
+              <Input placeholder="bp0=ep,base-on-api=NtReadFile,..." {...register("options")} />
             </Field>
           </div>
 
@@ -187,7 +190,10 @@ export function AdvancedOptionsCard({
           )}
         </div>
 
-        <div className="mt-3 flex flex-wrap gap-3 border-t pt-3" style={{ borderColor: "var(--color-border)" }}>
+        <div
+          className="mt-3 flex flex-wrap gap-3 border-t pt-3"
+          style={{ borderColor: "var(--color-border)" }}
+        >
           <ToggleRow control={control} name="memory" label="Take guest memory dump" />
           <ToggleRow control={control} name="enforce_timeout" label="Enforce timeout" />
           <ToggleRow control={control} name="unique" label="Reject if sample already exists" />

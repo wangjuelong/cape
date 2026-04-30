@@ -79,10 +79,7 @@ function ToggleRow({ control, def }: { control: Control<SubmitFormValues>; def: 
           <span style={{ color: "var(--color-fg-1)" }}>
             {def.label}
             {def.hint && (
-              <span
-                className="ml-1.5 text-[10px]"
-                style={{ color: "var(--color-fg-2)" }}
-              >
+              <span className="ml-1.5 text-[10px]" style={{ color: "var(--color-fg-2)" }}>
                 ({def.hint})
               </span>
             )}

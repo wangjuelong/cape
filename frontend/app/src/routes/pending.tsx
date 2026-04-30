@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { RefreshCw } from "lucide-react";
 
 import { PageHead } from "@/components/shared/PageHead";
 import { Spinner } from "@/components/ui/spinner";
@@ -28,31 +29,50 @@ export default function PendingRoute() {
 
   return (
     <>
-      <PageHead crumbs={["CAPE", "Pending"]} />
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <div
-          className="flex items-center gap-6 border-b px-4 py-3"
-          style={{ borderColor: "var(--color-border)", background: "var(--color-bg-1)" }}
-        >
-          <Stat label="Pending" value={counts.pending} accent="var(--color-fg-1)" />
-          <Stat label="Running" value={counts.running} accent="var(--color-sev-low)" />
-          <Stat label="Completed" value={counts.completed} accent="var(--color-sev-clean)" />
-          <div className="ml-auto flex items-center gap-3">
-            {list.isFetching && <Spinner size={12} />}
+      <PageHead
+        crumbs={["CAPE", "Pending queue"]}
+        actions={
+          <>
             <LiveIndicator connected={connected} />
-          </div>
+            <button type="button" className="btn" onClick={() => list.refetch()}>
+              <RefreshCw size={14} />
+              <span>Refresh</span>
+            </button>
+          </>
+        }
+      />
+
+      <div className="scroll" style={{ padding: 14 }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(4, 1fr)",
+            gap: 10,
+            marginBottom: 14,
+          }}
+        >
+          <StatTile label="Pending" value={counts.pending} color="var(--color-sev-med)" />
+          <StatTile label="Running" value={counts.running} color="var(--color-accent)" />
+          <StatTile label="Completed" value={counts.completed} color="var(--color-sev-clean)" />
+          <StatTile
+            label="Total active"
+            value={counts.pending + counts.running + counts.completed}
+            color="var(--color-fg-0)"
+          />
         </div>
 
         {list.isError && (
-          <div className="px-4 pt-3">
-            <Alert variant="destructive">
-              <AlertTitle>Failed to load active tasks</AlertTitle>
-              <AlertDescription>{(list.error as Error).message}</AlertDescription>
-            </Alert>
-          </div>
+          <Alert variant="destructive" style={{ marginBottom: 14 }}>
+            <AlertTitle>Failed to load active tasks</AlertTitle>
+            <AlertDescription>{(list.error as Error).message}</AlertDescription>
+          </Alert>
         )}
 
-        <div className="flex-1 overflow-auto">
+        <div className="panel">
+          <div className="panel-h">
+            Queue <span className="count">· {list.tasks.length} active</span>
+            <div className="actions">{list.isFetching && <Spinner size={12} />}</div>
+          </div>
           <TaskTable data={list.tasks} />
         </div>
       </div>
@@ -60,18 +80,19 @@ export default function PendingRoute() {
   );
 }
 
-function Stat({ label, value, accent }: { label: string; value: number; accent: string }) {
+interface StatTileProps {
+  label: string;
+  value: number | string;
+  color?: string;
+}
+
+function StatTile({ label, value, color }: StatTileProps) {
   return (
-    <div className="flex items-baseline gap-2">
-      <span
-        className="text-[10px] font-semibold uppercase tracking-wider"
-        style={{ color: "var(--color-fg-2)" }}
-      >
-        {label}
-      </span>
-      <span className="font-mono text-base font-semibold" style={{ color: accent }}>
+    <div className="stat">
+      <div className="label">{label}</div>
+      <div className="val" style={color ? { color } : undefined}>
         {value}
-      </span>
+      </div>
     </div>
   );
 }

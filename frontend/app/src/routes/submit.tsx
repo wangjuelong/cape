@@ -6,18 +6,16 @@ import {
   AlertTriangle,
   Bolt,
   CloudDownload,
+  ExternalLink,
   FileCode,
   Files,
   Globe,
   Network,
+  Play,
   Upload,
 } from "lucide-react";
 
 import { PageHead } from "@/components/shared/PageHead";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
@@ -39,7 +37,6 @@ import {
   type SubmitResponse,
 } from "@/lib/api/tasks";
 import { buildOptionsString, type CapeToggles } from "@/lib/cape-options";
-import { cn } from "@/lib/utils";
 
 interface TabDef {
   key: SubmitMode;
@@ -202,7 +199,8 @@ export default function SubmitRoute() {
       if (values.enforce_timeout) form.set("enforce_timeout", "1");
       if (values.unique) form.set("unique", "1");
 
-      if (values.pre_script && values.pre_script[0]) form.append("pre_script", values.pre_script[0]);
+      if (values.pre_script && values.pre_script[0])
+        form.append("pre_script", values.pre_script[0]);
       if (values.during_script && values.during_script[0])
         form.append("during_script", values.during_script[0]);
 
@@ -220,15 +218,64 @@ export default function SubmitRoute() {
     mutation.mutate(values);
   }
 
+  const isPending = isSubmitting || mutation.isPending;
+
   return (
     <>
-      <PageHead crumbs={["CAPE", "Submit"]} />
-      <div className="flex-1 overflow-auto p-4">
-        <div className="mx-auto max-w-4xl">
-          <ModeTabs value={mode} onChange={setMode} tabs={visibleTabs} />
+      <PageHead
+        crumbs={["CAPE", "Submit"]}
+        actions={
+          <>
+            <a className="btn" href="/apiv3/schema/swagger/" target="_blank" rel="noreferrer">
+              <ExternalLink size={14} />
+              <span>API docs</span>
+            </a>
+            <button
+              type="button"
+              className="btn primary"
+              disabled={isPending}
+              onClick={handleSubmit(onSubmit)}
+            >
+              {isPending ? <Spinner size={12} /> : <Play size={14} />}
+              <span>Analyze</span>
+            </button>
+          </>
+        }
+      />
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
-            <PrimaryInputCard mode={mode} register={register} />
+      <form className="scroll" style={{ padding: 14 }} onSubmit={handleSubmit(onSubmit)}>
+        {error && (
+          <Alert variant="destructive" style={{ marginBottom: 14 }}>
+            <AlertTriangle size={14} />
+            <AlertTitle>Submission failed</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1.3fr 1fr",
+            gap: 14,
+            alignItems: "start",
+          }}
+        >
+          {/* ===== LEFT ===== */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            {/* Target panel — segmented mode tabs + primary input */}
+            <div className="panel">
+              <div className="panel-h">Target</div>
+              <div style={{ padding: 14 }}>
+                <ModeStrip mode={mode} onChange={setMode} tabs={visibleTabs} />
+                <p
+                  className="dim"
+                  style={{ fontSize: 11.5, marginTop: 4, marginBottom: 14, lineHeight: 1.5 }}
+                >
+                  {visibleTabs.find((t) => t.key === mode)?.hint}
+                </p>
+                <PrimaryInput mode={mode} register={register} />
+              </div>
+            </div>
 
             <AdvancedOptionsCard
               control={control}
@@ -237,197 +284,232 @@ export default function SubmitRoute() {
               showReferrer={mode === "url" || mode === "dlnexec"}
               showPreScripts={mode === "file"}
             />
+          </div>
 
+          {/* ===== RIGHT ===== */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <CapeTogglesCard control={control} />
 
-            {error && (
-              <Alert variant="destructive">
-                <AlertTriangle size={14} />
-                <AlertTitle>Submission failed</AlertTitle>
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
-            <div className="flex items-center justify-end gap-2">
-              <Button type="button" variant="secondary" onClick={() => reset(SUBMIT_DEFAULTS)}>
-                Reset
-              </Button>
-              <Button
-                type="submit"
-                variant="default"
-                disabled={isSubmitting || mutation.isPending}
+            <div className="panel">
+              <div className="panel-h">Submit</div>
+              <div
+                style={{
+                  padding: 14,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 8,
+                }}
               >
-                {mutation.isPending ? <Spinner size={12} /> : <Upload size={14} />}
-                Submit
-              </Button>
+                <button
+                  type="submit"
+                  className="btn primary"
+                  disabled={isPending}
+                  style={{ height: 32, justifyContent: "center" }}
+                >
+                  {isPending ? <Spinner size={12} /> : <Upload size={14} />}
+                  <span>Analyze</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => reset(SUBMIT_DEFAULTS)}
+                  style={{ height: 28, justifyContent: "center" }}
+                >
+                  Reset to defaults
+                </button>
+                <div className="dim mono" style={{ fontSize: 10.5, marginTop: 6, lineHeight: 1.55 }}>
+                  Submission goes through the v3 API and lands in the analysis queue. Check{" "}
+                  <a className="mono" style={{ color: "var(--color-accent)" }} href="/recent">
+                    Recent
+                  </a>{" "}
+                  for live status updates.
+                </div>
+              </div>
             </div>
-          </form>
+          </div>
         </div>
-      </div>
+      </form>
     </>
   );
 }
 
-interface ModeTabsProps {
-  value: SubmitMode;
-  onChange: (v: SubmitMode) => void;
+interface ModeStripProps {
+  mode: SubmitMode;
+  onChange: (m: SubmitMode) => void;
   tabs: TabDef[];
 }
 
-function ModeTabs({ value, onChange, tabs }: ModeTabsProps) {
+function ModeStrip({ mode, onChange, tabs }: ModeStripProps) {
   return (
-    <div className="mb-3">
-      <div className="flex flex-wrap gap-1.5">
-        {tabs.map((t) => {
-          const active = t.key === value;
-          return (
-            <button
-              key={t.key}
-              type="button"
-              onClick={() => onChange(t.key)}
-              className={cn(
-                "flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors",
-                active
-                  ? "text-[var(--color-fg-0)]"
-                  : "text-[var(--color-fg-1)] hover:text-[var(--color-fg-0)]",
-              )}
-              style={{
-                borderColor: active ? "var(--color-accent)" : "var(--color-border)",
-                background: active ? "var(--color-accent-soft)" : "var(--color-bg-1)",
-              }}
-            >
-              {t.icon}
-              {t.label}
-            </button>
-          );
-        })}
-      </div>
-      <p className="mt-1.5 text-[11px]" style={{ color: "var(--color-fg-2)" }}>
-        {tabs.find((t) => t.key === value)?.hint}
-      </p>
+    <div
+      style={{
+        display: "flex",
+        background: "var(--color-bg-2)",
+        border: "1px solid var(--color-border)",
+        borderRadius: 3,
+        padding: 2,
+        gap: 0,
+      }}
+    >
+      {tabs.map((t) => {
+        const active = t.key === mode;
+        return (
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => onChange(t.key)}
+            style={{
+              flex: 1,
+              height: 28,
+              border: "none",
+              borderRadius: 2,
+              cursor: "pointer",
+              fontFamily: "var(--font-sans)",
+              background: active ? "var(--color-bg-3)" : "transparent",
+              color: active ? "var(--color-fg-0)" : "var(--color-fg-2)",
+              fontSize: 12,
+              fontWeight: active ? 600 : 400,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+            }}
+          >
+            {t.icon}
+            {t.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
 
-interface PrimaryInputCardProps {
+interface PrimaryInputProps {
   mode: SubmitMode;
   register: ReturnType<typeof useForm<SubmitFormValues>>["register"];
 }
 
-function PrimaryInputCard({ mode, register }: PrimaryInputCardProps) {
+function PrimaryInput({ mode, register }: PrimaryInputProps) {
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    height: 36,
+    padding: "0 12px",
+    background: "var(--color-bg-2)",
+    border: "1px solid var(--color-border)",
+    color: "var(--color-fg-0)",
+    borderRadius: 3,
+    fontFamily: "var(--font-mono)",
+    fontSize: 12.5,
+    outline: "none",
+  };
+
   switch (mode) {
     case "file":
-      return (
-        <Card>
-          <CardHeader>
-            <CardTitle>File(s)</CardTitle>
-            <CardDescription>
-              Multiple files supported. Each becomes a separate task.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Label htmlFor="files">Sample files</Label>
-            <Input id="files" type="file" multiple required {...register("files")} />
-          </CardContent>
-        </Card>
-      );
     case "pcap":
-      return (
-        <Card>
-          <CardHeader>
-            <CardTitle>PCAP file(s)</CardTitle>
-            <CardDescription>
-              Network captures. SAZ files are auto-converted to PCAP.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Label htmlFor="pcap-files">PCAP / SAZ files</Label>
-            <Input id="pcap-files" type="file" multiple required {...register("files")} />
-          </CardContent>
-        </Card>
-      );
     case "static":
       return (
-        <Card>
-          <CardHeader>
-            <CardTitle>Static analysis</CardTitle>
-            <CardDescription>
-              Run static extractors only — no VM allocated. Useful for quick PE / Office / config triage.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Label htmlFor="static-files">Files</Label>
-            <Input id="static-files" type="file" multiple required {...register("files")} />
-          </CardContent>
-        </Card>
+        <>
+          <label className="dropzone" htmlFor="cape-file-input" style={{ display: "block", cursor: "pointer" }}>
+            <Upload
+              size={20}
+              style={{ color: "var(--color-fg-2)", margin: "0 auto 6px", display: "block" }}
+            />
+            <div style={{ fontSize: 13, color: "var(--color-fg-0)", marginBottom: 2 }}>
+              Drop {mode === "pcap" ? "PCAP / SAZ" : mode === "static" ? "static-only" : "sample"} file(s) or{" "}
+              <span style={{ color: "var(--color-accent)", textDecoration: "underline" }}>browse</span>
+            </div>
+            <div className="dim" style={{ fontSize: 11 }}>
+              Multiple files supported · each becomes a separate task
+            </div>
+            <input
+              id="cape-file-input"
+              type="file"
+              multiple
+              required
+              {...register("files")}
+              style={{ display: "none" }}
+            />
+          </label>
+        </>
       );
     case "url":
       return (
-        <Card>
-          <CardHeader>
-            <CardTitle>URL</CardTitle>
-            <CardDescription>
-              Open the URL inside the VM with the configured browser package.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Label htmlFor="url">URL</Label>
-            <Input
-              id="url"
-              type="url"
-              placeholder="https://example.com/path"
-              required
-              {...register("url")}
-            />
-          </CardContent>
-        </Card>
+        <>
+          <div
+            className="dim mono"
+            style={{
+              fontSize: 10.5,
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              fontWeight: 600,
+              marginBottom: 4,
+            }}
+          >
+            URL
+          </div>
+          <input
+            type="url"
+            placeholder="https://example.com/page"
+            required
+            {...register("url")}
+            style={inputStyle}
+          />
+        </>
       );
     case "dlnexec":
       return (
-        <Card>
-          <CardHeader>
-            <CardTitle>DL &amp; Exec</CardTitle>
-            <CardDescription>
-              Host downloads the URL, then submits the resulting file as a normal sample.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Label htmlFor="dlnexec">URL pointing at the binary</Label>
-            <Input
-              id="dlnexec"
-              type="url"
-              placeholder="https://malware.example/sample.exe"
-              required
-              {...register("dlnexec")}
-            />
-          </CardContent>
-        </Card>
+        <>
+          <div
+            className="dim mono"
+            style={{
+              fontSize: 10.5,
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              fontWeight: 600,
+              marginBottom: 4,
+            }}
+          >
+            URL pointing at the binary
+          </div>
+          <input
+            type="url"
+            placeholder="https://malware.example/sample.exe"
+            required
+            {...register("dlnexec")}
+            style={inputStyle}
+          />
+        </>
       );
     case "downloading_service":
       return (
-        <Card>
-          <CardHeader>
-            <CardTitle>Download from threat-intel service</CardTitle>
-            <CardDescription>
-              Pull samples from VirusTotal / MalwareBazaar / etc. by hash. Configure providers
-              under <code>[downloading_services]</code> in <code>api.conf</code>.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Label htmlFor="hashes">Hashes</Label>
-            <Input
-              id="hashes"
-              type="text"
-              placeholder="md5/sha1/sha256, comma-separated"
-              required
-              {...register("hashes")}
-            />
-            <p className="mt-1.5 text-[11px]" style={{ color: "var(--color-fg-2)" }}>
-              Tip: pass <code>options=apikey=&lt;vt_api_key&gt;</code> below to override the
-              configured VT key.
-            </p>
-          </CardContent>
-        </Card>
+        <>
+          <div
+            className="dim mono"
+            style={{
+              fontSize: 10.5,
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              fontWeight: 600,
+              marginBottom: 4,
+            }}
+          >
+            Hashes (md5 / sha1 / sha256)
+          </div>
+          <input
+            type="text"
+            placeholder="comma-separated hashes"
+            required
+            {...register("hashes")}
+            style={inputStyle}
+          />
+          <p
+            className="dim"
+            style={{ fontSize: 11, marginTop: 6, lineHeight: 1.55 }}
+          >
+            Tip: pass <code className="mono">apikey=&lt;vt_api_key&gt;</code> via Options below to override the
+            configured VT key.
+          </p>
+        </>
       );
   }
 }

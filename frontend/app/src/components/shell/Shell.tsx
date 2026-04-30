@@ -1,20 +1,23 @@
 import { Outlet } from "react-router-dom";
 
 import { Sidebar } from "./Sidebar";
-import { Statusbar } from "./Statusbar";
 import { Topbar } from "./Topbar";
 
+/**
+ * SOC analyst shell — direct port of frontend/web-design/cape-shell.jsx.
+ * The .app grid wires topbar/sidebar/main with a single area, so the design
+ * tokens stay in CSS and React just renders the regions.
+ */
 export function Shell() {
   return (
-    <div className="grid h-full" style={{ gridTemplateRows: "auto 1fr auto" }}>
-      <Topbar />
-      <div className="flex min-h-0">
+    <div className="cape-frame">
+      <div className="app" data-nav="side">
+        <Topbar />
         <Sidebar />
-        <main className="flex min-w-0 flex-1 flex-col overflow-auto">
+        <main className="main">
           <Outlet />
         </main>
       </div>
-      <Statusbar />
     </div>
   );
 }

@@ -1,33 +1,39 @@
 import type { Severity } from "@/types/api";
-import { cn } from "@/lib/utils";
 
 interface ScoreBadgeProps {
   score: number | null;
   severity: Severity;
+  size?: "sm" | "lg";
 }
 
-const SEV_COLOR: Record<Severity, string> = {
-  crit: "var(--color-sev-crit)",
-  high: "var(--color-sev-high)",
-  med: "var(--color-sev-med)",
-  low: "var(--color-sev-low)",
-  clean: "var(--color-sev-clean)",
+const SEV_KEY: Record<Severity, string> = {
+  crit: "crit",
+  high: "high",
+  med: "med",
+  low: "low",
+  clean: "clean",
 };
 
-export function ScoreBadge({ score, severity }: ScoreBadgeProps) {
-  const color = SEV_COLOR[severity];
-  const display = score === null ? "—" : score.toFixed(1);
+/**
+ * Conic-gradient score badge — matches frontend/web-design/styles.css `.score-badge`.
+ * Score is 0..10 → 0..360deg via the --val custom prop.
+ */
+export function ScoreBadge({ score, severity, size }: ScoreBadgeProps) {
+  if (score === null) {
+    return (
+      <span className="dim mono" style={{ fontSize: 11 }}>
+        —
+      </span>
+    );
+  }
+  const sevKey = SEV_KEY[severity] ?? "clean";
+  const c = `var(--color-sev-${sevKey})`;
   return (
-    <span
-      className={cn(
-        "inline-flex h-5 min-w-9 items-center justify-center rounded-sm px-1.5 text-[11px] font-mono font-semibold",
-      )}
-      style={{
-        background: `color-mix(in oklch, ${color} 18%, transparent)`,
-        color,
-      }}
+    <div
+      className={"score-badge" + (size === "lg" ? " lg" : "")}
+      style={{ "--val": score, "--c": c } as React.CSSProperties}
     >
-      {display}
-    </span>
+      <span style={{ color: c }}>{score.toFixed(1)}</span>
+    </div>
   );
 }

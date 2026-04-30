@@ -9,6 +9,7 @@ const RecentRoute = lazy(() => import("@/routes/recent"));
 const PendingRoute = lazy(() => import("@/routes/pending"));
 const SearchRoute = lazy(() => import("@/routes/search"));
 const CompareRoute = lazy(() => import("@/routes/compare"));
+const ConfigsRoute = lazy(() => import("@/routes/configs"));
 const StatsRoute = lazy(() => import("@/routes/stats"));
 const MachinesRoute = lazy(() => import("@/routes/machines"));
 const AuditRoute = lazy(() => import("@/routes/audit"));
@@ -21,8 +22,15 @@ function withSuspense(node: ReactNode): ReactNode {
     <Suspense
       fallback={
         <div
-          className="grid h-full place-items-center text-xs"
-          style={{ color: "var(--color-fg-2)" }}
+          className="dim mono"
+          style={{
+            display: "grid",
+            placeItems: "center",
+            height: "100%",
+            fontSize: 11,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+          }}
         >
           Loading…
         </div>
@@ -45,6 +53,7 @@ export const router = createBrowserRouter([
       { path: "pending", element: withSuspense(<PendingRoute />) },
       { path: "search", element: withSuspense(<SearchRoute />) },
       { path: "compare", element: withSuspense(<CompareRoute />) },
+      { path: "configs", element: withSuspense(<ConfigsRoute />) },
       { path: "stats", element: withSuspense(<StatsRoute />) },
       { path: "machines", element: withSuspense(<MachinesRoute />) },
       { path: "audit", element: withSuspense(<AuditRoute />) },

@@ -1,8 +1,6 @@
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
 import type { SignatureLite } from "@/lib/api/reports";
 
-const SEVERITY_VARIANT: Record<number, "crit" | "high" | "med" | "low" | "clean"> = {
+const SEVERITY_KEY: Record<number, "crit" | "high" | "med" | "low" | "clean"> = {
   5: "crit",
   4: "high",
   3: "med",
@@ -16,80 +14,97 @@ interface FindingsRailProps {
   onSelect?: (name: string) => void;
 }
 
+/**
+ * Findings rail — direct port of the design's left lane in PageReport summary
+ * (`.sig-row` rendering, sorted by severity).
+ */
 export function FindingsRail({ signatures, selected, onSelect }: FindingsRailProps) {
   const sorted = [...signatures].sort((a, b) => b.severity - a.severity);
 
   return (
     <aside
-      className="flex w-80 shrink-0 flex-col border-r"
       style={{
+        width: 380,
+        borderRight: "1px solid var(--color-border)",
+        display: "flex",
+        flexDirection: "column",
         background: "var(--color-bg-1)",
-        borderColor: "var(--color-border)",
+        flexShrink: 0,
       }}
     >
-      <div
-        className="flex h-9 items-center justify-between border-b px-3"
-        style={{ borderColor: "var(--color-border)" }}
-      >
-        <span className="text-xs font-semibold" style={{ color: "var(--color-fg-0)" }}>
-          Findings
-          <span className="ml-1.5 font-mono" style={{ color: "var(--color-fg-2)" }}>
-            · {sorted.length}
+      <div className="panel-h" style={{ borderBottom: "1px solid var(--color-border)" }}>
+        Findings <span className="count">· {sorted.length}</span>
+        <div className="actions">
+          <span className="dim mono" style={{ fontSize: 10.5 }}>
+            sort: severity
           </span>
-        </span>
-        <span className="font-mono text-[10px]" style={{ color: "var(--color-fg-2)" }}>
-          sort: severity
-        </span>
+        </div>
       </div>
-      <div className="flex-1 overflow-auto">
+
+      <div className="lane-scroll" style={{ flex: 1 }}>
         {sorted.length === 0 ? (
-          <div className="p-4 text-center text-xs" style={{ color: "var(--color-fg-2)" }}>
+          <div
+            className="dim"
+            style={{ padding: 16, fontSize: 12, textAlign: "center" }}
+          >
             No signatures matched.
           </div>
         ) : (
           sorted.map((sig) => {
-            const variant = SEVERITY_VARIANT[sig.severity] ?? "low";
-            const isSelected = selected === sig.name;
+            const sev = SEVERITY_KEY[sig.severity] ?? "low";
+            const isSel = selected === sig.name;
             return (
-              <button
+              <div
                 key={sig.name}
-                type="button"
+                className={"sig-row " + sev + (isSel ? " sel" : "")}
                 onClick={() => onSelect?.(sig.name)}
-                className={cn(
-                  "flex w-full flex-col gap-1 border-b px-3 py-2 text-left transition-colors",
-                  isSelected ? "bg-[var(--color-accent-soft)]" : "hover:bg-[var(--color-bg-2)]",
-                )}
-                style={{ borderColor: "var(--color-border)" }}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onSelect?.(sig.name);
+                  }
+                }}
               >
-                <div className="flex items-center justify-between gap-2">
-                  <span
-                    className="truncate text-xs font-semibold"
-                    style={{ color: "var(--color-fg-0)" }}
-                  >
-                    {sig.name}
-                  </span>
-                  <Badge variant={variant}>S{sig.severity}</Badge>
+                <div className="bar" />
+                <div>
+                  <div className="ttl">{sig.name}</div>
+                  {sig.description && (
+                    <div
+                      className="desc"
+                      style={{
+                        display: "-webkit-box",
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: "vertical",
+                        overflow: "hidden",
+                      }}
+                    >
+                      {sig.description}
+                    </div>
+                  )}
+                  {sig.ttp.length > 0 && (
+                    <div className="att">
+                      {sig.ttp.slice(0, 5).map((t) => (
+                        <span key={t} className="tag" style={{ height: 14, fontSize: 9.5 }}>
+                          {t}
+                        </span>
+                      ))}
+                      {sig.ttp.length > 5 && (
+                        <span className="dim mono" style={{ fontSize: 10 }}>
+                          +{sig.ttp.length - 5}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
-                {sig.description && (
-                  <span className="line-clamp-2 text-[11px]" style={{ color: "var(--color-fg-1)" }}>
-                    {sig.description}
-                  </span>
-                )}
-                {sig.ttp.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {sig.ttp.slice(0, 5).map((t) => (
-                      <Badge key={t} variant="outline">
-                        {t}
-                      </Badge>
-                    ))}
-                    {sig.ttp.length > 5 && (
-                      <span className="text-[10px]" style={{ color: "var(--color-fg-2)" }}>
-                        +{sig.ttp.length - 5}
-                      </span>
-                    )}
-                  </div>
-                )}
-              </button>
+                <span
+                  className={"tag " + sev}
+                  style={{ height: 16, fontSize: 9.5, alignSelf: "start" }}
+                >
+                  {sev.toUpperCase()}
+                </span>
+              </div>
             );
           })
         )}

@@ -1,155 +1,115 @@
-import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from "@tanstack/react-table";
 import { Link } from "react-router-dom";
+import { ChevronRight } from "lucide-react";
 
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { ScoreBadge } from "./ScoreBadge";
 import { StatusPill } from "./StatusPill";
 import type { TaskSummary } from "@/types/api";
-
-const columns: ColumnDef<TaskSummary>[] = [
-  {
-    accessorKey: "id",
-    header: "ID",
-    cell: ({ row }) => (
-      <Link
-        to={`/tasks/${row.original.id}`}
-        className="font-mono text-[11px] hover:underline"
-        style={{ color: "var(--color-accent)" }}
-      >
-        #{row.original.id}
-      </Link>
-    ),
-  },
-  {
-    accessorKey: "score",
-    header: "Score",
-    cell: ({ row }) => <ScoreBadge score={row.original.score} severity={row.original.severity} />,
-  },
-  {
-    accessorKey: "target",
-    header: "Target",
-    cell: ({ row }) => (
-      <div className="min-w-0 max-w-[280px] truncate" title={row.original.target}>
-        <Link
-          to={`/tasks/${row.original.id}`}
-          className="font-mono hover:underline"
-          style={{ color: "var(--color-fg-0)" }}
-        >
-          {row.original.target}
-        </Link>
-      </div>
-    ),
-  },
-  {
-    accessorKey: "family",
-    header: "Family",
-    cell: ({ row }) =>
-      row.original.family ? (
-        <Badge variant="crit">{row.original.family}</Badge>
-      ) : (
-        <span style={{ color: "var(--color-fg-2)" }}>—</span>
-      ),
-  },
-  {
-    accessorKey: "package",
-    header: "Pkg",
-    cell: ({ row }) => (
-      <span className="font-mono text-[11px]" style={{ color: "var(--color-fg-1)" }}>
-        {row.original.package || "—"}
-      </span>
-    ),
-  },
-  {
-    accessorKey: "machine",
-    header: "Machine",
-    cell: ({ row }) => (
-      <span className="font-mono text-[11px]" style={{ color: "var(--color-fg-2)" }}>
-        {row.original.machine || "—"}
-      </span>
-    ),
-  },
-  {
-    accessorKey: "signatures_count",
-    header: "Sigs",
-    cell: ({ row }) => row.original.signatures_count || 0,
-  },
-  {
-    accessorKey: "submitted",
-    header: "Submitted",
-    cell: ({ row }) => (
-      <span className="font-mono text-[11px]" style={{ color: "var(--color-fg-2)" }}>
-        {formatRel(row.original.submitted)}
-      </span>
-    ),
-  },
-  {
-    accessorKey: "duration",
-    header: "Duration",
-    cell: ({ row }) => (
-      <span className="font-mono text-[11px]" style={{ color: "var(--color-fg-2)" }}>
-        {row.original.duration ?? "—"}
-      </span>
-    ),
-  },
-  {
-    accessorKey: "status",
-    header: "Status",
-    cell: ({ row }) => <StatusPill status={row.original.status} />,
-  },
-];
 
 interface TaskTableProps {
   data: TaskSummary[];
 }
 
+/**
+ * Recent tasks table — mirrors the design's `table.data` from
+ * frontend/web-design/cape-pages-1.jsx PageRecent.
+ */
 export function TaskTable({ data }: TaskTableProps) {
-  const table = useReactTable({ data, columns, getCoreRowModel: getCoreRowModel() });
+  if (data.length === 0) {
+    return (
+      <div
+        className="dim"
+        style={{ padding: "32px 16px", fontSize: 12, textAlign: "center" }}
+      >
+        No tasks match the current filter.
+      </div>
+    );
+  }
 
   return (
-    <Table>
-      <TableHeader>
-        {table.getHeaderGroups().map((hg) => (
-          <TableRow key={hg.id}>
-            {hg.headers.map((h) => (
-              <TableHead key={h.id}>
-                {h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}
-              </TableHead>
-            ))}
-          </TableRow>
+    <table className="data">
+      <thead>
+        <tr>
+          <th style={{ width: 32 }}>
+            <input type="checkbox" className="chk" />
+          </th>
+          <th style={{ width: 64 }}>ID</th>
+          <th style={{ width: 50 }}>Pkg</th>
+          <th>Target</th>
+          <th style={{ width: 120 }}>Family</th>
+          <th style={{ width: 60 }}>Score</th>
+          <th style={{ width: 60 }}>Sigs</th>
+          <th>MD5</th>
+          <th style={{ width: 130 }}>Machine</th>
+          <th style={{ width: 110 }}>Status</th>
+          <th style={{ width: 90 }}>Submitted</th>
+          <th style={{ width: 32 }} />
+        </tr>
+      </thead>
+      <tbody>
+        {data.map((t, i) => (
+          <tr key={t.id} className={i === 0 ? "sel" : undefined}>
+            <td onClick={(e) => e.stopPropagation()}>
+              <input type="checkbox" className="chk" />
+            </td>
+            <td>
+              <Link
+                to={`/tasks/${t.id}`}
+                style={{ color: "var(--color-accent)", textDecoration: "none" }}
+              >
+                #{t.id}
+              </Link>
+            </td>
+            <td>
+              {t.package ? (
+                <span className="tag">{t.package}</span>
+              ) : (
+                <span className="dim">—</span>
+              )}
+            </td>
+            <td style={{ color: "var(--color-fg-0)" }}>
+              <Link
+                to={`/tasks/${t.id}`}
+                style={{ color: "inherit", textDecoration: "none" }}
+                title={t.target}
+              >
+                {t.target}
+              </Link>
+            </td>
+            <td>
+              {t.family ? (
+                <span
+                  className={
+                    "tag " +
+                    (t.score >= 8 ? "crit" : t.score >= 6 ? "high" : "med")
+                  }
+                >
+                  {t.family}
+                </span>
+              ) : (
+                <span className="dim">—</span>
+              )}
+            </td>
+            <td>
+              {t.status === "reported" || t.status === "completed" ? (
+                <ScoreBadge score={t.score} severity={t.severity} />
+              ) : (
+                <span className="dim">—</span>
+              )}
+            </td>
+            <td className="mono">{t.signatures_count || <span className="dim">—</span>}</td>
+            <td className="dim">{t.md5 || "—"}</td>
+            <td>{t.machine || <span className="dim">—</span>}</td>
+            <td>
+              <StatusPill status={t.status} />
+            </td>
+            <td className="dim">{formatRel(t.submitted)}</td>
+            <td>
+              <ChevronRight size={14} style={{ color: "var(--color-fg-3)" }} />
+            </td>
+          </tr>
         ))}
-      </TableHeader>
-      <TableBody>
-        {table.getRowModel().rows.length === 0 ? (
-          <TableRow>
-            <TableCell
-              colSpan={columns.length}
-              className="text-center text-xs"
-              style={{ color: "var(--color-fg-2)" }}
-            >
-              No tasks match the current filter.
-            </TableCell>
-          </TableRow>
-        ) : (
-          table.getRowModel().rows.map((r) => (
-            <TableRow key={r.id}>
-              {r.getVisibleCells().map((c) => (
-                <TableCell key={c.id}>
-                  {flexRender(c.column.columnDef.cell, c.getContext())}
-                </TableCell>
-              ))}
-            </TableRow>
-          ))
-        )}
-      </TableBody>
-    </Table>
+      </tbody>
+    </table>
   );
 }
 

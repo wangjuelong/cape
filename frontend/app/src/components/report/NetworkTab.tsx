@@ -160,33 +160,19 @@ function ItemList({ items, kind }: ItemListProps) {
 
   const cols = Object.keys(first as Record<string, unknown>);
   return (
-    <table className="w-full text-[11px]">
-      <thead
-        className="sticky top-0"
-        style={{
-          background: "var(--color-bg-1)",
-          color: "var(--color-fg-2)",
-          borderBottom: "1px solid var(--color-border)",
-        }}
-      >
+    <table className="data">
+      <thead>
         <tr>
           {cols.map((c) => (
-            <th key={c} className="px-3 py-1 text-left font-semibold">
-              {c}
-            </th>
+            <th key={c}>{c}</th>
           ))}
         </tr>
       </thead>
       <tbody>
         {(items as Array<Record<string, unknown>>).map((row, i) => (
-          <tr key={i} className="border-b" style={{ borderColor: "var(--color-border)" }}>
+          <tr key={i}>
             {cols.map((c) => (
-              <td
-                key={c}
-                className="max-w-md truncate px-3 py-1 font-mono"
-                style={{ color: "var(--color-fg-1)" }}
-                title={String(row[c] ?? "")}
-              >
+              <td key={c} title={String(row[c] ?? "")}>
                 {String(row[c] ?? "")}
               </td>
             ))}
