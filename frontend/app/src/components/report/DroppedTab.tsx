@@ -80,10 +80,7 @@ export function DroppedTab({ taskId }: DroppedTabProps) {
               <td className="px-3 py-1" style={{ color: "var(--color-fg-1)" }}>
                 {f.type ?? ""}
               </td>
-              <td
-                className="px-3 py-1 text-right font-mono"
-                style={{ color: "var(--color-fg-2)" }}
-              >
+              <td className="px-3 py-1 text-right font-mono" style={{ color: "var(--color-fg-2)" }}>
                 {f.size ?? ""}
               </td>
               <td

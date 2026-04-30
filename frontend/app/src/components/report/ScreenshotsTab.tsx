@@ -69,10 +69,7 @@ export function ScreenshotsTab({ taskId }: ScreenshotsTabProps) {
               className="block w-full"
               style={{ aspectRatio: "16 / 10", objectFit: "cover" }}
             />
-            <div
-              className="px-2 py-1 text-[10px] font-mono"
-              style={{ color: "var(--color-fg-2)" }}
-            >
+            <div className="px-2 py-1 text-[10px] font-mono" style={{ color: "var(--color-fg-2)" }}>
               #{s.index}
             </div>
           </button>

@@ -81,17 +81,17 @@ export function PayloadsTab({ taskId }: PayloadsTabProps) {
               <td className="px-3 py-1">
                 {p.cape_type ? <Badge variant="crit">{p.cape_type}</Badge> : ""}
               </td>
-              <td
-                className="px-3 py-1 text-right font-mono"
-                style={{ color: "var(--color-fg-2)" }}
-              >
+              <td className="px-3 py-1 text-right font-mono" style={{ color: "var(--color-fg-2)" }}>
                 {p.size ?? ""}
               </td>
               <td className="px-3 py-1 font-mono" style={{ color: "var(--color-fg-1)" }}>
                 {p.process_name ? `${p.process_name} (${p.pid ?? "?"})` : ""}
               </td>
               <td className="px-3 py-1" style={{ color: "var(--color-fg-1)" }}>
-                {(p.cape_yara ?? []).map((y) => y.name).filter(Boolean).join(", ")}
+                {(p.cape_yara ?? [])
+                  .map((y) => y.name)
+                  .filter(Boolean)
+                  .join(", ")}
               </td>
               <td
                 className="max-w-[260px] truncate px-3 py-1 font-mono"

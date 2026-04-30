@@ -1,13 +1,26 @@
 import { useNavigate } from "react-router-dom";
+import { LogOut, KeyRound, Mail } from "lucide-react";
 
 import { Icon } from "./icons";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useLogout } from "@/hooks/useLogout";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function Topbar() {
   const navigate = useNavigate();
   const meQuery = useCurrentUser();
   const username = meQuery.data?.username ?? "guest";
+  const email = meQuery.data?.email;
+  const isStaff = meQuery.data?.is_staff ?? false;
   const initials = (meQuery.data?.username ?? "??").slice(0, 2).toUpperCase();
+  const { mutate: signOut, isPending: isSigningOut } = useLogout();
 
   return (
     <div
@@ -68,21 +81,85 @@ export function Topbar() {
       <button type="button" className="grid h-7 w-7 place-items-center rounded">
         <Icon.cog size={14} style={{ color: "var(--color-fg-1)" }} />
       </button>
-      <div
-        className="flex h-7 items-center gap-2 rounded px-2 text-xs"
-        style={{ background: "var(--color-bg-2)" }}
-      >
-        <span
-          className="grid h-5 w-5 place-items-center rounded-full text-[10px] font-semibold"
-          style={{
-            background: "var(--color-accent-soft)",
-            color: "var(--color-accent-strong)",
-          }}
-        >
-          {initials}
-        </span>
-        <span style={{ color: "var(--color-fg-1)" }}>{username}</span>
-      </div>
+
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            disabled={isSigningOut}
+            className="flex h-7 items-center gap-2 rounded px-2 text-xs transition-colors hover:bg-[var(--color-bg-3)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--color-accent)]"
+            style={{ background: "var(--color-bg-2)" }}
+            aria-label={`Account menu for ${username}`}
+          >
+            <span
+              className="grid h-5 w-5 place-items-center rounded-full text-[10px] font-semibold"
+              style={{
+                background: "var(--color-accent-soft)",
+                color: "var(--color-accent-strong)",
+              }}
+            >
+              {initials}
+            </span>
+            <span style={{ color: "var(--color-fg-1)" }}>{username}</span>
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" sideOffset={6} className="min-w-[200px]">
+          <DropdownMenuLabel>Signed in as</DropdownMenuLabel>
+          <div className="px-2 pb-1 pt-0.5">
+            <div
+              className="font-mono text-[12px] font-semibold"
+              style={{ color: "var(--color-fg-0)" }}
+            >
+              {username}
+            </div>
+            {email && (
+              <div
+                className="truncate font-mono text-[10px]"
+                style={{ color: "var(--color-fg-2)" }}
+                title={email}
+              >
+                {email}
+              </div>
+            )}
+            {isStaff && (
+              <span
+                className="mt-1 inline-block rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider"
+                style={{
+                  background: "var(--color-accent-soft)",
+                  color: "var(--color-accent-strong)",
+                }}
+              >
+                staff
+              </span>
+            )}
+          </div>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem asChild>
+            <a href="/accounts/email/">
+              <Mail size={12} />
+              <span>Manage emails</span>
+            </a>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <a href="/accounts/password/change/">
+              <KeyRound size={12} />
+              <span>Change password</span>
+            </a>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            danger
+            disabled={isSigningOut}
+            onSelect={(e) => {
+              e.preventDefault();
+              signOut();
+            }}
+          >
+            <LogOut size={12} />
+            <span>{isSigningOut ? "Signing out…" : "Sign out"}</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }

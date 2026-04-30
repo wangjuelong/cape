@@ -37,9 +37,7 @@ export function ConfigTab({ taskId }: ConfigTabProps) {
   const blocks = query.data?.malware_conf ?? [];
 
   if (blocks.length === 0) {
-    return (
-      <Centered>No malware configuration extracted.</Centered>
-    );
+    return <Centered>No malware configuration extracted.</Centered>;
   }
 
   return (

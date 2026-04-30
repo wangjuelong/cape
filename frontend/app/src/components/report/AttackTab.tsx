@@ -97,10 +97,7 @@ function TacticColumn({ tactic }: { tactic: TacticBlock }) {
       className="rounded-md border"
       style={{ background: "var(--color-bg-1)", borderColor: "var(--color-border)" }}
     >
-      <div
-        className="border-b px-3 py-2"
-        style={{ borderColor: "var(--color-border)" }}
-      >
+      <div className="border-b px-3 py-2" style={{ borderColor: "var(--color-border)" }}>
         <div className="text-[11px] font-semibold" style={{ color: "var(--color-fg-0)" }}>
           {tactic.name ?? tactic.id}
         </div>

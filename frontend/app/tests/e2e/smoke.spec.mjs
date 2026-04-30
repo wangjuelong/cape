@@ -102,6 +102,34 @@ test("04 /submit renders the 18-param form", async ({ page }) => {
   await expect(page.locator("text=Advanced options").first()).toBeVisible();
 });
 
+test("06 sign-out flow: dropdown → POST /accounts/logout/ → /accounts/login/", async ({
+  page,
+}) => {
+  await login(page);
+  await page.waitForTimeout(800); // let useCurrentUser populate
+
+  // Click the topbar account button to open the dropdown
+  await page.getByRole("button", { name: /Account menu for/ }).click();
+  await page.screenshot({ path: "test-results/06-account-menu-open.png", fullPage: true });
+
+  // The dropdown should expose "Sign out" with the danger style
+  const signOut = page.getByRole("menuitem", { name: /Sign out/ });
+  await expect(signOut).toBeVisible({ timeout: 5000 });
+
+  // Watch the network round trip
+  const logoutResp = page.waitForResponse(
+    (r) => r.url().endsWith("/accounts/logout/") && r.request().method() === "POST",
+    { timeout: 10000 },
+  );
+
+  await signOut.click();
+  await logoutResp;
+
+  // After logout the SPA should land on /accounts/login/ (allauth)
+  await page.waitForURL(/\/accounts\/login\//, { timeout: 10000 });
+  await expect(page.locator(".cape-auth__brand")).toBeVisible();
+});
+
 test("05 /pending renders LiveIndicator", async ({ page }) => {
   await login(page);
   await page.goto(BASE + "/pending");

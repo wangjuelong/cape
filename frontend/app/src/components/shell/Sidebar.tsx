@@ -3,6 +3,7 @@ import type { LucideIcon } from "lucide-react";
 
 import { Icon } from "./icons";
 import { isFlagEnabled, useFeatureFlags } from "@/hooks/useFeatureFlags";
+import { useLogout } from "@/hooks/useLogout";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
@@ -80,6 +81,7 @@ export function Sidebar() {
   const flagsQuery = useFeatureFlags();
   const flags = flagsQuery.data;
   const visible = (item: NavItem) => !item.flag || isFlagEnabled(flags, item.flag);
+  const { mutate: signOut, isPending: isSigningOut } = useLogout();
 
   return (
     <aside
@@ -101,14 +103,24 @@ export function Sidebar() {
 
       <div className="flex-1" />
 
-      <a
-        href="/accounts/logout/"
-        className="flex h-8 items-center gap-2 px-3 text-xs"
+      <button
+        type="button"
+        onClick={() => {
+          if (isSigningOut) return;
+          signOut();
+        }}
+        disabled={isSigningOut}
+        className={cn(
+          "flex h-8 items-center gap-2 px-3 text-left text-xs transition-colors",
+          isSigningOut
+            ? "cursor-wait opacity-60"
+            : "cursor-pointer hover:bg-[var(--color-bg-2)] hover:text-[var(--color-fg-0)]",
+        )}
         style={{ color: "var(--color-fg-2)" }}
       >
         <Icon.exit size={14} />
-        <span>Sign out</span>
-      </a>
+        <span>{isSigningOut ? "Signing out…" : "Sign out"}</span>
+      </button>
     </aside>
   );
 }

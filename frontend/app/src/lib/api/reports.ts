@@ -73,10 +73,9 @@ export async function fetchReportBehaviorCalls(
   pid: number,
   page = 0,
 ): Promise<BehaviorCallsPage> {
-  const { data } = await apiClient.get<BehaviorCallsPage>(
-    `/reports/${taskId}/behavior/calls/`,
-    { params: { pid, page } },
-  );
+  const { data } = await apiClient.get<BehaviorCallsPage>(`/reports/${taskId}/behavior/calls/`, {
+    params: { pid, page },
+  });
   return data;
 }
 

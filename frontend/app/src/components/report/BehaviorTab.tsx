@@ -27,11 +27,15 @@ export function BehaviorTab({ taskId }: BehaviorTabProps) {
 
   // Auto-select the first process when the summary lands.
   const effectivePid =
-    selectedPid ??
-    (sortedProcesses.length > 0 ? (sortedProcesses[0].pid ?? null) : null);
+    selectedPid ?? (sortedProcesses.length > 0 ? (sortedProcesses[0].pid ?? null) : null);
 
   if (summary.isLoading) {
-    return <Centered><Spinner size={16} /><span className="ml-2">Loading behavior…</span></Centered>;
+    return (
+      <Centered>
+        <Spinner size={16} />
+        <span className="ml-2">Loading behavior…</span>
+      </Centered>
+    );
   }
 
   if (summary.isError) {
@@ -59,13 +63,23 @@ export function BehaviorTab({ taskId }: BehaviorTabProps) {
         className="flex-shrink-0 border-b px-4 py-3"
         style={{ borderColor: "var(--color-border)", background: "var(--color-bg-1)" }}
       >
-        <ProcessTree processes={sortedProcesses} selected={effectivePid} onSelect={(pid) => { setSelectedPid(pid); setPage(0); }} />
+        <ProcessTree
+          processes={sortedProcesses}
+          selected={effectivePid}
+          onSelect={(pid) => {
+            setSelectedPid(pid);
+            setPage(0);
+          }}
+        />
       </div>
       <div className="flex flex-1 min-h-0">
         <ProcessList
           processes={sortedProcesses}
           selected={effectivePid}
-          onSelect={(pid) => { setSelectedPid(pid); setPage(0); }}
+          onSelect={(pid) => {
+            setSelectedPid(pid);
+            setPage(0);
+          }}
         />
         <CallsPanel taskId={taskId} pid={effectivePid} page={page} onPageChange={setPage} />
       </div>
@@ -141,7 +155,12 @@ function CallsPanel({ taskId, pid, page, onPageChange }: CallsPanelProps) {
   }
 
   if (calls.isLoading) {
-    return <Centered><Spinner size={14} /><span className="ml-2">Loading calls…</span></Centered>;
+    return (
+      <Centered>
+        <Spinner size={14} />
+        <span className="ml-2">Loading calls…</span>
+      </Centered>
+    );
   }
   if (calls.isError) {
     return (
@@ -228,11 +247,7 @@ function CallsTable({ calls }: { calls: ApiCall[] }) {
       </thead>
       <tbody>
         {calls.map((c, i) => (
-          <tr
-            key={c.id ?? i}
-            className="border-b"
-            style={{ borderColor: "var(--color-border)" }}
-          >
+          <tr key={c.id ?? i} className="border-b" style={{ borderColor: "var(--color-border)" }}>
             <td className="px-3 py-1 font-mono" style={{ color: "var(--color-fg-2)" }}>
               {c.id ?? i}
             </td>
