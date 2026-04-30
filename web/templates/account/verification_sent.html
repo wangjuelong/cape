@@ -1,11 +1,14 @@
-{% extends 'base.html' %}
+{% extends 'account/_auth_layout.html' %}
 {% load i18n %}
-
-{% block head_title %}{% trans "Verify Your E-mail Address" %}{% endblock %}
-
+{% block title %}{% trans "Verify your email" %}{% endblock %}
+{% block heading %}{% trans "Verify your email" %}{% endblock %}
 {% block content %}
-    <h1>{% trans "Verify Your E-mail Address" %}</h1>
-
-    <p>{% blocktrans %}We have sent an e-mail to you for verification. Follow the link provided to finalize the signup process. Please contact us if you do not receive it within a few minutes.{% endblocktrans %}</p>
-
+  <div class="cape-auth__alert cape-auth__alert--info">
+    {% blocktrans %}We've sent you a verification email. Click the link in that message to finish creating your account. If it doesn't show up within a few minutes, check spam or contact your administrator.{% endblocktrans %}
+  </div>
+{% endblock %}
+{% block footer %}
+  <div class="cape-auth__card-footer">
+    <a href="{% url 'account_login' %}">← {% trans "Back to sign in" %}</a>
+  </div>
 {% endblock %}

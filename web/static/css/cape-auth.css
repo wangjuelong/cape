@@ -1,0 +1,368 @@
+/* CAPE auth pages — SPA-aligned dark theme
+ *
+ * Mirrors the design tokens from frontend/app/src/styles/theme.css so the
+ * login / signup / password-reset journeys look like part of the SPA
+ * (PRD §4.4 + Decision Log D-10). The UI is intentionally self-contained:
+ * these templates do NOT extend base.html (which carries the legacy
+ * Bootstrap navbar) — they extend account/_auth_layout.html instead.
+ */
+
+:root {
+  /* Severity scale — matches frontend/app theme */
+  --color-sev-crit: oklch(0.66 0.20 22);
+  --color-sev-high: oklch(0.74 0.16 50);
+  --color-sev-med:  oklch(0.81 0.14 88);
+  --color-sev-low:  oklch(0.85 0.10 230);
+  --color-sev-clean: oklch(0.78 0.12 155);
+
+  /* Surfaces */
+  --color-bg-0: #0a0d12;
+  --color-bg-1: #0f131a;
+  --color-bg-2: #161b24;
+  --color-bg-3: #1f2530;
+
+  /* Foreground / borders */
+  --color-fg-0: #e6e9ef;
+  --color-fg-1: #b3b9c5;
+  --color-fg-2: #6b7280;
+  --color-border: #232a36;
+  --color-border-strong: #3a4250;
+
+  /* Accent */
+  --color-accent: oklch(0.78 0.13 220);
+  --color-accent-strong: oklch(0.86 0.13 220);
+  --color-accent-soft: oklch(0.78 0.13 220 / 0.14);
+
+  --font-mono:
+    ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+*,
+::before,
+::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--color-bg-0);
+  color: var(--color-fg-0);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+/* Page shell */
+.cape-auth {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 32px 16px;
+  background:
+    radial-gradient(1200px 600px at 12% -10%, rgba(91, 157, 255, 0.07), transparent),
+    radial-gradient(900px 500px at 100% 110%, rgba(255, 79, 107, 0.05), transparent),
+    var(--color-bg-0);
+}
+
+.cape-auth__brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--color-fg-0);
+}
+.cape-auth__brand-mark {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  box-shadow: 0 0 18px var(--color-accent-soft);
+}
+.cape-auth__brand-version {
+  margin-left: 4px;
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--color-fg-2);
+}
+
+/* Card */
+.cape-auth__card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--color-bg-1);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+.cape-auth__card-header {
+  padding: 18px 22px 8px;
+}
+.cape-auth__card-header h1 {
+  margin: 0 0 4px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-fg-0);
+}
+.cape-auth__card-header p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-fg-1);
+  line-height: 1.55;
+}
+.cape-auth__card-body {
+  padding: 14px 22px 22px;
+}
+.cape-auth__card-footer {
+  padding: 12px 22px 16px;
+  font-size: 11px;
+  color: var(--color-fg-2);
+  border-top: 1px solid var(--color-border);
+  background: var(--color-bg-2);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Form scaffolding */
+.cape-auth__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+.cape-auth__label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-fg-2);
+}
+.cape-auth__input,
+.cape-auth__card input[type="text"],
+.cape-auth__card input[type="email"],
+.cape-auth__card input[type="password"],
+.cape-auth__card input[type="url"],
+.cape-auth__card input[type="number"] {
+  width: 100%;
+  height: 32px;
+  padding: 0 10px;
+  background: var(--color-bg-2);
+  color: var(--color-fg-0);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  outline: none;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+.cape-auth__input::placeholder {
+  color: var(--color-fg-2);
+}
+.cape-auth__input:focus,
+.cape-auth__card input:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
+}
+
+.cape-auth__checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--color-fg-1);
+  margin: 6px 0 14px;
+}
+.cape-auth__checkbox input[type="checkbox"] {
+  accent-color: var(--color-accent);
+}
+
+/* Buttons */
+.cape-auth__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 4px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+  border: 1px solid transparent;
+}
+.cape-auth__btn--primary {
+  background: var(--color-accent);
+  color: var(--color-bg-0);
+}
+.cape-auth__btn--primary:hover {
+  background: var(--color-accent-strong);
+  text-decoration: none;
+}
+.cape-auth__btn--secondary {
+  background: var(--color-bg-2);
+  color: var(--color-fg-0);
+  border-color: var(--color-border);
+}
+.cape-auth__btn--secondary:hover {
+  border-color: var(--color-border-strong);
+  text-decoration: none;
+}
+.cape-auth__btn--block {
+  width: 100%;
+}
+
+/* Validation / messages */
+.cape-auth__error {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--color-sev-crit);
+}
+.cape-auth__alert {
+  padding: 10px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  border: 1px solid var(--color-border);
+  margin-bottom: 12px;
+}
+.cape-auth__alert--error {
+  background: color-mix(in oklch, var(--color-sev-crit) 12%, transparent);
+  border-color: color-mix(in oklch, var(--color-sev-crit) 40%, transparent);
+  color: var(--color-fg-0);
+}
+.cape-auth__alert--info {
+  background: var(--color-accent-soft);
+  border-color: color-mix(in oklch, var(--color-accent) 40%, transparent);
+  color: var(--color-fg-0);
+}
+.cape-auth__alert--success {
+  background: color-mix(in oklch, var(--color-sev-clean) 12%, transparent);
+  border-color: color-mix(in oklch, var(--color-sev-clean) 40%, transparent);
+  color: var(--color-fg-0);
+}
+
+/* Help text under fields */
+.cape-auth__help {
+  font-size: 11px;
+  color: var(--color-fg-2);
+  line-height: 1.5;
+}
+
+/* Inline links inside copy */
+.cape-auth__inline-link {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+/* Crispy / Django form fallbacks — when a template still emits crispy
+ * markup we override the worst Bootstrap classes so it doesn't look out
+ * of place. */
+.cape-auth__card .asteriskField {
+  color: var(--color-sev-crit);
+  margin-left: 2px;
+}
+.cape-auth__card .form-group,
+.cape-auth__card .mb-3,
+.cape-auth__card .form-floating {
+  margin-bottom: 12px;
+}
+.cape-auth__card .form-control,
+.cape-auth__card .textinput,
+.cape-auth__card .passwordinput,
+.cape-auth__card .emailinput,
+.cape-auth__card .urlinput {
+  background: var(--color-bg-2) !important;
+  color: var(--color-fg-0) !important;
+  border: 1px solid var(--color-border) !important;
+  height: 32px;
+  padding: 0 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.cape-auth__card label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-fg-2);
+  display: block;
+  margin-bottom: 4px;
+}
+.cape-auth__card .form-text,
+.cape-auth__card small {
+  font-size: 11px;
+  color: var(--color-fg-2);
+}
+.cape-auth__card .invalid-feedback,
+.cape-auth__card .errorlist {
+  font-size: 11px;
+  color: var(--color-sev-crit);
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+}
+
+/* OAuth provider grid (signup page) */
+.cape-auth__oauth-divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0 12px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-fg-2);
+}
+.cape-auth__oauth-divider::before,
+.cape-auth__oauth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--color-border);
+}
+.cape-auth__oauth-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+  gap: 6px;
+}
+.cape-auth__oauth-btn {
+  display: grid;
+  place-items: center;
+  height: 36px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-2);
+  color: var(--color-fg-1);
+  border-radius: 4px;
+  font-size: 14px;
+  text-decoration: none;
+  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
+}
+.cape-auth__oauth-btn:hover {
+  border-color: var(--color-accent);
+  color: var(--color-fg-0);
+  background: var(--color-bg-3);
+  text-decoration: none;
+}

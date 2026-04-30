@@ -1,0 +1,39 @@
+{% load static %}{% load i18n %}<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0a0d12">
+  <title>{% block title %}{% trans "Sign In" %}{% endblock %} · CAPE</title>
+  <link rel="icon" type="image/png" href="{% static 'img/cape.png' %}">
+  <link rel="stylesheet" href="{% static 'css/cape-auth.css' %}">
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+  <div class="cape-auth">
+    <div>
+      <a class="cape-auth__brand" href="/" aria-label="CAPE">
+        <span class="cape-auth__brand-mark"></span>
+        CAPE<span class="cape-auth__brand-version">v2.5</span>
+      </a>
+      <div class="cape-auth__card">
+        <div class="cape-auth__card-header">
+          <h1>{% block heading %}{% trans "Sign in" %}{% endblock %}</h1>
+          {% block subheading %}{% endblock %}
+        </div>
+        <div class="cape-auth__card-body">
+          {% if messages %}
+            {% for message in messages %}
+              <div class="cape-auth__alert cape-auth__alert--info">
+                {{ message }}
+              </div>
+            {% endfor %}
+          {% endif %}
+          {% block content %}{% endblock %}
+        </div>
+        {% block footer %}{% endblock %}
+      </div>
+    </div>
+  </div>
+</body>
+</html>

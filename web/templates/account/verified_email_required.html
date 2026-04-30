@@ -1,22 +1,18 @@
-{% extends 'base.html' %}
+{% extends 'account/_auth_layout.html' %}
 {% load i18n %}
-
-{% block head_title %}{% trans "Verify Your E-mail Address" %}{% endblock %}
-
+{% block title %}{% trans "Verify your email" %}{% endblock %}
+{% block heading %}{% trans "Verify your email" %}{% endblock %}
 {% block content %}
-<h1>{% trans "Verify Your E-mail Address" %}</h1>
-
-{% url 'account_email' as email_url %}
-
-<p>{% blocktrans %}This part of the site requires us to verify that
-you are who you claim to be. For this purpose, we require that you
-verify ownership of your e-mail address. {% endblocktrans %}</p>
-
-<p>{% blocktrans %}We have sent an e-mail to you for
-verification. Please click on the link inside this e-mail. Please
-contact us if you do not receive it within a few minutes.{% endblocktrans %}</p>
-
-<p>{% blocktrans %}<strong>Note:</strong> you can still <a href="{{ email_url }}">change your e-mail address</a>.{% endblocktrans %}</p>
-
-
+  {% url 'account_email' as email_url %}
+  <p style="font-size:12px; color:var(--color-fg-1); margin:0 0 12px;">
+    {% trans "This area requires a verified email address. We've sent a confirmation message; click the link inside to continue." %}
+  </p>
+  <div class="cape-auth__alert cape-auth__alert--info">
+    {% blocktrans %}You can <a class="cape-auth__inline-link" href="{{ email_url }}">change your email address</a> if needed.{% endblocktrans %}
+  </div>
+{% endblock %}
+{% block footer %}
+  <div class="cape-auth__card-footer">
+    <a href="{% url 'account_login' %}">← {% trans "Back to sign in" %}</a>
+  </div>
 {% endblock %}
