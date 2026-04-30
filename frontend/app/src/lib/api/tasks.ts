@@ -112,3 +112,34 @@ export async function submitDownloadServices(
   const { data } = await apiClient.post<SubmitResponse>("/tasks/download_services/", payload);
   return data;
 }
+
+export interface ResubmitPayload {
+  package?: string;
+  timeout?: number;
+  priority?: number;
+  options?: string;
+  machine?: string;
+  platform?: string;
+  tags?: string;
+  custom?: string;
+  memory?: boolean;
+  enforce_timeout?: boolean;
+  clock?: string;
+  referrer?: string;
+  tlp?: string;
+  tags_tasks?: string;
+  route?: string;
+  job_category?: "sample" | "static" | "pcap" | "dlnexec" | "vtdl" | "bazaar";
+}
+
+export async function resubmitByHash(
+  taskId: number,
+  fileHash: string,
+  payload: ResubmitPayload,
+): Promise<SubmitResponse> {
+  const { data } = await apiClient.post<SubmitResponse>(
+    `/tasks/${taskId}/resubmit/${encodeURIComponent(fileHash)}/`,
+    payload,
+  );
+  return data;
+}

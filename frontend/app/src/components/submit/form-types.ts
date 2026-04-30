@@ -1,7 +1,14 @@
 /** Shape of the unified submit form. The discriminator `mode` decides
  *  which primary input is required at runtime; everything else is shared.
  */
-export type SubmitMode = "file" | "url" | "dlnexec" | "downloading_service" | "pcap" | "static";
+export type SubmitMode =
+  | "file"
+  | "url"
+  | "dlnexec"
+  | "downloading_service"
+  | "pcap"
+  | "static"
+  | "resubmit";
 
 export interface SubmitFormValues {
   // Primary inputs (one required per mode)
@@ -19,6 +26,8 @@ export interface SubmitFormValues {
   timeout?: number;
   priority?: number;
   options?: string;
+  /** Linux-only options (separate dictionary, gated by web.conf [linux] enabled). */
+  lin_options?: string;
   machine?: string;
   platform?: string;
   tags?: string;
@@ -31,6 +40,9 @@ export interface SubmitFormValues {
   referrer?: string;
   tlp?: string;
   route?: string;
+  /** Resubmit-only: hash + optional task category override. */
+  hash?: string;
+  job_category?: "sample" | "static" | "pcap" | "dlnexec" | "vtdl" | "bazaar";
 
   // 17 CAPE option toggles (serialised into the `options` string)
   free?: boolean;

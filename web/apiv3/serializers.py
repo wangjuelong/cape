@@ -36,6 +36,63 @@ class FeatureFlagsSerializer(serializers.Serializer):
 
 
 # ---------------------------------------------------------------------------
+# Submission form metadata (mirrors web/submission/views.py:get_form_data())
+# ---------------------------------------------------------------------------
+
+
+class SubmissionPackageSerializer(serializers.Serializer):
+    name = serializers.CharField()
+    value = serializers.CharField()
+    summary = serializers.CharField(allow_blank=True)
+    description = serializers.CharField(allow_blank=True)
+    platform = serializers.CharField()
+
+
+class SubmissionMachineSerializer(serializers.Serializer):
+    value = serializers.CharField(allow_blank=True)
+    label = serializers.CharField()
+
+
+class SubmissionRouteOptionSerializer(serializers.Serializer):
+    name = serializers.CharField()
+    label = serializers.CharField()
+    type = serializers.CharField()
+    description = serializers.CharField(allow_null=True, required=False)
+
+
+class SubmissionFormDataSerializer(serializers.Serializer):
+    packages = SubmissionPackageSerializer(many=True)
+    machines = SubmissionMachineSerializer(many=True)
+    machine_tags = serializers.ListField(child=serializers.CharField())
+    route_options = SubmissionRouteOptionSerializer(many=True)
+    random_route = SubmissionRouteOptionSerializer(allow_null=True)
+    default_route = serializers.CharField()
+    config = serializers.DictField()
+
+
+class TaskResubmitSerializer(serializers.Serializer):
+    package = serializers.CharField(required=False, allow_blank=True)
+    timeout = serializers.IntegerField(required=False, min_value=0)
+    priority = serializers.IntegerField(required=False, min_value=1, max_value=3)
+    options = serializers.CharField(required=False, allow_blank=True)
+    machine = serializers.CharField(required=False, allow_blank=True)
+    platform = serializers.CharField(required=False, allow_blank=True)
+    tags = serializers.CharField(required=False, allow_blank=True)
+    custom = serializers.CharField(required=False, allow_blank=True)
+    memory = serializers.BooleanField(required=False)
+    enforce_timeout = serializers.BooleanField(required=False)
+    clock = serializers.CharField(required=False, allow_blank=True)
+    referrer = serializers.CharField(required=False, allow_blank=True)
+    tlp = serializers.CharField(required=False, allow_blank=True)
+    tags_tasks = serializers.CharField(required=False, allow_blank=True)
+    route = serializers.CharField(required=False, allow_blank=True)
+    job_category = serializers.ChoiceField(
+        choices=("sample", "static", "pcap", "dlnexec", "vtdl", "bazaar"),
+        required=False,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Tasks
 # ---------------------------------------------------------------------------
 

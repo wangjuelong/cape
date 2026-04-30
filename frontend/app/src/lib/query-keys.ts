@@ -36,5 +36,6 @@ export const queryKeys = {
   system: {
     info: ["system", "info"] as const,
     flags: ["system", "flags"] as const,
+    submissionForm: ["system", "submission-form"] as const,
   },
 } as const;

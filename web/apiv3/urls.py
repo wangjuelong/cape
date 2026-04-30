@@ -22,6 +22,7 @@ urlpatterns = [
     # System
     path("system/info/", views.system_info, name="system-info"),
     path("system/feature-flags/", views.feature_flags, name="feature-flags"),
+    path("system/submission-form/", views.submission_form_data, name="submission-form-data"),
 
     # Tasks
     path("tasks/", views.tasks_list, name="tasks-list"),
@@ -33,6 +34,11 @@ urlpatterns = [
         "tasks/download_services/",
         views.tasks_create_download_services,
         name="tasks-create-download-services",
+    ),
+    path(
+        "tasks/<int:task_id>/resubmit/<str:file_hash>/",
+        views.tasks_resubmit,
+        name="tasks-resubmit",
     ),
 
     # Reports

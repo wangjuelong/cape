@@ -45,15 +45,17 @@ from apiv3.serializers import (
     ReportSummarySerializer,
     ScreenshotsReportSerializer,
     StaticReportSerializer,
+    SubmissionFormDataSerializer,
     SystemInfoSerializer,
     TaskCreateResponseSerializer,
     TaskDlnexecSubmitSerializer,
     TaskDownloadServicesSubmitSerializer,
     TaskListResponseSerializer,
+    TaskResubmitSerializer,
     TaskSummarySerializer,
     TaskUrlSubmitSerializer,
 )
-from services import machine_service, report_service, task_service
+from services import machine_service, report_service, submission_service, task_service
 
 
 # ---------------------------------------------------------------------------
@@ -168,6 +170,25 @@ def feature_flags(_request: Request) -> Response:
         if isinstance(enabled, bool):
             flags[section_name] = enabled
     return Response(FeatureFlagsSerializer({"flags": flags}).data)
+
+
+@extend_schema(
+    tags=["system"],
+    summary="Submission form data (packages / machines / routes / tags / config gates).",
+    description=(
+        "One-shot read of everything the SPA Submit page needs to render its "
+        "dropdowns. Mirrors the dictionary upstream's web/submission/views.py "
+        "passes to its template (``packages``, ``machines``, ``tags``, "
+        "``vpns``, ``socks5s``, ``random_route``, ``all_exitnodes``, ``route``, "
+        "``config``)."
+    ),
+    responses={200: SubmissionFormDataSerializer},
+)
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def submission_form_data(_request: Request) -> Response:
+    payload = submission_service.get_form_data()
+    return Response(SubmissionFormDataSerializer(payload).data)
 
 
 # ---------------------------------------------------------------------------
@@ -376,6 +397,50 @@ def tasks_create_download_services(request: Request) -> Response:
         "task_ids": result["task_ids"],
         "message": result["message"],
         "machines": result.get("machines", []),
+        "errors": result.get("errors", []),
+    }
+    return Response(TaskCreateResponseSerializer(payload).data, status=http_status.HTTP_201_CREATED)
+
+
+@extend_schema(
+    tags=["tasks"],
+    summary="Resubmit a binary on disk by sha256/sha1/md5.",
+    description=(
+        "Mirrors the resubmit branch of upstream `web/submission/views.py:index()`. "
+        "Looks the binary up in db.sample_path_by_hash() / "
+        "storage/analyses/<task_id>/{binary,selfextracted,files,procdump,CAPE}, "
+        "stages it under TEMP_PATH/cape-resubmit, then submits via download_file. "
+        "`job_category` lets the caller switch the task type after lookup "
+        "(sample/static/pcap/dlnexec/vtdl/bazaar)."
+    ),
+    request=TaskResubmitSerializer,
+    responses={201: TaskCreateResponseSerializer, 400: ApiErrorSerializer, 404: ApiErrorSerializer},
+)
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def tasks_resubmit(request: Request, task_id: int, file_hash: str) -> Response:
+    serializer = TaskResubmitSerializer(data=request.data)
+    if not serializer.is_valid():
+        return _error("invalid_request", "validation failed", http_code=http_status.HTTP_400_BAD_REQUEST, **serializer.errors)
+
+    job_category = serializer.validated_data.get("job_category")
+    result = submission_service.resubmit_by_hash(
+        request,
+        task_id=task_id,
+        file_hash=file_hash,
+        job_category=job_category,
+    )
+    if not result.get("ok"):
+        code = result.get("error_code", "submit_failed")
+        http_code = (
+            http_status.HTTP_404_NOT_FOUND if code == "binary_not_found" else http_status.HTTP_400_BAD_REQUEST
+        )
+        return _error(code, result.get("error_value", "submission failed"), http_code=http_code)
+
+    payload = {
+        "task_ids": result["task_ids"],
+        "message": "Resubmitted",
+        "machines": [],
         "errors": result.get("errors", []),
     }
     return Response(TaskCreateResponseSerializer(payload).data, status=http_status.HTTP_201_CREATED)

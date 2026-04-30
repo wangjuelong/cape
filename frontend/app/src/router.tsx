@@ -49,6 +49,10 @@ export const router = createBrowserRouter([
       { index: true, element: <Navigate to="/dashboard" replace /> },
       { path: "dashboard", element: withSuspense(<DashboardRoute />) },
       { path: "submit", element: withSuspense(<SubmitRoute />) },
+      {
+        path: "submit/resubmit/:task_id/:hash",
+        element: withSuspense(<SubmitRoute />),
+      },
       { path: "recent", element: withSuspense(<RecentRoute />) },
       { path: "pending", element: withSuspense(<PendingRoute />) },
       { path: "search", element: withSuspense(<SearchRoute />) },
