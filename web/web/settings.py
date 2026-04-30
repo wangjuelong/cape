@@ -312,6 +312,8 @@ SPECTACULAR_SETTINGS = {
     "SCHEMA_PATH_PREFIX": r"/api/v3",
     "COMPONENT_SPLIT_REQUEST": True,
     "ENUM_NAME_OVERRIDES": {},
+    # PRD R8: keep v2 paths out of the OpenAPI document.
+    "PREPROCESSING_HOOKS": ["apiv3.spectacular_hooks.keep_only_v3"],
 }
 
 TWOFA = web_cfg.web_auth.get("2fa", False)
