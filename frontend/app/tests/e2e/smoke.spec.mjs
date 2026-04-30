@@ -92,14 +92,23 @@ test("03 task detail renders verdict banner + tabs", async ({ page }) => {
   await expect(page.locator('[role="tab"]').first()).toBeVisible();
 });
 
-test("04 /submit renders the 18-param form", async ({ page }) => {
+test("04 /submit renders 6 mode tabs + Advanced + Extended capabilities", async ({ page }) => {
   await login(page);
   await page.goto(BASE + "/submit");
-  // SSE keeps the network active; can't rely on networkidle. domcontentloaded is enough.
-  await page.waitForLoadState("domcontentloaded", { timeout: 10000 });
+  // Wait for the lazy chunk to settle and the form to mount.
+  await page.waitForSelector("text=Advanced options", { timeout: 15000 });
   await page.screenshot({ path: "test-results/04-submit.png", fullPage: true });
-  await expect(page.locator("text=Sample").first()).toBeVisible();
-  await expect(page.locator("text=Advanced options").first()).toBeVisible();
+
+  for (const tabLabel of ["File(s)", "URL", "PCAP", "Static"]) {
+    // exact match avoids "Static" matching the sidebar's "Statistics" link
+    await expect(page.getByRole("button", { name: tabLabel, exact: true })).toBeVisible();
+  }
+
+  await expect(page.getByText("Advanced options")).toBeVisible();
+  await expect(page.getByText("Extended capabilities")).toBeVisible();
+
+  await page.getByRole("button", { name: /DL & Exec/ }).click();
+  await expect(page.getByText("URL pointing at the binary")).toBeVisible();
 });
 
 test("06 sign-out flow: dropdown → POST /accounts/logout/ → /accounts/login/", async ({
