@@ -194,3 +194,23 @@ class BehaviorCallsResponseSerializer(serializers.Serializer):
     page = serializers.IntegerField()
     total_chunks = serializers.IntegerField()
     has_next = serializers.BooleanField()
+
+
+# ---------------------------------------------------------------------------
+# Static / ATT&CK / Config — passthrough payloads (schema is parser-defined,
+# the SPA renders them as JSON trees).
+# ---------------------------------------------------------------------------
+
+
+class StaticReportSerializer(serializers.Serializer):
+    static = serializers.DictField()
+    target_file = serializers.DictField()
+
+
+class AttackReportSerializer(serializers.Serializer):
+    ttps = serializers.ListField()
+    mitre_attck = serializers.ListField()
+
+
+class ConfigReportSerializer(serializers.Serializer):
+    malware_conf = serializers.ListField()

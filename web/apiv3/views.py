@@ -31,13 +31,16 @@ from rest_framework.response import Response
 
 from apiv3.serializers import (
     ApiErrorSerializer,
+    AttackReportSerializer,
     BehaviorCallsResponseSerializer,
     BehaviorSummaryResponseSerializer,
+    ConfigReportSerializer,
     CsrfTokenSerializer,
     CurrentUserSerializer,
     FeatureFlagsSerializer,
     MachineSerializer,
     ReportSummarySerializer,
+    StaticReportSerializer,
     SystemInfoSerializer,
     TaskCreateResponseSerializer,
     TaskListResponseSerializer,
@@ -410,6 +413,49 @@ def report_behavior_calls(request: Request, task_id: int) -> Response:
     if data is None:
         return _error("behavior_unavailable", "No behavior data for this task", http_code=http_status.HTTP_404_NOT_FOUND)
     return Response(BehaviorCallsResponseSerializer(data).data)
+
+
+@extend_schema(
+    tags=["reports"],
+    summary="Static analysis output — PE info, certs, imports, capa, …",
+    responses={200: StaticReportSerializer, 404: ApiErrorSerializer},
+)
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def report_static(_request: Request, task_id: int) -> Response:
+    data = report_service.fetch_static(task_id)
+    if data is None:
+        return _error("static_unavailable", "No static analysis data", http_code=http_status.HTTP_404_NOT_FOUND)
+    return Response(StaticReportSerializer(data).data)
+
+
+@extend_schema(
+    tags=["reports"],
+    summary="MITRE ATT&CK matrix — TTPs + tactic/technique mapping.",
+    description="Pass-through of mapTTPs.py output (PRD OQ2).",
+    responses={200: AttackReportSerializer, 404: ApiErrorSerializer},
+)
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def report_attack(_request: Request, task_id: int) -> Response:
+    data = report_service.fetch_attack(task_id)
+    if data is None:
+        return _error("attack_unavailable", "No ATT&CK mapping for this task", http_code=http_status.HTTP_404_NOT_FOUND)
+    return Response(AttackReportSerializer(data).data)
+
+
+@extend_schema(
+    tags=["reports"],
+    summary="CAPE-extracted malware configuration (per family).",
+    responses={200: ConfigReportSerializer, 404: ApiErrorSerializer},
+)
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def report_config(_request: Request, task_id: int) -> Response:
+    data = report_service.fetch_config(task_id)
+    if data is None:
+        return _error("config_unavailable", "No malware configuration recorded", http_code=http_status.HTTP_404_NOT_FOUND)
+    return Response(ConfigReportSerializer(data).data)
 
 
 @extend_schema(

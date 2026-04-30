@@ -37,6 +37,9 @@ urlpatterns = [
         views.report_behavior_calls,
         name="report-behavior-calls",
     ),
+    path("reports/<int:task_id>/static/", views.report_static, name="report-static"),
+    path("reports/<int:task_id>/attack/", views.report_attack, name="report-attack"),
+    path("reports/<int:task_id>/config/", views.report_config, name="report-config"),
 
     # Machines
     path("machines/", views.machines_list, name="machines-list"),

@@ -79,10 +79,7 @@ function layout(processes: ProcessSummary[]): { nodes: Node[]; edges: Edge[] } {
 function NodeLabel({ proc }: { proc: ProcessSummary }) {
   return (
     <div className="flex h-full flex-col justify-center px-3">
-      <div
-        className="truncate text-[11px] font-semibold"
-        style={{ color: "var(--color-fg-0)" }}
-      >
+      <div className="truncate text-[11px] font-semibold" style={{ color: "var(--color-fg-0)" }}>
         {proc.name || "(unknown)"}
       </div>
       <div className="font-mono text-[10px]" style={{ color: "var(--color-fg-2)" }}>
@@ -117,9 +114,7 @@ function ProcessTreeInner({ processes, selected, onSelect }: ProcessTreeProps) {
           style: {
             ...n.style,
             background: isSelected ? "var(--color-accent-soft)" : "var(--color-bg-2)",
-            border: isSelected
-              ? "1px solid var(--color-accent)"
-              : "1px solid var(--color-border)",
+            border: isSelected ? "1px solid var(--color-accent)" : "1px solid var(--color-border)",
           },
         };
       }),

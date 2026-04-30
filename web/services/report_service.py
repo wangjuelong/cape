@@ -196,6 +196,61 @@ def list_sections(task_id: int) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
+# Static tab
+# ---------------------------------------------------------------------------
+
+
+def fetch_static(task_id: int) -> dict[str, Any] | None:
+    """Returns the Static tab payload — PE info, certificates, imports,
+    sections, plus high-level fields like CAPA / curtain.
+
+    Shape: passthrough of the relevant Mongo projection. The SPA renders
+    it as a JSON tree without imposing schema (the parsers vary too much
+    by file type).
+    """
+    doc = _mongo_find_one(task_id, _PROJECTIONS["static"])
+    if doc is None:
+        return None
+    return {
+        "static": doc.get("static") or {},
+        "target_file": _path(doc, "target.file") or {},
+    }
+
+
+# ---------------------------------------------------------------------------
+# ATT&CK tab
+# ---------------------------------------------------------------------------
+
+
+def fetch_attack(task_id: int) -> dict[str, Any] | None:
+    """Returns the structured TTP / ATT&CK output.
+
+    Per OQ2 in report-page-spec, we pass through what mapTTPs.py /
+    reporting writes into Mongo without re-modelling.
+    """
+    doc = _mongo_find_one(task_id, _PROJECTIONS["attack"])
+    if doc is None:
+        return None
+    return {
+        "ttps": doc.get("ttps") or [],
+        "mitre_attck": doc.get("mitre_attck") or [],
+    }
+
+
+# ---------------------------------------------------------------------------
+# Config tab
+# ---------------------------------------------------------------------------
+
+
+def fetch_config(task_id: int) -> dict[str, Any] | None:
+    """Returns the CAPE-extracted malware configuration as-is."""
+    doc = _mongo_find_one(task_id, _PROJECTIONS["config"])
+    if doc is None:
+        return None
+    return {"malware_conf": doc.get("malware_conf") or []}
+
+
+# ---------------------------------------------------------------------------
 # Behavior tab
 # ---------------------------------------------------------------------------
 

@@ -295,10 +295,7 @@ function AdvancedOptions({ control, register }: AdvancedOptionsProps) {
                 const ANY = "__any__";
                 const value = field.value && field.value !== "" ? field.value : ANY;
                 return (
-                  <Select
-                    value={value}
-                    onValueChange={(v) => field.onChange(v === ANY ? "" : v)}
-                  >
+                  <Select value={value} onValueChange={(v) => field.onChange(v === ANY ? "" : v)}>
                     <SelectTrigger>
                       <SelectValue placeholder="(any available)" />
                     </SelectTrigger>

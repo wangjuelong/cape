@@ -79,3 +79,32 @@ export async function fetchReportBehaviorCalls(
   );
   return data;
 }
+
+export interface StaticReport {
+  static: Record<string, unknown>;
+  target_file: Record<string, unknown>;
+}
+
+export async function fetchReportStatic(taskId: number): Promise<StaticReport> {
+  const { data } = await apiClient.get<StaticReport>(`/reports/${taskId}/static/`);
+  return data;
+}
+
+export interface AttackReport {
+  ttps: unknown[];
+  mitre_attck: unknown[];
+}
+
+export async function fetchReportAttack(taskId: number): Promise<AttackReport> {
+  const { data } = await apiClient.get<AttackReport>(`/reports/${taskId}/attack/`);
+  return data;
+}
+
+export interface ConfigReport {
+  malware_conf: unknown[];
+}
+
+export async function fetchReportConfig(taskId: number): Promise<ConfigReport> {
+  const { data } = await apiClient.get<ConfigReport>(`/reports/${taskId}/config/`);
+  return data;
+}

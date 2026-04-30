@@ -7,8 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Spinner } from "@/components/ui/spinner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AttackTab } from "@/components/report/AttackTab";
 import { BehaviorTab } from "@/components/report/BehaviorTab";
+import { ConfigTab } from "@/components/report/ConfigTab";
 import { FindingsRail } from "@/components/report/FindingsRail";
+import { StaticTab } from "@/components/report/StaticTab";
 import { SummaryTab } from "@/components/report/SummaryTab";
 import { VerdictBanner } from "@/components/report/VerdictBanner";
 import { useReportSummary } from "@/hooks/useReport";
@@ -125,8 +128,27 @@ export default function TaskDetailRoute() {
           <BehaviorTab taskId={task.id} />
         </TabsContent>
 
+        <TabsContent value="static" className="flex flex-1 overflow-hidden">
+          <StaticTab taskId={task.id} />
+        </TabsContent>
+
+        <TabsContent value="attack" className="flex flex-1 overflow-hidden">
+          <AttackTab taskId={task.id} />
+        </TabsContent>
+
+        <TabsContent value="config" className="flex flex-1 overflow-hidden">
+          <ConfigTab taskId={task.id} />
+        </TabsContent>
+
         {visibleTabs
-          .filter((t) => t.key !== "summary" && t.key !== "behavior")
+          .filter(
+            (t) =>
+              t.key !== "summary" &&
+              t.key !== "behavior" &&
+              t.key !== "static" &&
+              t.key !== "attack" &&
+              t.key !== "config",
+          )
           .map((t) => (
             <TabsContent
               key={t.key}
