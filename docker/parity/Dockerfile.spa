@@ -1,0 +1,16 @@
+# SPA dev image — Vite dev server proxying /api, /apiv2, /accounts, /admin
+# back to the cape Django container.
+
+FROM node:20-alpine
+
+WORKDIR /spa
+
+# Layer-cache deps
+COPY frontend/app/package.json frontend/app/package-lock.json* ./
+RUN npm install --no-audit --no-fund
+
+# Source mounted at runtime via compose volume
+EXPOSE 5173
+
+# Allow non-localhost host header so docker-internal hostname works
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]

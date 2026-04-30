@@ -1,0 +1,40 @@
+# Cape parity image — runs the Django web layer of this fork.
+#
+# Same image is used twice in docker-compose.parity.yml:
+#   1. As "cape-upstream" with the working tree mounted at /cape (renders the
+#      legacy /submit/ Bootstrap form from web/submission/index.html).
+#   2. As "cape-spa-django" alongside the Vite dev container (serves /api/v3/*
+#      and the SPA's /accounts/* allauth pages).
+#
+# We deliberately install only the subset of upstream deps needed for the
+# Django web layer to come up — no yara/SFlock2/capstone/oletools etc.
+FROM python:3.10-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+        libpq-dev \
+        libssl-dev \
+        libffi-dev \
+        libxml2-dev \
+        libxslt-dev \
+        git \
+        curl \
+        ca-certificates \
+        crudini \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /cape
+
+# Web-only requirements — small subset of upstream pyproject.toml.
+# Docker layer-cached: copy this file first so deps are reused on code changes.
+COPY docker/parity/web-requirements.txt /tmp/req.txt
+RUN pip install --no-cache-dir -r /tmp/req.txt
+
+# Default port for runserver.
+EXPOSE 8000
+
+CMD ["python", "-c", "print('cape-parity image — override with command in compose')"]

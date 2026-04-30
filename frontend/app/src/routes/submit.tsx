@@ -211,9 +211,7 @@ export default function SubmitRoute() {
 
       if (mode === "resubmit") {
         if (!resubmitTaskId || !values.hash) {
-          throw new Error(
-            "Resubmit requires the original task id (deep-link) and a hash on disk.",
-          );
+          throw new Error("Resubmit requires the original task id (deep-link) and a hash on disk.");
         }
         return resubmitByHash(resubmitTaskId, values.hash, {
           package: values.package,
@@ -290,7 +288,11 @@ export default function SubmitRoute() {
   return (
     <>
       <PageHead
-        crumbs={isResubmitDeep ? ["CAPE", "Submit", `Resubmit task #${resubmitTaskId}`] : ["CAPE", "Submit"]}
+        crumbs={
+          isResubmitDeep
+            ? ["CAPE", "Submit", `Resubmit task #${resubmitTaskId}`]
+            : ["CAPE", "Submit"]
+        }
         actions={
           <>
             <a className="btn" href="/apiv3/schema/swagger/" target="_blank" rel="noreferrer">
@@ -393,7 +395,10 @@ export default function SubmitRoute() {
                 >
                   Reset to defaults
                 </button>
-                <div className="dim mono" style={{ fontSize: 10.5, marginTop: 6, lineHeight: 1.55 }}>
+                <div
+                  className="dim mono"
+                  style={{ fontSize: 10.5, marginTop: 6, lineHeight: 1.55 }}
+                >
                   Submission goes through the v3 API and lands in the analysis queue. Check{" "}
                   <a className="mono" style={{ color: "var(--color-accent)" }} href="/recent">
                     Recent
@@ -485,14 +490,21 @@ function PrimaryInput({ mode, register, control }: PrimaryInputProps) {
     case "pcap":
     case "static":
       return (
-        <label className="dropzone" htmlFor="cape-file-input" style={{ display: "block", cursor: "pointer" }}>
+        <label
+          className="dropzone"
+          htmlFor="cape-file-input"
+          style={{ display: "block", cursor: "pointer" }}
+        >
           <Upload
             size={20}
             style={{ color: "var(--color-fg-2)", margin: "0 auto 6px", display: "block" }}
           />
           <div style={{ fontSize: 13, color: "var(--color-fg-0)", marginBottom: 2 }}>
-            Drop {mode === "pcap" ? "PCAP / SAZ" : mode === "static" ? "static-only" : "sample"} file(s) or{" "}
-            <span style={{ color: "var(--color-accent)", textDecoration: "underline" }}>browse</span>
+            Drop {mode === "pcap" ? "PCAP / SAZ" : mode === "static" ? "static-only" : "sample"}{" "}
+            file(s) or{" "}
+            <span style={{ color: "var(--color-accent)", textDecoration: "underline" }}>
+              browse
+            </span>
           </div>
           <div className="dim" style={{ fontSize: 11 }}>
             Multiple files supported · each becomes a separate task
@@ -544,8 +556,8 @@ function PrimaryInput({ mode, register, control }: PrimaryInputProps) {
             />
           </Block>
           <p className="dim" style={{ fontSize: 11, marginTop: 6, lineHeight: 1.55 }}>
-            Tip: pass <code className="mono">apikey=&lt;vt_api_key&gt;</code> via Options below to override the
-            configured VT key.
+            Tip: pass <code className="mono">apikey=&lt;vt_api_key&gt;</code> via Options below to
+            override the configured VT key.
           </p>
         </>
       );
@@ -561,9 +573,14 @@ function PrimaryInput({ mode, register, control }: PrimaryInputProps) {
               style={inputStyle}
             />
           </Block>
-          <p className="dim" style={{ fontSize: 11, marginTop: 6, marginBottom: 8, lineHeight: 1.55 }}>
+          <p
+            className="dim"
+            style={{ fontSize: 11, marginTop: 6, marginBottom: 8, lineHeight: 1.55 }}
+          >
             CAPE looks the binary up in <code className="mono">storage/binaries/</code> and{" "}
-            <code className="mono">storage/analyses/&lt;task&gt;/{"{binary,selfextracted,files,procdump,CAPE}"}</code>{" "}
+            <code className="mono">
+              storage/analyses/&lt;task&gt;/{"{binary,selfextracted,files,procdump,CAPE}"}
+            </code>{" "}
             then re-runs it.
           </p>
           <Block label="Override task category (optional)">
@@ -574,7 +591,9 @@ function PrimaryInput({ mode, register, control }: PrimaryInputProps) {
                 <Select
                   value={field.value ?? "__same__"}
                   onValueChange={(v) =>
-                    field.onChange(v === "__same__" ? undefined : (v as SubmitFormValues["job_category"]))
+                    field.onChange(
+                      v === "__same__" ? undefined : (v as SubmitFormValues["job_category"]),
+                    )
                   }
                 >
                   <SelectTrigger>
@@ -622,4 +641,3 @@ function Block({ label, children }: BlockProps) {
     </>
   );
 }
-

@@ -1,0 +1,148 @@
+# CAPEv2 Submit-page parity stack
+#
+# Goal: stand up enough of CAPEv2 to render BOTH the upstream
+# `web/submission/index.html` Bootstrap form AND the new SPA submit page,
+# so a Playwright spec can extract the form schema from each side and
+# diff them.
+#
+# Components:
+#   db          PostgreSQL 16 (Cuckoo task DB, also Django ORM)
+#   mongo       MongoDB 7 (only used by /api/v3/reports/* — submit page
+#               does NOT need it, but lib/cuckoo/core/database imports
+#               it at startup so we run it for completeness)
+#   cape        Django web from THIS fork
+#                 - http://localhost:8000/submit/   (upstream Bootstrap)
+#                 - http://localhost:8000/accounts/login/ (allauth)
+#                 - http://localhost:8000/api/v3/   (new v3 endpoints)
+#   spa         Vite dev for THIS fork's React SPA
+#                 - http://localhost:5173/         (SPA shell)
+#                 - http://localhost:5173/submit   (new SPA submit)
+#               Vite proxies /api, /apiv2, /accounts, /admin → cape:8000
+#
+# The same fork serves BOTH submit pages; we don't need a second container
+# for "upstream", because /web/submission/ in this fork is verbatim from
+# kevoreilly/CAPEv2 master (only additive changes were made in /web/apiv3
+# and /frontend/app).
+#
+# Run from the repo root:
+#   docker compose -f docker/parity/docker-compose.yml up -d --build
+#   # wait ~60s for migrations + collectstatic
+#   docker compose -f docker/parity/docker-compose.yml logs -f cape
+#
+# Tear down:
+#   docker compose -f docker/parity/docker-compose.yml down -v
+
+name: cape-parity
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: cape-parity-db
+    environment:
+      POSTGRES_USER: cape
+      POSTGRES_PASSWORD: cape
+      POSTGRES_DB: cape
+    # Internal port 5432 stays — only the cape container talks to it. Host
+    # exposure on 65432 to avoid colliding with other Postgres instances.
+    ports:
+      - "65432:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "cape"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mongo:
+    image: mongo:7
+    container_name: cape-parity-mongo
+    ports:
+      - "37017:27017"
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  cape:
+    build:
+      context: ../..
+      dockerfile: docker/parity/Dockerfile.cape
+    container_name: cape-parity-django
+    depends_on:
+      db:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+    environment:
+      CAPE_DISABLE_ROOT_CONFIGS: "1"
+      DJANGO_SETTINGS_MODULE: web.settings
+      PYTHONPATH: /cape:/cape/web
+    volumes:
+      - ../..:/cape
+      - cape-conf:/cape/conf-runtime
+      - cape-storage:/cape/storage
+    working_dir: /cape
+    ports:
+      - "8000:8000"
+    command: >
+      sh -lc '
+        set -e ;
+        echo "[parity] preparing conf files" ;
+        cp -rn conf/default/. conf/ 2>/dev/null || true ;
+        crudini --set conf/cuckoo.conf database connection postgresql://cape:cape@db:5432/cape ;
+        crudini --set conf/reporting.conf mongodb enabled yes ;
+        crudini --set conf/reporting.conf mongodb host mongo ;
+        crudini --set conf/reporting.conf mongodb port 27017 ;
+        crudini --set conf/web.conf security csrf_trusted_origins "localhost:5173,127.0.0.1:5173,localhost:8000,127.0.0.1:8000" ;
+        crudini --set conf/web.conf registration email_confirmation no ;
+        crudini --set conf/api.conf urlcreate enabled yes ;
+        crudini --set conf/api.conf dlnexeccreate enabled yes ;
+        crudini --set conf/api.conf staticextraction enabled yes ;
+        crudini --set conf/api.conf downloading_services enabled yes ;
+        echo "[parity] running Django migrations" ;
+        cd web && python manage.py migrate --noinput ;
+        echo "[parity] seeding admin user (admin / admin)" ;
+        python manage.py shell -c "
+        from django.contrib.auth import get_user_model
+        U = get_user_model()
+        u, created = U.objects.get_or_create(username=\"admin\", defaults={\"email\": \"admin@example.com\"})
+        u.is_staff = True
+        u.is_superuser = True
+        u.set_password(\"admin\")
+        u.save()
+        print(\"admin ready, created=%s\" % created)
+        " ;
+        echo "[parity] runserver" ;
+        exec python manage.py runserver 0.0.0.0:8000
+      '
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/accounts/login/ >/dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  spa:
+    build:
+      context: ../..
+      dockerfile: docker/parity/Dockerfile.spa
+    container_name: cape-parity-spa
+    depends_on:
+      cape:
+        condition: service_healthy
+    environment:
+      VITE_API_TARGET: http://cape:8000
+    volumes:
+      - ../../frontend/app:/spa
+      - cape-spa-node-modules:/spa/node_modules
+    ports:
+      - "5173:5173"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:5173/ || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  cape-conf: {}
+  cape-storage: {}
+  cape-spa-node-modules: {}

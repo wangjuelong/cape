@@ -1,0 +1,56 @@
+# Minimal pip set to bring up the CAPEv2 Django web layer for the
+# /submit/ template + /api/v3/ + allauth login. Anything heavy
+# (yara/SFlock2/capstone/oletools/pefile/etc) is omitted — the parity test
+# only renders forms, it never analyses a binary.
+
+Django>=4.2.18
+djangorestframework==3.15.2
+django-allauth==65.13.0
+django-crispy-forms==2.3
+crispy-bootstrap4==2024.10
+django-settings-export==1.2.1
+django-csp==3.8
+django-extensions==3.2.3
+django-ratelimit==4.1.0
+django-recaptcha==4.0.0
+drf-spectacular>=0.27
+channels[daphne]>=4.0.0
+uvicorn[standard]>=0.18.2
+gunicorn>=23.0.0
+
+# Storage / DB
+psycopg2-binary>=2.9.10
+SQLAlchemy==2.0.41
+SQLAlchemy-Utils==0.41.1
+alembic==1.9.4
+pymongo>=4.0.1
+elasticsearch==7.17.7
+
+# Misc helpers used by web/lib
+Jinja2>=3.1.6
+requests[security,socks]==2.32.4
+chardet==4.0.0
+python-dateutil==2.9.0.post0
+pytz==2021.1
+maxminddb==2.6.3
+Pillow>=8.2.0
+orjson>=3.9.15
+cryptography>=44.0.1
+pyzipper==0.3.6
+python-tlsh==4.5.0
+LnkParse3==1.5.0
+cachetools>=5.5.1
+psutil==6.1.1
+packaging==24.2
+setuptools==78.1.1
+crudini==0.9.5
+gevent==24.2.1
+greenlet==3.0.3
+pebble==5.1.0
+setproctitle==1.3.2
+Werkzeug==3.1.5
+django-csp==3.8
+pygal==2.4.0
+
+# Python-tlsh / pydeep are referenced by lib.cuckoo.common imports
+pydeep2==0.5.1
