@@ -64,11 +64,18 @@ export interface SubmitFormValues {
   screenshots_qr?: boolean;
 }
 
+/**
+ * Defaults match upstream `web/submission/index.html` rendering:
+ *   - priority   = 2 (Medium) — selected option in the priority dropdown
+ *   - timeout    = 200          — `value="{{ config.timeout }}"`
+ *   - syscall    = true         — checkbox rendered with `checked`
+ *   - rest       = false        — unchecked by default
+ */
 export const SUBMIT_DEFAULTS: SubmitFormValues = {
-  priority: 1,
+  priority: 2,
+  timeout: 200,
   memory: false,
   enforce_timeout: false,
   unique: false,
-  // Mirror upstream: syscall checkbox is rendered with `checked` by default.
   syscall: true,
 };

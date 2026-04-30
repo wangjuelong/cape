@@ -122,9 +122,23 @@ export default function SubmitRoute() {
   const formData = formDataQuery.data;
 
   const visibleTabs = useMemo(() => {
-    const base = TABS.filter((t) => !t.flag || (flags?.[t.flag] ?? true));
-    // Show resubmit tab whenever the user lands on /submit/resubmit/...
-    return isResubmitDeep ? [RESUBMIT_TAB, ...base] : [...base, RESUBMIT_TAB];
+    // Mirror upstream's web/submission/index.html gating exactly:
+    //   - file/pcap/static  → always rendered
+    //   - url               → web.conf [url_analysis] enabled
+    //   - dlnexec           → web.conf [dlnexec] enabled
+    //   - downloading_svc   → bool(downloader_services.downloaders)
+    // When the SPA can't reach /api/v3/system/feature-flags/ (e.g. running
+    // against an upstream Django without our v3 app), conservatively HIDE
+    // the gated tabs so we render the same set upstream would.
+    const base = TABS.filter((t) => {
+      if (!t.flag) return true;
+      if (t.key === "file" || t.key === "pcap" || t.key === "static") return true;
+      return flags?.[t.flag] === true;
+    });
+    // Resubmit only appears when the user follows a deep-link
+    // /submit/resubmit/<task>/<hash>/ — matches upstream's
+    // urls.py re_path(r"^resubmit/...$", views.index).
+    return isResubmitDeep ? [RESUBMIT_TAB, ...base] : base;
   }, [flags, isResubmitDeep]);
 
   const [mode, setMode] = useState<SubmitMode>(
@@ -285,6 +299,11 @@ export default function SubmitRoute() {
 
   const isPending = isSubmitting || mutation.isPending;
 
+  // Upstream's `index.html` hides #non-pcap-1 / #non-pcap-2 (which contain
+  // every Advanced + Extended option) when the user picks PCAP or Static
+  // — those modes ignore most submission params. Mirror that here.
+  const hideAdvanced = mode === "pcap" || mode === "static";
+
   return (
     <>
       <PageHead
@@ -355,18 +374,19 @@ export default function SubmitRoute() {
               </div>
             </div>
 
-            <AdvancedOptionsCard
-              control={control}
-              register={register}
-              formData={formData}
-              showReferrer={mode === "url" || mode === "dlnexec"}
-              showPreScripts={mode === "file"}
-            />
+            {!hideAdvanced && (
+              <AdvancedOptionsCard
+                control={control}
+                register={register}
+                formData={formData}
+                showPreScripts={mode === "file"}
+              />
+            )}
           </div>
 
           {/* ===== RIGHT ===== */}
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <CapeTogglesCard control={control} />
+            {!hideAdvanced && <CapeTogglesCard control={control} formData={formData} />}
 
             <div className="panel">
               <div className="panel-h">Submit</div>

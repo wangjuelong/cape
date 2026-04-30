@@ -1,4 +1,4 @@
-import { Controller, type Control, type UseFormRegister } from "react-hook-form";
+import { Controller, useWatch, type Control, type UseFormRegister } from "react-hook-form";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,17 +10,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import type { SubmissionFormData } from "@/lib/api/submission-form";
 
 import { HiddenMirror } from "./HiddenMirror";
 import type { SubmitFormValues } from "./form-types";
 
+// Mirror upstream `data-color` attributes from index.html — the live
+// /submit/ page colors the priority/TLP option text by severity.
+const PRIORITY_COLOR: Record<string, string> = {
+  "1": "#0dcaf0", // Low — info cyan
+  "2": "#ffc107", // Medium — warning amber
+  "3": "#dc3545", // High — danger red
+};
+const TLP_COLOR: Record<string, string> = {
+  "": "#ffffff",
+  Green: "#198754",
+  Amber: "#ffc107",
+  Red: "#dc3545",
+};
+
 interface AdvancedOptionsCardProps {
   control: Control<SubmitFormValues>;
   register: UseFormRegister<SubmitFormValues>;
   formData?: SubmissionFormData;
-  showReferrer?: boolean;
   showPreScripts?: boolean;
 }
 
@@ -33,7 +45,6 @@ export function AdvancedOptionsCard({
   control,
   register,
   formData,
-  showReferrer = false,
   showPreScripts = false,
 }: AdvancedOptionsCardProps) {
   const packages = formData?.packages ?? [];
@@ -42,11 +53,20 @@ export function AdvancedOptionsCard({
   const routeOptions = formData?.route_options ?? [];
   const config = formData?.config;
 
-  const tlpEnabled = config?.tlp ?? true;
-  const linuxOnGui = config?.linux_on_gui ?? false;
-  const tagsHelpVisible = (config?.tags ?? false) && machineTags.length > 0;
-  const preScriptEnabled = showPreScripts && (config?.pre_script ?? true);
-  const duringScriptEnabled = showPreScripts && (config?.during_script ?? true);
+  // Conservative defaults — mirror upstream's `enabledconf` gating: when
+  // the SPA can't reach /api/v3/system/submission-form/ (e.g. against a
+  // vanilla upstream Django) we fall back to "hide unless explicitly
+  // enabled" so we never render a field upstream would have hidden.
+  const tlpEnabled = config?.tlp === true;
+  const linuxOnGui = config?.linux_on_gui === true;
+  const tagsHelpVisible = config?.tags === true && machineTags.length > 0;
+  const preScriptEnabled = showPreScripts && config?.pre_script !== false;
+  const duringScriptEnabled = showPreScripts && config?.during_script !== false;
+
+  // Watch package selection so we can render the description below the
+  // dropdown — mirrors upstream's `$('#form_package').change(...)` JS.
+  const packageValue = useWatch({ control, name: "package" });
+  const selectedPackage = packages.find((p) => p.value === packageValue);
 
   return (
     <Card>
@@ -87,6 +107,22 @@ export function AdvancedOptionsCard({
                 );
               }}
             />
+            {/* Mirror upstream's <small id="package_description">{title}</small>
+                — show the selected package's description below the select. */}
+            {selectedPackage?.description && (
+              <p
+                id="package_description"
+                className="dim mono"
+                style={{
+                  marginTop: 6,
+                  fontSize: 11,
+                  whiteSpace: "pre-wrap",
+                  lineHeight: 1.5,
+                }}
+              >
+                {selectedPackage.description}
+              </p>
+            )}
           </Field>
 
           <Field label="Timeout (s)">
@@ -102,24 +138,31 @@ export function AdvancedOptionsCard({
             <Controller
               control={control}
               name="priority"
-              render={({ field }) => (
-                <>
-                  <HiddenMirror name="priority" value={field.value} />
-                  <Select
-                    value={String(field.value ?? "1")}
-                    onValueChange={(v) => field.onChange(Number(v))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1">Low (1)</SelectItem>
-                      <SelectItem value="2">Medium (2)</SelectItem>
-                      <SelectItem value="3">High (3)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </>
-              )}
+              render={({ field }) => {
+                const v = String(field.value ?? "2");
+                const color = PRIORITY_COLOR[v];
+                return (
+                  <>
+                    <HiddenMirror name="priority" value={field.value} />
+                    <Select value={v} onValueChange={(nv) => field.onChange(Number(nv))}>
+                      <SelectTrigger style={color ? { color } : undefined}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1" style={{ color: PRIORITY_COLOR["1"] }}>
+                          Low
+                        </SelectItem>
+                        <SelectItem value="2" style={{ color: PRIORITY_COLOR["2"] }}>
+                          Medium
+                        </SelectItem>
+                        <SelectItem value="3" style={{ color: PRIORITY_COLOR["3"] }}>
+                          High
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </>
+                );
+              }}
             />
           </Field>
 
@@ -154,31 +197,37 @@ export function AdvancedOptionsCard({
             />
           </Field>
 
-          <Field label="Platform">
-            <Controller
-              control={control}
-              name="platform"
-              render={({ field }) => (
-                <>
-                  <HiddenMirror name="platform" value={field.value} />
-                  <Select
-                    value={field.value || ANY_PLATFORM}
-                    onValueChange={(v) => field.onChange(v === ANY_PLATFORM ? "" : v)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={ANY_PLATFORM}>(auto)</SelectItem>
-                      <SelectItem value="windows">windows</SelectItem>
-                      <SelectItem value="linux">linux</SelectItem>
-                      <SelectItem value="darwin">darwin</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </>
-              )}
-            />
-          </Field>
+          {/* Platform select — only meaningful on multi-platform deploys.
+              Upstream's index.html doesn't render a separate platform field
+              (the machine label encodes platform). Show only when web.conf
+              [linux] enabled, matching upstream's "linux on gui" gate. */}
+          {linuxOnGui && (
+            <Field label="Platform">
+              <Controller
+                control={control}
+                name="platform"
+                render={({ field }) => (
+                  <>
+                    <HiddenMirror name="platform" value={field.value} />
+                    <Select
+                      value={field.value || ANY_PLATFORM}
+                      onValueChange={(v) => field.onChange(v === ANY_PLATFORM ? "" : v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={ANY_PLATFORM}>(auto)</SelectItem>
+                        <SelectItem value="windows">windows</SelectItem>
+                        <SelectItem value="linux">linux</SelectItem>
+                        <SelectItem value="darwin">darwin</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </>
+                )}
+              />
+            </Field>
+          )}
 
           <Field label="Network route">
             <Controller
@@ -221,32 +270,45 @@ export function AdvancedOptionsCard({
             <Input placeholder="campaign-1,internal" {...register("tags_tasks")} />
           </Field>
 
-          <Field label="TLP">
-            <Controller
-              control={control}
-              name="tlp"
-              render={({ field }) => (
-                <>
-                  <HiddenMirror name="tlp" value={field.value} />
-                  <Select
-                    value={field.value || NO_TLP}
-                    onValueChange={(v) => field.onChange(v === NO_TLP ? "" : v)}
-                    disabled={!tlpEnabled}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="White (default)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={NO_TLP}>White (default)</SelectItem>
-                      <SelectItem value="Green">Green</SelectItem>
-                      <SelectItem value="Amber">Amber</SelectItem>
-                      <SelectItem value="Red">Red</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </>
-              )}
-            />
-          </Field>
+          {tlpEnabled && (
+            <Field label="TLP">
+              <Controller
+                control={control}
+                name="tlp"
+                render={({ field }) => {
+                  const v = field.value || "";
+                  const color = TLP_COLOR[v];
+                  return (
+                    <>
+                      <HiddenMirror name="tlp" value={field.value} />
+                      <Select
+                        value={v || NO_TLP}
+                        onValueChange={(nv) => field.onChange(nv === NO_TLP ? "" : nv)}
+                      >
+                        <SelectTrigger style={color ? { color } : undefined}>
+                          <SelectValue placeholder="White" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={NO_TLP} style={{ color: TLP_COLOR[""] }}>
+                            White
+                          </SelectItem>
+                          <SelectItem value="Green" style={{ color: TLP_COLOR.Green }}>
+                            Green
+                          </SelectItem>
+                          <SelectItem value="Amber" style={{ color: TLP_COLOR.Amber }}>
+                            Amber
+                          </SelectItem>
+                          <SelectItem value="Red" style={{ color: TLP_COLOR.Red }}>
+                            Red
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </>
+                  );
+                }}
+              />
+            </Field>
+          )}
 
           <Field label="Clock (MM-DD-YYYY HH:mm:ss)">
             <Input placeholder="(default: now)" {...register("clock")} />
@@ -256,11 +318,9 @@ export function AdvancedOptionsCard({
             <Input placeholder="free text passed through to the report" {...register("custom")} />
           </Field>
 
-          {showReferrer && (
-            <Field label="Referrer">
-              <Input placeholder="https://..." {...register("referrer")} />
-            </Field>
-          )}
+          {/* `referrer` is set by upstream from the HTTP_REFERER header,
+              not a visible input — omitted to keep parity with upstream
+              `web/submission/index.html`. */}
 
           <div className="md:col-span-2">
             <Field label="Options (raw, comma-separated key=val)">
@@ -294,15 +354,9 @@ export function AdvancedOptionsCard({
           )}
         </div>
 
-        {/* `memory` and `enforce_timeout` live in CapeTogglesCard
-            (mirroring upstream's Extended Capabilities panel); only
-            `unique` is unique to the shared submission params. */}
-        <div
-          className="mt-3 flex flex-wrap gap-3 border-t pt-3"
-          style={{ borderColor: "var(--color-border)" }}
-        >
-          <ToggleRow control={control} name="unique" label="Reject if sample already exists" />
-        </div>
+        {/* Upstream's web/submission/index.html doesn't render `unique`,
+            `tor` or `mitmdump` checkboxes — those POST flags are wired
+            into options/route dropdowns. Removed here for visual parity. */}
       </CardContent>
     </Card>
   );
@@ -319,27 +373,5 @@ function Field({ label, children }: FieldProps) {
       <Label>{label}</Label>
       {children}
     </div>
-  );
-}
-
-interface ToggleRowProps {
-  control: Control<SubmitFormValues>;
-  name: keyof SubmitFormValues;
-  label: string;
-}
-
-function ToggleRow({ control, name, label }: ToggleRowProps) {
-  return (
-    <Controller
-      control={control}
-      name={name}
-      render={({ field }) => (
-        <label className="flex cursor-pointer items-center gap-2 text-xs">
-          <HiddenMirror name={String(name)} value={field.value} />
-          <Switch checked={!!field.value} onCheckedChange={field.onChange} />
-          <span style={{ color: "var(--color-fg-1)" }}>{label}</span>
-        </label>
-      )}
-    />
   );
 }

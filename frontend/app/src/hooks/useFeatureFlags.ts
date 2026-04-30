@@ -1,21 +1,38 @@
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 
 import { fetchFeatureFlags } from "@/lib/api/system";
+import { fetchUpstreamSubmitScrape } from "@/lib/api/upstream-scrape";
 import { queryKeys } from "@/lib/query-keys";
 
 /**
- * Returns the live api.conf [<endpoint>].enabled snapshot. The SPA hides
- * nav items / buttons whose underlying endpoint is currently disabled.
+ * Returns the live api.conf snapshot for endpoint gating.
  *
- * Empty object on initial load — call sites should treat unknown keys as
- * "enabled" (fail-open) to avoid hiding everything during the bootstrap
- * round-trip.
+ * Strategy:
+ *   1. Try /api/v3/system/feature-flags/ (this fork).
+ *   2. On 404 / error, fall back to scraping upstream /submit/ HTML to
+ *      detect which task-creation routes are enabled. Lets the SPA still
+ *      gate its tabs correctly when running against a vanilla CAPE.
  */
 export function useFeatureFlags(): UseQueryResult<Record<string, boolean>, Error> {
   return useQuery({
     queryKey: queryKeys.system.flags,
-    queryFn: fetchFeatureFlags,
+    queryFn: async () => {
+      try {
+        return await fetchFeatureFlags();
+      } catch {
+        const scraped = await fetchUpstreamSubmitScrape();
+        // Map upstream /submit/ tab visibility → api.conf flag names.
+        return {
+          filecreate: scraped.tabs.file,
+          urlcreate: scraped.tabs.url,
+          dlnexeccreate: scraped.tabs.dlnexec,
+          downloading_services: scraped.tabs.downloading_service,
+          staticextraction: scraped.tabs.static,
+        };
+      }
+    },
     staleTime: 5 * 60_000,
+    retry: 0,
   });
 }
 

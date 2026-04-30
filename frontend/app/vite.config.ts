@@ -24,6 +24,16 @@ export default defineConfig({
       "/accounts": { target: apiTarget, changeOrigin: true },
       "/admin": { target: apiTarget, changeOrigin: true },
       "/static": { target: apiTarget, changeOrigin: true },
+      // Dedicated path the SPA uses when it needs to scrape the upstream
+      // Bootstrap /submit/ HTML to discover feature flags / packages /
+      // routes that aren't available via /api/v3/. Rewrites to /submit/
+      // on the backend; bypasses the vite-served SPA route of the same
+      // name.
+      "/_upstream/submit": {
+        target: apiTarget,
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/_upstream\/submit/, "/submit"),
+      },
     },
   },
   build: {
