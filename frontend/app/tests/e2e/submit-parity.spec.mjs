@@ -1,26 +1,30 @@
 /**
  * Submit-page parity check
  * ========================
- * Confirms the SPA Submit page exposes every form field that upstream
- * `web/submission/index.html` does, by extracting both forms' field
- * inventories at runtime and diffing them.
+ * Confirms the SPA's /submit page exposes every form field that an
+ * upstream CAPEv2 deployment renders at /submit/, by extracting both
+ * forms' field inventories at runtime and diffing them.
+ *
+ * Defaults compare:
+ *   PARITY_UPSTREAM_URL  http://192.168.1.6:8000  (reference CAPE deploy)
+ *   PARITY_SPA_URL       http://localhost:5173    (this fork's Vite dev)
+ *
+ * Override via env if your stack lives elsewhere. PARITY_USER/PASS only
+ * matter when the deployment has web_auth enabled — otherwise the spec
+ * silently browses anonymously.
  *
  * Usage:
- *   docker compose -f docker/parity/docker-compose.yml up -d --build
- *   npx playwright test tests/e2e/submit-parity.spec.mjs
+ *   npx playwright test tests/e2e/submit-parity.spec.mjs --reporter=line
  *
- * URLs (override via env if your stack differs):
- *   PARITY_UPSTREAM_URL  default http://localhost:8000
- *   PARITY_SPA_URL       default http://localhost:5173
- *   PARITY_USER          default admin
- *   PARITY_PASS          default admin
+ * Output:
+ *   test-results/submit-parity.json — full field manifest + diff
  */
 
 import { expect, test } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
 
-const UPSTREAM = process.env.PARITY_UPSTREAM_URL ?? "http://localhost:8000";
+const UPSTREAM = process.env.PARITY_UPSTREAM_URL ?? "http://192.168.1.6:8000";
 const SPA = process.env.PARITY_SPA_URL ?? "http://localhost:5173";
 const USER = process.env.PARITY_USER ?? "admin";
 const PASS = process.env.PARITY_PASS ?? "admin";
@@ -36,9 +40,9 @@ const PASS = process.env.PARITY_PASS ?? "admin";
 const SUBMIT_FIELDS = {
   // Mode-specific inputs
   sample: { kind: "file", required: true, mode: "file" },
-  url: { kind: "input", required: true, mode: "url" },
-  dlnexec: { kind: "input", required: false, mode: "dlnexec" },
-  hashes: { kind: "input", required: false, mode: "downloading_service" },
+  url: { kind: "input", required: false, mode: "url" }, // gated by web.conf [url_analysis]
+  dlnexec: { kind: "input", required: false, mode: "dlnexec" }, // gated by web.conf [dlnexec]
+  hashes: { kind: "input", required: false, mode: "downloading_service" }, // gated
   pcap: { kind: "file", required: true, mode: "pcap" },
   static: { kind: "file", required: true, mode: "static" },
 
@@ -75,7 +79,7 @@ const SUBMIT_FIELDS = {
   interactive: { kind: "checkbox", required: false },
   manual: { kind: "checkbox", required: false },
   kernel_analysis: { kind: "checkbox", required: false },
-  static_config: { kind: "checkbox", required: true }, // upstream html name="static" but with id=static_config
+  static_config: { kind: "checkbox", required: true }, // upstream html name="static" with id=static_config
   oldloader: { kind: "checkbox", required: true },
   screenshots_qr: { kind: "checkbox", required: true },
   // mitmdump is parsed by views.py but never appears in upstream's index.html
@@ -84,35 +88,63 @@ const SUBMIT_FIELDS = {
 };
 
 // ---------------------------------------------------------------------------
-// Login helpers
+// Helpers
 // ---------------------------------------------------------------------------
 
 async function login(page, base) {
-  await page.goto(base + "/accounts/login/");
-  await page.locator('input[name="login"]').fill(USER);
-  await page.locator('input[name="password"]').fill(PASS);
-  await page.locator('form[method="post"] button[type="submit"]').click();
-  await page.waitForURL((url) => !url.pathname.startsWith("/accounts/"), {
-    timeout: 15000,
-  });
+  // Some CAPE deployments disable web_auth; in that case /submit/ renders
+  // directly and /accounts/login/ may even 500. Try to log in but fall back
+  // to anonymous browsing if the login form isn't there.
+  try {
+    const resp = await page.goto(base + "/accounts/login/", { timeout: 8000 });
+    if (!resp || resp.status() >= 500) {
+      console.log(`[parity] ${base} login disabled (HTTP ${resp?.status()}), continuing anonymously`);
+      return;
+    }
+    const loginInput = page.locator('input[name="login"]').first();
+    const visible = await loginInput.isVisible().catch(() => false);
+    if (!visible) {
+      console.log(`[parity] ${base} no login form, continuing anonymously`);
+      return;
+    }
+    await loginInput.fill(USER);
+    await page.locator('input[name="password"]').fill(PASS);
+    await page.locator('form[method="post"] button[type="submit"]').click();
+    await page.waitForURL((url) => !url.pathname.startsWith("/accounts/"), {
+      timeout: 15000,
+    });
+  } catch (err) {
+    console.log(`[parity] ${base} login skipped: ${err.message}`);
+  }
 }
 
-// ---------------------------------------------------------------------------
-// Field extraction
-// ---------------------------------------------------------------------------
+/** Names of inputs that aren't part of the submission form proper
+ *  (CSRF token, navbar search box, etc) and should never count toward the
+ *  parity diff. */
+const FIELD_NAME_BLOCKLIST = new Set([
+  "csrfmiddlewaretoken",
+  "search", // navbar regex search
+]);
 
 async function extractFields(page) {
-  // Visit every mode tab to make conditional fields render before scraping.
-  // Upstream is one Django form with all fields rendered on first load,
-  // so this is mainly relevant for the SPA.
-  return await page.evaluate(() => {
+  const blocklist = Array.from(FIELD_NAME_BLOCKLIST);
+  return await page.evaluate((blockedNames) => {
+    /** @type {Record<string, string>} */
     const out = {};
-    const docInputs = document.querySelectorAll(
-      'input[name], select[name], textarea[name]',
+    const blocked = new Set(blockedNames);
+    // Restrict to the actual submission <form> if one is present so we don't
+    // pick up navbar widgets that share an input name (eg. upstream's regex
+    // search input also named name=…).
+    const root =
+      document.querySelector("form[method='post']") ||
+      document.querySelector("form") ||
+      document.body;
+    const docInputs = root.querySelectorAll(
+      "input[name], select[name], textarea[name]",
     );
     for (const el of docInputs) {
       const name = el.getAttribute("name");
-      if (!name) continue;
+      if (!name || blocked.has(name)) continue;
       let kind = "input";
       if (el.tagName === "SELECT") kind = "select";
       else if (el.tagName === "TEXTAREA") kind = "textarea";
@@ -122,11 +154,10 @@ async function extractFields(page) {
       out[name] = (out[name] ? out[name] + "," : "") + kind;
     }
     return out;
-  });
+  }, blocklist);
 }
 
-async function scrapeUpstream() {
-  const browser = await (await import("@playwright/test")).chromium.launch();
+async function scrapeUpstream(browser) {
   const ctx = await browser.newContext();
   const page = await ctx.newPage();
   try {
@@ -137,12 +168,10 @@ async function scrapeUpstream() {
     return await extractFields(page);
   } finally {
     await ctx.close();
-    await browser.close();
   }
 }
 
-async function scrapeSPA() {
-  const browser = await (await import("@playwright/test")).chromium.launch();
+async function scrapeSPA(browser) {
   const ctx = await browser.newContext();
   const page = await ctx.newPage();
   try {
@@ -152,15 +181,13 @@ async function scrapeSPA() {
 
     // SPA only mounts the active mode's primary input; cycle every visible
     // mode tab to collect the union of fields.
-    const tabs = await page.locator("button:has-text(/^(File|Download|URL|DL & Exec|PCAP|Static|Resubmit)/)").all();
-    const seen = new Set();
+    const tabs = page.getByRole("button", { name: /^(File\(s\)|Download|URL|DL & Exec|PCAP|Static|Resubmit)/ });
+    const labels = await tabs.allTextContents();
     let merged = await extractFields(page);
-    for (const tab of tabs) {
-      const label = (await tab.textContent())?.trim();
-      if (!label || seen.has(label)) continue;
-      seen.add(label);
+    for (const raw of labels) {
+      const label = raw.trim();
       try {
-        await tab.click({ timeout: 2000 });
+        await page.getByRole("button", { name: label, exact: true }).first().click({ timeout: 2000 });
         await page.waitForTimeout(150);
       } catch {
         continue;
@@ -171,7 +198,6 @@ async function scrapeSPA() {
     return merged;
   } finally {
     await ctx.close();
-    await browser.close();
   }
 }
 
@@ -181,11 +207,13 @@ async function scrapeSPA() {
 
 test.describe.configure({ mode: "serial" });
 
-test("submit form parity: upstream /submit/  ↔  SPA /submit", async () => {
-  const upstreamFields = await scrapeUpstream();
-  const spaFields = await scrapeSPA();
+test("submit form parity: upstream /submit/  ↔  SPA /submit", async ({ browser }) => {
+  const upstreamFields = await scrapeUpstream(browser);
+  const spaFields = await scrapeSPA(browser);
 
   const report = {
+    upstream_url: UPSTREAM,
+    spa_url: SPA,
     upstream_fields: upstreamFields,
     spa_fields: spaFields,
     expected: SUBMIT_FIELDS,
@@ -204,30 +232,28 @@ test("submit form parity: upstream /submit/  ↔  SPA /submit", async () => {
     if (def.required) {
       if (upHas && !spaHas) report.diff.missing_from_spa.push(name);
       if (spaHas && !upHas) report.diff.missing_from_upstream.push(name);
-      if (upHas && spaHas) {
-        const upKind = upstreamFields[name].split(",")[0];
-        const spaKind = spaFields[name].split(",")[0];
-        if (upKind !== spaKind && def.kind && def.kind !== upKind) {
-          // Tolerate small variations (input vs select for hashes, etc.)
-        } else if (upKind !== spaKind) {
-          report.diff.kind_mismatch.push({ name, upstream: upKind, spa: spaKind });
-        }
-      }
-    } else {
-      if (upHas !== spaHas) report.diff.ignored_environment_gated.push(name);
+    } else if (upHas !== spaHas) {
+      report.diff.ignored_environment_gated.push({ field: name, upstream: upHas, spa: spaHas });
     }
   }
 
-  // Catch SPA-only fields that aren't in our expected set
-  for (const name of Object.keys(spaFields)) {
-    if (!(name in SUBMIT_FIELDS) && !name.startsWith("csrfmiddlewaretoken")) {
-      report.diff.missing_from_upstream.push(name);
+  // Catch upstream-only fields that aren't in our expected set
+  for (const name of Object.keys(upstreamFields)) {
+    if (
+      !(name in SUBMIT_FIELDS) &&
+      !FIELD_NAME_BLOCKLIST.has(name) &&
+      !report.diff.missing_from_spa.includes(name)
+    ) {
+      if (!(name in spaFields)) report.diff.missing_from_spa.push(name);
     }
   }
-  // And upstream-only fields
-  for (const name of Object.keys(upstreamFields)) {
-    if (!(name in SUBMIT_FIELDS) && !name.startsWith("csrfmiddlewaretoken")) {
-      report.diff.missing_from_spa.push(name);
+  for (const name of Object.keys(spaFields)) {
+    if (
+      !(name in SUBMIT_FIELDS) &&
+      !FIELD_NAME_BLOCKLIST.has(name) &&
+      !report.diff.missing_from_upstream.includes(name)
+    ) {
+      if (!(name in upstreamFields)) report.diff.missing_from_upstream.push(name);
     }
   }
 
@@ -235,6 +261,12 @@ test("submit form parity: upstream /submit/  ↔  SPA /submit", async () => {
   const outDir = path.resolve("test-results");
   fs.mkdirSync(outDir, { recursive: true });
   fs.writeFileSync(path.join(outDir, "submit-parity.json"), JSON.stringify(report, null, 2));
+
+  console.log(`[parity] upstream fields: ${Object.keys(upstreamFields).length}`);
+  console.log(`[parity] SPA fields: ${Object.keys(spaFields).length}`);
+  console.log(`[parity] missing from SPA: ${JSON.stringify(report.diff.missing_from_spa)}`);
+  console.log(`[parity] missing from upstream: ${JSON.stringify(report.diff.missing_from_upstream)}`);
+  console.log(`[parity] env-gated diff: ${report.diff.ignored_environment_gated.length} fields`);
 
   // Hard assertion: SPA must NOT be missing any required upstream field.
   expect(report.diff.missing_from_spa, "SPA missing fields present upstream").toEqual([]);

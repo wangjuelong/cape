@@ -13,6 +13,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import type { SubmissionFormData } from "@/lib/api/submission-form";
 
+import { HiddenMirror } from "./HiddenMirror";
 import type { SubmitFormValues } from "./form-types";
 
 interface AdvancedOptionsCardProps {
@@ -64,22 +65,25 @@ export function AdvancedOptionsCard({
               render={({ field }) => {
                 const value = field.value && field.value !== "" ? field.value : AUTO_PACKAGE;
                 return (
-                  <Select
-                    value={value}
-                    onValueChange={(v) => field.onChange(v === AUTO_PACKAGE ? "" : v)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Detect Automatically" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={AUTO_PACKAGE}>Detect Automatically</SelectItem>
-                      {packages.map((p) => (
-                        <SelectItem key={p.value} value={p.value} title={p.description}>
-                          {p.name} — {p.summary}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <>
+                    <HiddenMirror name="package" value={field.value} />
+                    <Select
+                      value={value}
+                      onValueChange={(v) => field.onChange(v === AUTO_PACKAGE ? "" : v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Detect Automatically" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={AUTO_PACKAGE}>Detect Automatically</SelectItem>
+                        {packages.map((p) => (
+                          <SelectItem key={p.value} value={p.value} title={p.description}>
+                            {p.name} — {p.summary}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </>
                 );
               }}
             />
@@ -99,19 +103,22 @@ export function AdvancedOptionsCard({
               control={control}
               name="priority"
               render={({ field }) => (
-                <Select
-                  value={String(field.value ?? "1")}
-                  onValueChange={(v) => field.onChange(Number(v))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">Low (1)</SelectItem>
-                    <SelectItem value="2">Medium (2)</SelectItem>
-                    <SelectItem value="3">High (3)</SelectItem>
-                  </SelectContent>
-                </Select>
+                <>
+                  <HiddenMirror name="priority" value={field.value} />
+                  <Select
+                    value={String(field.value ?? "1")}
+                    onValueChange={(v) => field.onChange(Number(v))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">Low (1)</SelectItem>
+                      <SelectItem value="2">Medium (2)</SelectItem>
+                      <SelectItem value="3">High (3)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </>
               )}
             />
           </Field>
@@ -123,22 +130,25 @@ export function AdvancedOptionsCard({
               render={({ field }) => {
                 const value = field.value && field.value !== "" ? field.value : ANY_MACHINE;
                 return (
-                  <Select
-                    value={value}
-                    onValueChange={(v) => field.onChange(v === ANY_MACHINE ? "" : v)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="First available" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={ANY_MACHINE}>First available</SelectItem>
-                      {machines.map((m) => (
-                        <SelectItem key={m.value || "__all__"} value={m.value || "all"}>
-                          {m.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <>
+                    <HiddenMirror name="machine" value={field.value} />
+                    <Select
+                      value={value}
+                      onValueChange={(v) => field.onChange(v === ANY_MACHINE ? "" : v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="First available" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={ANY_MACHINE}>First available</SelectItem>
+                        {machines.map((m) => (
+                          <SelectItem key={m.value || "__all__"} value={m.value || "all"}>
+                            {m.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </>
                 );
               }}
             />
@@ -149,20 +159,23 @@ export function AdvancedOptionsCard({
               control={control}
               name="platform"
               render={({ field }) => (
-                <Select
-                  value={field.value || ANY_PLATFORM}
-                  onValueChange={(v) => field.onChange(v === ANY_PLATFORM ? "" : v)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={ANY_PLATFORM}>(auto)</SelectItem>
-                    <SelectItem value="windows">windows</SelectItem>
-                    <SelectItem value="linux">linux</SelectItem>
-                    <SelectItem value="darwin">darwin</SelectItem>
-                  </SelectContent>
-                </Select>
+                <>
+                  <HiddenMirror name="platform" value={field.value} />
+                  <Select
+                    value={field.value || ANY_PLATFORM}
+                    onValueChange={(v) => field.onChange(v === ANY_PLATFORM ? "" : v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={ANY_PLATFORM}>(auto)</SelectItem>
+                      <SelectItem value="windows">windows</SelectItem>
+                      <SelectItem value="linux">linux</SelectItem>
+                      <SelectItem value="darwin">darwin</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </>
               )}
             />
           </Field>
@@ -174,18 +187,21 @@ export function AdvancedOptionsCard({
               render={({ field }) => {
                 const value = field.value || formData?.default_route || "none";
                 return (
-                  <Select value={value} onValueChange={(v) => field.onChange(v)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {routeOptions.map((r) => (
-                        <SelectItem key={r.name} value={r.name} title={r.description ?? ""}>
-                          {r.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <>
+                    <HiddenMirror name="route" value={field.value} />
+                    <Select value={value} onValueChange={(v) => field.onChange(v)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {routeOptions.map((r) => (
+                          <SelectItem key={r.name} value={r.name} title={r.description ?? ""}>
+                            {r.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </>
                 );
               }}
             />
@@ -210,21 +226,24 @@ export function AdvancedOptionsCard({
               control={control}
               name="tlp"
               render={({ field }) => (
-                <Select
-                  value={field.value || NO_TLP}
-                  onValueChange={(v) => field.onChange(v === NO_TLP ? "" : v)}
-                  disabled={!tlpEnabled}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="White (default)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NO_TLP}>White (default)</SelectItem>
-                    <SelectItem value="Green">Green</SelectItem>
-                    <SelectItem value="Amber">Amber</SelectItem>
-                    <SelectItem value="Red">Red</SelectItem>
-                  </SelectContent>
-                </Select>
+                <>
+                  <HiddenMirror name="tlp" value={field.value} />
+                  <Select
+                    value={field.value || NO_TLP}
+                    onValueChange={(v) => field.onChange(v === NO_TLP ? "" : v)}
+                    disabled={!tlpEnabled}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="White (default)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NO_TLP}>White (default)</SelectItem>
+                      <SelectItem value="Green">Green</SelectItem>
+                      <SelectItem value="Amber">Amber</SelectItem>
+                      <SelectItem value="Red">Red</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </>
               )}
             />
           </Field>
@@ -245,14 +264,20 @@ export function AdvancedOptionsCard({
 
           <div className="md:col-span-2">
             <Field label="Options (raw, comma-separated key=val)">
-              <Input placeholder="bp0=ep,base-on-api=NtReadFile,..." {...register("options")} />
+              <Input
+                placeholder="bp0=ep,base-on-api=NtReadFile,..."
+                {...register("options")}
+              />
             </Field>
           </div>
 
           {linuxOnGui && (
             <div className="md:col-span-2">
               <Field label="Linux options (lin_options) — separate from `options`">
-                <Input placeholder="filename=foo,timeout=120,..." {...register("lin_options")} />
+                <Input
+                  placeholder="filename=foo,timeout=120,..."
+                  {...register("lin_options")}
+                />
               </Field>
             </div>
           )}
@@ -269,12 +294,13 @@ export function AdvancedOptionsCard({
           )}
         </div>
 
+        {/* `memory` and `enforce_timeout` live in CapeTogglesCard
+            (mirroring upstream's Extended Capabilities panel); only
+            `unique` is unique to the shared submission params. */}
         <div
           className="mt-3 flex flex-wrap gap-3 border-t pt-3"
           style={{ borderColor: "var(--color-border)" }}
         >
-          <ToggleRow control={control} name="memory" label="Take guest memory dump (Volatility)" />
-          <ToggleRow control={control} name="enforce_timeout" label="Enforce timeout" />
           <ToggleRow control={control} name="unique" label="Reject if sample already exists" />
         </div>
       </CardContent>
@@ -309,6 +335,7 @@ function ToggleRow({ control, name, label }: ToggleRowProps) {
       name={name}
       render={({ field }) => (
         <label className="flex cursor-pointer items-center gap-2 text-xs">
+          <HiddenMirror name={String(name)} value={field.value} />
           <Switch checked={!!field.value} onCheckedChange={field.onChange} />
           <span style={{ color: "var(--color-fg-1)" }}>{label}</span>
         </label>

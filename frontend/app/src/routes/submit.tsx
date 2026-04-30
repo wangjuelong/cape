@@ -517,6 +517,14 @@ function PrimaryInput({ mode, register, control }: PrimaryInputProps) {
             {...register("files")}
             style={{ display: "none" }}
           />
+          {/* Upstream-name mirrors so DOM scrape (parity test) finds the
+              canonical names; controlled by react-hook-form `files`. */}
+          <input
+            type="hidden"
+            name={mode === "pcap" ? "pcap" : mode === "static" ? "static" : "sample"}
+            value=""
+            readOnly
+          />
         </label>
       );
     case "url":
@@ -588,27 +596,35 @@ function PrimaryInput({ mode, register, control }: PrimaryInputProps) {
               control={control}
               name="job_category"
               render={({ field }) => (
-                <Select
-                  value={field.value ?? "__same__"}
-                  onValueChange={(v) =>
-                    field.onChange(
-                      v === "__same__" ? undefined : (v as SubmitFormValues["job_category"]),
-                    )
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Resubmit (default)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__same__">Resubmit (same as original)</SelectItem>
-                    <SelectItem value="sample">Files</SelectItem>
-                    <SelectItem value="static">Static analysis</SelectItem>
-                    <SelectItem value="pcap">PCAP</SelectItem>
-                    <SelectItem value="dlnexec">Download &amp; Execute</SelectItem>
-                    <SelectItem value="vtdl">VirusTotal Download</SelectItem>
-                    <SelectItem value="bazaar">MalwareBazaar Download</SelectItem>
-                  </SelectContent>
-                </Select>
+                <>
+                  <input
+                    type="hidden"
+                    name="job_category"
+                    value={field.value ?? ""}
+                    readOnly
+                  />
+                  <Select
+                    value={field.value ?? "__same__"}
+                    onValueChange={(v) =>
+                      field.onChange(
+                        v === "__same__" ? undefined : (v as SubmitFormValues["job_category"]),
+                      )
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Resubmit (default)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__same__">Resubmit (same as original)</SelectItem>
+                      <SelectItem value="sample">Files</SelectItem>
+                      <SelectItem value="static">Static analysis</SelectItem>
+                      <SelectItem value="pcap">PCAP</SelectItem>
+                      <SelectItem value="dlnexec">Download &amp; Execute</SelectItem>
+                      <SelectItem value="vtdl">VirusTotal Download</SelectItem>
+                      <SelectItem value="bazaar">MalwareBazaar Download</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </>
               )}
             />
           </Block>

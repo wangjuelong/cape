@@ -3,6 +3,7 @@ import { Controller, type Control } from "react-hook-form";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 
+import { HiddenMirror } from "./HiddenMirror";
 import type { SubmitFormValues } from "./form-types";
 
 interface CapeTogglesCardProps {
@@ -75,6 +76,7 @@ function ToggleRow({ control, def }: { control: Control<SubmitFormValues>; def: 
       name={def.name}
       render={({ field }) => (
         <label className="flex cursor-pointer items-center gap-2 text-xs">
+          <HiddenMirror name={String(def.name)} value={field.value} />
           <Switch checked={!!field.value} onCheckedChange={field.onChange} />
           <span style={{ color: "var(--color-fg-1)" }}>
             {def.label}
