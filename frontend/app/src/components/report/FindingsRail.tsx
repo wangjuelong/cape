@@ -31,28 +31,19 @@ export function FindingsRail({ signatures, selected, onSelect }: FindingsRailPro
         className="flex h-9 items-center justify-between border-b px-3"
         style={{ borderColor: "var(--color-border)" }}
       >
-        <span
-          className="text-xs font-semibold"
-          style={{ color: "var(--color-fg-0)" }}
-        >
+        <span className="text-xs font-semibold" style={{ color: "var(--color-fg-0)" }}>
           Findings
           <span className="ml-1.5 font-mono" style={{ color: "var(--color-fg-2)" }}>
             · {sorted.length}
           </span>
         </span>
-        <span
-          className="font-mono text-[10px]"
-          style={{ color: "var(--color-fg-2)" }}
-        >
+        <span className="font-mono text-[10px]" style={{ color: "var(--color-fg-2)" }}>
           sort: severity
         </span>
       </div>
       <div className="flex-1 overflow-auto">
         {sorted.length === 0 ? (
-          <div
-            className="p-4 text-center text-xs"
-            style={{ color: "var(--color-fg-2)" }}
-          >
+          <div className="p-4 text-center text-xs" style={{ color: "var(--color-fg-2)" }}>
             No signatures matched.
           </div>
         ) : (
@@ -80,10 +71,7 @@ export function FindingsRail({ signatures, selected, onSelect }: FindingsRailPro
                   <Badge variant={variant}>S{sig.severity}</Badge>
                 </div>
                 {sig.description && (
-                  <span
-                    className="line-clamp-2 text-[11px]"
-                    style={{ color: "var(--color-fg-1)" }}
-                  >
+                  <span className="line-clamp-2 text-[11px]" style={{ color: "var(--color-fg-1)" }}>
                     {sig.description}
                   </span>
                 )}
@@ -95,10 +83,7 @@ export function FindingsRail({ signatures, selected, onSelect }: FindingsRailPro
                       </Badge>
                     ))}
                     {sig.ttp.length > 5 && (
-                      <span
-                        className="text-[10px]"
-                        style={{ color: "var(--color-fg-2)" }}
-                      >
+                      <span className="text-[10px]" style={{ color: "var(--color-fg-2)" }}>
                         +{sig.ttp.length - 5}
                       </span>
                     )}

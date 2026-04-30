@@ -34,10 +34,7 @@ export function VerdictBanner({ task }: VerdictBannerProps) {
                 {t}
               </Badge>
             ))}
-            <span
-              className="font-mono text-[11px]"
-              style={{ color: "var(--color-fg-2)" }}
-            >
+            <span className="font-mono text-[11px]" style={{ color: "var(--color-fg-2)" }}>
               · task #{task.id}
               {task.machine ? ` · ${task.machine}` : ""}
               {task.duration ? ` · ${task.duration}` : ""}
@@ -51,10 +48,7 @@ export function VerdictBanner({ task }: VerdictBannerProps) {
             {task.target}
           </div>
           {task.sha256 && (
-            <div
-              className="truncate font-mono text-[11px]"
-              style={{ color: "var(--color-fg-2)" }}
-            >
+            <div className="truncate font-mono text-[11px]" style={{ color: "var(--color-fg-2)" }}>
               sha256: {task.sha256}
             </div>
           )}

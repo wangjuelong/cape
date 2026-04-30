@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Spinner } from "@/components/ui/spinner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { BehaviorTab } from "@/components/report/BehaviorTab";
 import { FindingsRail } from "@/components/report/FindingsRail";
 import { SummaryTab } from "@/components/report/SummaryTab";
 import { VerdictBanner } from "@/components/report/VerdictBanner";
@@ -114,18 +115,18 @@ export default function TaskDetailRoute() {
         </TabsList>
 
         <TabsContent value="summary" className="flex flex-1 overflow-hidden">
-          <FindingsRail
-            signatures={signatures}
-            selected={selectedSig}
-            onSelect={setSelectedSig}
-          />
+          <FindingsRail signatures={signatures} selected={selectedSig} onSelect={setSelectedSig} />
           <main className="flex-1 overflow-auto">
             <SummaryTab report={report} />
           </main>
         </TabsContent>
 
+        <TabsContent value="behavior" className="flex flex-1 overflow-hidden">
+          <BehaviorTab taskId={task.id} />
+        </TabsContent>
+
         {visibleTabs
-          .filter((t) => t.key !== "summary")
+          .filter((t) => t.key !== "summary" && t.key !== "behavior")
           .map((t) => (
             <TabsContent
               key={t.key}

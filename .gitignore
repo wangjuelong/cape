@@ -25,3 +25,7 @@ installer/kvm-config.sh
 
 docs/book/src/_build
 /.vs
+
+# Claude Code harness state (per-developer)
+.claude/
+CLAUDE.md

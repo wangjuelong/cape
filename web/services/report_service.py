@@ -196,6 +196,143 @@ def list_sections(task_id: int) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
+# Behavior tab
+# ---------------------------------------------------------------------------
+
+
+def fetch_behavior(task_id: int) -> dict[str, Any] | None:
+    """Returns process tree + per-process summary for the Behavior tab.
+
+    Shape:
+        {
+          "platform": "windows" | "linux" | None,
+          "processtree": <recursive dict>,
+          "processes": [
+            {"pid": int, "ppid": int|None, "name": str,
+             "calls_count": int, "chunk_count": int}
+          ]
+        }
+    """
+    doc = _mongo_find_one(
+        task_id,
+        {
+            "info.machine.platform": 1,
+            "behavior.processtree": 1,
+            "behavior.processes.process_id": 1,
+            "behavior.processes.parent_id": 1,
+            "behavior.processes.process_name": 1,
+            "behavior.processes.calls": 1,
+            "_id": 0,
+        },
+    )
+    if doc is None:
+        return None
+
+    behavior = doc.get("behavior") or {}
+    raw_processes = behavior.get("processes") or []
+    processes = []
+    for p in raw_processes:
+        chunks = p.get("calls") or []
+        processes.append(
+            {
+                "pid": p.get("process_id"),
+                "ppid": p.get("parent_id"),
+                "name": p.get("process_name") or "",
+                # Each chunk holds ~100 calls (CHUNK_CALL_SIZE in
+                # modules/reporting/report_doc.py); accurate count
+                # requires fetching every chunk so we approximate.
+                "calls_count": len(chunks) * 100,
+                "chunk_count": len(chunks),
+            }
+        )
+
+    return {
+        "platform": _path(doc, "info.machine.platform"),
+        "processtree": behavior.get("processtree") or [],
+        "processes": processes,
+    }
+
+
+def fetch_behavior_calls(
+    task_id: int,
+    pid: int,
+    page: int = 0,
+) -> dict[str, Any] | None:
+    """Returns one chunk (~100 calls) for the given process.
+
+    ``page`` is the 0-based chunk index — i.e. ``behavior.processes[…].calls[page]``
+    is dereferenced as an ObjectId in the ``calls`` collection.
+    """
+    doc = _mongo_find_one(
+        task_id,
+        {
+            "behavior.processes.process_id": 1,
+            "behavior.processes.calls": 1,
+            "_id": 0,
+        },
+    )
+    if doc is None:
+        return None
+
+    target = None
+    for p in (_path(doc, "behavior.processes") or []):
+        if p.get("process_id") == pid:
+            target = p
+            break
+    if target is None:
+        return None
+
+    chunk_ids = target.get("calls") or []
+    total_chunks = len(chunk_ids)
+    if page < 0 or page >= total_chunks:
+        return {"calls": [], "page": page, "total_chunks": total_chunks, "has_next": False}
+
+    chunk_doc = _fetch_calls_chunk(chunk_ids[page])
+    calls = (chunk_doc or {}).get("calls", [])
+
+    return {
+        "calls": [_normalise_call(c) for c in calls],
+        "page": page,
+        "total_chunks": total_chunks,
+        "has_next": page + 1 < total_chunks,
+    }
+
+
+def _fetch_calls_chunk(object_id: Any) -> dict[str, Any] | None:
+    try:
+        from bson import ObjectId
+        from dev_utils.mongodb import mongo_find_one
+    except ImportError:
+        return None
+    try:
+        oid = object_id if isinstance(object_id, ObjectId) else ObjectId(object_id)
+    except Exception:
+        return None
+    try:
+        return mongo_find_one("calls", {"_id": oid})
+    except Exception as exc:  # pragma: no cover
+        log.warning("calls chunk lookup failed: %s", exc)
+        return None
+
+
+def _normalise_call(call: dict[str, Any]) -> dict[str, Any]:
+    """Project a raw API-call record onto the shape the SPA expects."""
+    args = call.get("arguments") or call.get("args") or []
+    if isinstance(args, dict):
+        args = [{"name": k, "value": v} for k, v in args.items()]
+    return {
+        "id": call.get("id") or call.get("_id"),
+        "thread_id": call.get("thread_id") or call.get("tid"),
+        "category": call.get("category"),
+        "api": call.get("api") or call.get("name"),
+        "status": call.get("status"),
+        "return_value": call.get("return") if "return" in call else call.get("return_value"),
+        "timestamp": call.get("timestamp") or call.get("time"),
+        "arguments": args[:30],
+    }
+
+
+# ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
 

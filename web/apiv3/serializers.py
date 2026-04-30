@@ -162,3 +162,35 @@ class ReportSummarySerializer(serializers.Serializer):
     verdict = serializers.ChoiceField(choices=VERDICT_CHOICES)
     family = serializers.CharField(allow_null=True)
     behavior_summary = serializers.DictField(required=False)
+
+
+class ProcessSummarySerializer(serializers.Serializer):
+    pid = serializers.IntegerField(allow_null=True)
+    ppid = serializers.IntegerField(allow_null=True)
+    name = serializers.CharField(allow_blank=True)
+    calls_count = serializers.IntegerField()
+    chunk_count = serializers.IntegerField()
+
+
+class BehaviorSummaryResponseSerializer(serializers.Serializer):
+    platform = serializers.CharField(allow_null=True)
+    processtree = serializers.ListField()
+    processes = ProcessSummarySerializer(many=True)
+
+
+class ApiCallSerializer(serializers.Serializer):
+    id = serializers.IntegerField(allow_null=True, required=False)
+    thread_id = serializers.IntegerField(allow_null=True, required=False)
+    category = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+    api = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+    status = serializers.IntegerField(allow_null=True, required=False)
+    return_value = serializers.CharField(allow_null=True, required=False)
+    timestamp = serializers.CharField(allow_null=True, required=False)
+    arguments = serializers.ListField(required=False)
+
+
+class BehaviorCallsResponseSerializer(serializers.Serializer):
+    calls = ApiCallSerializer(many=True)
+    page = serializers.IntegerField()
+    total_chunks = serializers.IntegerField()
+    has_next = serializers.BooleanField()

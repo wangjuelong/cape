@@ -31,6 +31,8 @@ from rest_framework.response import Response
 
 from apiv3.serializers import (
     ApiErrorSerializer,
+    BehaviorCallsResponseSerializer,
+    BehaviorSummaryResponseSerializer,
     CsrfTokenSerializer,
     CurrentUserSerializer,
     FeatureFlagsSerializer,
@@ -353,6 +355,61 @@ def report_summary(_request: Request, task_id: int) -> Response:
         **summary,
     }
     return Response(ReportSummarySerializer(payload).data)
+
+
+@extend_schema(
+    tags=["reports"],
+    summary="Behavior tab — process tree + per-process summary.",
+    description=(
+        "Returns the recursive process tree (`processtree`) plus a flat "
+        "`processes` list each carrying `pid`, `name`, and an approximate "
+        "`calls_count`. The actual API-call records live in chunks; fetch "
+        "them via `/api/v3/reports/<id>/behavior/calls/?pid=&page=`."
+    ),
+    responses={
+        200: BehaviorSummaryResponseSerializer,
+        404: ApiErrorSerializer,
+    },
+)
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def report_behavior(_request: Request, task_id: int) -> Response:
+    data = report_service.fetch_behavior(task_id)
+    if data is None:
+        return _error("behavior_unavailable", "No behavior data for this task", http_code=http_status.HTTP_404_NOT_FOUND)
+    return Response(BehaviorSummaryResponseSerializer(data).data)
+
+
+@extend_schema(
+    tags=["reports"],
+    summary="One chunk (~100 calls) of API-call log for a given process.",
+    parameters=[
+        OpenApiParameter(name="pid", type=OpenApiTypes.INT, required=True),
+        OpenApiParameter(name="page", type=OpenApiTypes.INT, required=False,
+                         description="0-based chunk index; default 0"),
+    ],
+    responses={
+        200: BehaviorCallsResponseSerializer,
+        400: ApiErrorSerializer,
+        404: ApiErrorSerializer,
+    },
+)
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def report_behavior_calls(request: Request, task_id: int) -> Response:
+    pid_raw = request.query_params.get("pid")
+    if not pid_raw:
+        return _error("pid_required", "pid query parameter is required", http_code=http_status.HTTP_400_BAD_REQUEST)
+    try:
+        pid = int(pid_raw)
+        page = int(request.query_params.get("page") or 0)
+    except ValueError:
+        return _error("invalid_param", "pid and page must be integers", http_code=http_status.HTTP_400_BAD_REQUEST)
+
+    data = report_service.fetch_behavior_calls(task_id, pid=pid, page=page)
+    if data is None:
+        return _error("behavior_unavailable", "No behavior data for this task", http_code=http_status.HTTP_404_NOT_FOUND)
+    return Response(BehaviorCallsResponseSerializer(data).data)
 
 
 @extend_schema(

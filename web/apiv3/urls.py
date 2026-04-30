@@ -31,6 +31,12 @@ urlpatterns = [
 
     # Reports
     path("reports/<int:task_id>/summary/", views.report_summary, name="report-summary"),
+    path("reports/<int:task_id>/behavior/", views.report_behavior, name="report-behavior"),
+    path(
+        "reports/<int:task_id>/behavior/calls/",
+        views.report_behavior_calls,
+        name="report-behavior-calls",
+    ),
 
     # Machines
     path("machines/", views.machines_list, name="machines-list"),
