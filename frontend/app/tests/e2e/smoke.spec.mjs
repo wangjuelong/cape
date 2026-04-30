@@ -1,0 +1,103 @@
+/**
+ * Smoke test for the SPA running against the test box at 192.168.2.240
+ * (tunnelled through 127.0.0.1:8000) with vite dev at 5173.
+ */
+
+import { expect, test } from "@playwright/test";
+
+const BASE = "http://localhost:5173";
+const USER = "admin";
+const PASS = "admin";
+
+test.describe.configure({ mode: "serial" });
+
+async function login(page) {
+  await page.goto(BASE + "/");
+  await page.waitForURL(/\/accounts\/login\//, { timeout: 15000 });
+  await page.locator('input[name="login"]').fill(USER);
+  await page.locator('input[name="password"]').fill(PASS);
+  // Scope to the login form — base.html renders a topbar search form
+  // BEFORE the login form, so the first submit button on the page is
+  // the search button.
+  await page.locator('form[method="post"] button[type="submit"]').click();
+  await page.waitForURL((url) => !url.pathname.startsWith("/accounts/"), {
+    timeout: 15000,
+  });
+}
+
+test("01 login → SPA renders shell with real username", async ({ page }) => {
+  const events = [];
+  page.on("console", (msg) => events.push(`console.${msg.type()}: ${msg.text()}`));
+  page.on("pageerror", (err) => events.push(`pageerror: ${err.message}`));
+  page.on("response", (r) => {
+    if (r.status() >= 400 && !r.url().includes("/static/")) {
+      events.push(`http ${r.status()} ${r.url()}`);
+    }
+  });
+
+  await login(page);
+  await page.waitForLoadState("domcontentloaded", { timeout: 15000 });
+  console.log(`post-login url=${page.url()}`);
+  await page.screenshot({ path: "test-results/01-shell.png", fullPage: true });
+
+  // Topbar should render the SPA Shell. Check for "CAPE" brand text first
+  // (deterministic), then the real username.
+  await expect(page.locator("text=CAPE").first()).toBeVisible({ timeout: 10000 });
+  await expect(page.locator("text=admin").first()).toBeVisible({ timeout: 10000 });
+
+  if (events.length) {
+    console.log("=== events ===");
+    for (const e of events) console.log("  ", e);
+  }
+});
+
+test("02 /recent renders TaskTable with seeded tasks", async ({ page }) => {
+  await login(page);
+  await page.goto(BASE + "/recent");
+  // SSE keeps the network active; can't rely on networkidle. domcontentloaded is enough.
+  await page.waitForLoadState("domcontentloaded", { timeout: 10000 });
+  await page.screenshot({ path: "test-results/02-recent.png", fullPage: true });
+  const rows = page.locator("table tbody tr");
+  await expect(rows.first()).toBeVisible({ timeout: 10000 });
+  const count = await rows.count();
+  console.log(`recent table rows: ${count}`);
+  expect(count).toBeGreaterThan(0);
+});
+
+test("03 task detail renders verdict banner + tabs", async ({ page }) => {
+  await login(page);
+  await page.goto(BASE + "/recent");
+  // SSE keeps the network active; can't rely on networkidle. domcontentloaded is enough.
+  await page.waitForLoadState("domcontentloaded", { timeout: 10000 });
+  await page.locator('a[href^="/tasks/"]').first().click();
+  await page.waitForURL(/\/tasks\/\d+/, { timeout: 10000 });
+  // SSE keeps the network active; can't rely on networkidle. domcontentloaded is enough.
+  await page.waitForLoadState("domcontentloaded", { timeout: 10000 });
+  await page.screenshot({ path: "test-results/03-task-detail.png", fullPage: true });
+  // Verdict banner shows verdict pill (CLEAN for our test tasks)
+  await expect(page.locator("text=/CLEAN|MALICIOUS|SUSPICIOUS/").first()).toBeVisible({
+    timeout: 10000,
+  });
+  await expect(page.locator('[role="tab"]').first()).toBeVisible();
+});
+
+test("04 /submit renders the 18-param form", async ({ page }) => {
+  await login(page);
+  await page.goto(BASE + "/submit");
+  // SSE keeps the network active; can't rely on networkidle. domcontentloaded is enough.
+  await page.waitForLoadState("domcontentloaded", { timeout: 10000 });
+  await page.screenshot({ path: "test-results/04-submit.png", fullPage: true });
+  await expect(page.locator("text=Sample").first()).toBeVisible();
+  await expect(page.locator("text=Advanced options").first()).toBeVisible();
+});
+
+test("05 /pending renders LiveIndicator", async ({ page }) => {
+  await login(page);
+  await page.goto(BASE + "/pending");
+  // SSE keeps the network active; can't rely on networkidle. domcontentloaded is enough.
+  await page.waitForLoadState("domcontentloaded", { timeout: 10000 });
+  await page.screenshot({ path: "test-results/05-pending.png", fullPage: true });
+  await expect(page.locator("text=/Live|Connecting/").first()).toBeVisible({
+    timeout: 8000,
+  });
+});

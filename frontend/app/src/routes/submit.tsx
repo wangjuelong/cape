@@ -289,22 +289,31 @@ function AdvancedOptions({ control, register }: AdvancedOptionsProps) {
             <Controller
               control={control}
               name="machine"
-              render={({ field }) => (
-                <Select value={field.value ?? ""} onValueChange={field.onChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="(any available)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">(any available)</SelectItem>
-                    <SelectItem value="all">all machines</SelectItem>
-                    {machines.map((m) => (
-                      <SelectItem key={m.label} value={m.label}>
-                        {m.label} {m.platform ? `· ${m.platform}` : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
+              render={({ field }) => {
+                // Radix Select forbids "" as an item value (reserved for
+                // "clear"); translate to a sentinel and back.
+                const ANY = "__any__";
+                const value = field.value && field.value !== "" ? field.value : ANY;
+                return (
+                  <Select
+                    value={value}
+                    onValueChange={(v) => field.onChange(v === ANY ? "" : v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="(any available)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={ANY}>(any available)</SelectItem>
+                      <SelectItem value="all">all machines</SelectItem>
+                      {machines.map((m) => (
+                        <SelectItem key={m.label} value={m.label}>
+                          {m.label} {m.platform ? `· ${m.platform}` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                );
+              }}
             />
           </Field>
           <Field label="Platform">
