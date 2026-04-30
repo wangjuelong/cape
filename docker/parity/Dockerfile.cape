@@ -21,6 +21,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libffi-dev \
         libxml2-dev \
         libxslt-dev \
+        libfuzzy-dev \
+        libmagic1 \
+        libmagic-mgc \
         git \
         curl \
         ca-certificates \

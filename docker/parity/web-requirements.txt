@@ -54,3 +54,24 @@ pygal==2.4.0
 
 # Python-tlsh / pydeep are referenced by lib.cuckoo.common imports
 pydeep2==0.5.1
+
+# Transitively imported by lib.cuckoo.core.database -> data.tasking
+# -> common.integrations.parse_pe and friends. The list grows iteratively as
+# we hit ImportError during compose up — keep adds minimal.
+pefile
+oletools==0.60.2
+olefile==0.47
+capstone==5.0.5
+pycryptodomex>=3.20.0
+flare-capa==9.3.1
+maco==1.1.8
+SFlock2[linux,shellcode]>=0.3.76
+yara-python==4.5.1
+python-magic
+tldextract>=5.1.2
+dpkt==1.9.6
+peepdf-3==5.0.0
+dnspython==2.7.0
+python-tlsh==4.5.0
+CAPE-parsers>=0.1.36
+pyguacamole>=0.11

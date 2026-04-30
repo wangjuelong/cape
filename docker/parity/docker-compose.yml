@@ -52,17 +52,6 @@ services:
       timeout: 5s
       retries: 10
 
-  mongo:
-    image: mongo:7
-    container_name: cape-parity-mongo
-    ports:
-      - "37017:27017"
-    healthcheck:
-      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
   cape:
     build:
       context: ../..
@@ -71,9 +60,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      mongo:
-        condition: service_healthy
     environment:
+      CAPE_AS_ROOT: "1"
       CAPE_DISABLE_ROOT_CONFIGS: "1"
       DJANGO_SETTINGS_MODULE: web.settings
       PYTHONPATH: /cape:/cape/web
@@ -90,30 +78,28 @@ services:
         echo "[parity] preparing conf files" ;
         cp -rn conf/default/. conf/ 2>/dev/null || true ;
         crudini --set conf/cuckoo.conf database connection postgresql://cape:cape@db:5432/cape ;
-        crudini --set conf/reporting.conf mongodb enabled yes ;
-        crudini --set conf/reporting.conf mongodb host mongo ;
-        crudini --set conf/reporting.conf mongodb port 27017 ;
+        # Submit page does NOT need an actual report store — just satisfy the
+        # settings.py guard that demands mongo OR elasticsearch be flagged on.
+        crudini --set conf/reporting.conf mongodb enabled no ;
+        crudini --set conf/reporting.conf elasticsearchdb enabled yes ;
+        crudini --set conf/reporting.conf elasticsearchdb host es ;
         crudini --set conf/web.conf security csrf_trusted_origins "localhost:5173,127.0.0.1:5173,localhost:8000,127.0.0.1:8000" ;
         crudini --set conf/web.conf registration email_confirmation no ;
         crudini --set conf/api.conf urlcreate enabled yes ;
         crudini --set conf/api.conf dlnexeccreate enabled yes ;
         crudini --set conf/api.conf staticextraction enabled yes ;
         crudini --set conf/api.conf downloading_services enabled yes ;
+        # Upstream /submit/ template gates tabs by web.conf instead of api.conf
+        crudini --set conf/web.conf dlnexec enabled yes ;
+        crudini --set conf/web.conf url_analysis enabled yes ;
+        crudini --set conf/web.conf tlp enabled yes ;
+        crudini --set conf/web.conf linux enabled yes ;
         echo "[parity] running Django migrations" ;
         cd web && python manage.py migrate --noinput ;
         echo "[parity] seeding admin user (admin / admin)" ;
-        python manage.py shell -c "
-        from django.contrib.auth import get_user_model
-        U = get_user_model()
-        u, created = U.objects.get_or_create(username=\"admin\", defaults={\"email\": \"admin@example.com\"})
-        u.is_staff = True
-        u.is_superuser = True
-        u.set_password(\"admin\")
-        u.save()
-        print(\"admin ready, created=%s\" % created)
-        " ;
+        python manage.py shell -c "from django.contrib.auth import get_user_model; U = get_user_model(); u, c = U.objects.get_or_create(username=\"admin\", defaults={\"email\":\"admin@example.com\"}); u.is_staff=True; u.is_superuser=True; u.set_password(\"admin\"); u.save(); print(\"admin ready created=%s\" % c)" ;
         echo "[parity] runserver" ;
-        exec python manage.py runserver 0.0.0.0:8000
+        exec python manage.py runserver --noreload 0.0.0.0:8000
       '
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:8000/accounts/login/ >/dev/null"]
