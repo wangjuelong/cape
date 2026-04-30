@@ -37,9 +37,13 @@ from apiv3.serializers import (
     ConfigReportSerializer,
     CsrfTokenSerializer,
     CurrentUserSerializer,
+    DroppedReportSerializer,
     FeatureFlagsSerializer,
     MachineSerializer,
+    NetworkReportSerializer,
+    PayloadsReportSerializer,
     ReportSummarySerializer,
+    ScreenshotsReportSerializer,
     StaticReportSerializer,
     SystemInfoSerializer,
     TaskCreateResponseSerializer,
@@ -456,6 +460,73 @@ def report_config(_request: Request, task_id: int) -> Response:
     if data is None:
         return _error("config_unavailable", "No malware configuration recorded", http_code=http_status.HTTP_404_NOT_FOUND)
     return Response(ConfigReportSerializer(data).data)
+
+
+@extend_schema(
+    tags=["reports"],
+    summary="Network tab — hosts / DNS / TCP / UDP / HTTP / Suricata.",
+    description=(
+        "Single-roundtrip aggregate. Heavy protocols (raw HTTP flows, "
+        "Suricata alerts) may move to dedicated sub-endpoints under "
+        "/api/v3/reports/<id>/network/<protocol>/ later (PRD D-29)."
+    ),
+    responses={200: NetworkReportSerializer, 404: ApiErrorSerializer},
+)
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def report_network(_request: Request, task_id: int) -> Response:
+    data = report_service.fetch_network(task_id)
+    if data is None:
+        return _error("network_unavailable", "No network data", http_code=http_status.HTTP_404_NOT_FOUND)
+    return Response(NetworkReportSerializer(data).data)
+
+
+@extend_schema(
+    tags=["reports"],
+    summary="Files dropped by the sample inside the guest VM.",
+    responses={200: DroppedReportSerializer, 404: ApiErrorSerializer},
+)
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def report_dropped(_request: Request, task_id: int) -> Response:
+    data = report_service.fetch_dropped(task_id)
+    if data is None:
+        return _error("dropped_unavailable", "No dropped-files data", http_code=http_status.HTTP_404_NOT_FOUND)
+    return Response(DroppedReportSerializer(data).data)
+
+
+@extend_schema(
+    tags=["reports"],
+    summary="CAPE-unpacked payloads (per-payload metadata; bytes via v2).",
+    responses={200: PayloadsReportSerializer, 404: ApiErrorSerializer},
+)
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def report_payloads(_request: Request, task_id: int) -> Response:
+    data = report_service.fetch_payloads(task_id)
+    if data is None:
+        return _error("payloads_unavailable", "No payloads data", http_code=http_status.HTTP_404_NOT_FOUND)
+    return Response(PayloadsReportSerializer(data).data)
+
+
+@extend_schema(
+    tags=["reports"],
+    summary="Screenshot index for the analysis (PNG bytes via v2).",
+    description=(
+        "Returns a list of `{index, url, thumbnail_url}` entries; the SPA "
+        "renders the URLs through standard <img> tags with cookie auth, "
+        "consuming the legacy /apiv2/tasks/get/screenshot/<id>/<n>/ "
+        "route."
+    ),
+    responses={200: ScreenshotsReportSerializer, 404: ApiErrorSerializer},
+)
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def report_screenshots(_request: Request, task_id: int) -> Response:
+    data = report_service.fetch_screenshots(task_id)
+    if data is None:
+        return _error("screenshots_unavailable", "No screenshots data", http_code=http_status.HTTP_404_NOT_FOUND)
+    return Response(ScreenshotsReportSerializer(data).data)
 
 
 @extend_schema(

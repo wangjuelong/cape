@@ -251,6 +251,101 @@ def fetch_config(task_id: int) -> dict[str, Any] | None:
 
 
 # ---------------------------------------------------------------------------
+# Network / Dropped / Screenshots / Payloads tabs
+# ---------------------------------------------------------------------------
+
+
+def fetch_network(task_id: int) -> dict[str, Any] | None:
+    """Returns the Network tab payload.
+
+    PRD R-D29 calls for per-protocol sub-endpoints (cf. report-page-spec
+    §9). For now we ship the lightweight summary doc — every tab below
+    Network is a small array — so a single Mongo round-trip is fine.
+    Heavy protocols (HTTP flows, Suricata alerts) get their own endpoint
+    later if/when latency becomes a problem.
+    """
+    doc = _mongo_find_one(task_id, _PROJECTIONS["network"])
+    if doc is None:
+        return None
+    network = doc.get("network") or {}
+    suricata = doc.get("suricata") or {}
+
+    def _first(*keys: str) -> list[Any]:
+        for k in keys:
+            v = network.get(k)
+            if v:
+                return v
+        return []
+
+    http_flows = _first("http_ex", "https_ex", "http")
+
+    return {
+        "hosts": network.get("hosts") or [],
+        "domains": network.get("domains") or [],
+        "tcp": network.get("tcp") or [],
+        "udp": network.get("udp") or [],
+        "icmp": network.get("icmp") or [],
+        "smtp": network.get("smtp") or [],
+        "irc": network.get("irc") or [],
+        "http": http_flows,
+        "suricata": {
+            "alerts": suricata.get("alerts") or [],
+            "tls": suricata.get("tls") or [],
+            "http": suricata.get("http") or [],
+            "files": suricata.get("files") or [],
+        },
+    }
+
+
+def fetch_dropped(task_id: int) -> dict[str, Any] | None:
+    """Returns the dropped-files metadata."""
+    doc = _mongo_find_one(
+        task_id,
+        {"dropped": 1, "_id": 0},
+    )
+    if doc is None:
+        return None
+    return {"dropped": doc.get("dropped") or []}
+
+
+def fetch_payloads(task_id: int) -> dict[str, Any] | None:
+    """Returns the CAPE-unpacked payload metadata."""
+    doc = _mongo_find_one(
+        task_id,
+        {"CAPE.payloads": 1, "_id": 0},
+    )
+    if doc is None:
+        return None
+    cape = doc.get("CAPE") or {}
+    return {"payloads": cape.get("payloads") or []}
+
+
+def fetch_screenshots(task_id: int) -> dict[str, Any] | None:
+    """Returns the screenshot index. The actual PNG bytes still come
+    from the legacy v2 endpoint (``/apiv2/tasks/get/screenshot/<id>/<n>/``)
+    so the SPA can use a plain ``<img>`` tag with cookie auth.
+    """
+    doc = _mongo_find_one(
+        task_id,
+        {"shots": 1, "_id": 0},
+    )
+    if doc is None:
+        return None
+    shots = doc.get("shots") or []
+    return {
+        "count": len(shots),
+        "shots": [
+            {
+                "index": i,
+                "url": f"/apiv2/tasks/get/screenshot/{task_id}/{i}/",
+                "thumbnail_url": f"/apiv2/tasks/get/screenshot/{task_id}/{i}/",
+            }
+            for i in range(len(shots))
+        ],
+    }
+
+
+# ---------------------------------------------------------------------------
 # Behavior tab
 # ---------------------------------------------------------------------------
 

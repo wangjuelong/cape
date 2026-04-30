@@ -214,3 +214,46 @@ class AttackReportSerializer(serializers.Serializer):
 
 class ConfigReportSerializer(serializers.Serializer):
     malware_conf = serializers.ListField()
+
+
+# ---------------------------------------------------------------------------
+# Network / Dropped / Screenshots / Payloads — passthrough payloads.
+# ---------------------------------------------------------------------------
+
+
+class NetworkSuricataSerializer(serializers.Serializer):
+    alerts = serializers.ListField()
+    tls = serializers.ListField()
+    http = serializers.ListField()
+    files = serializers.ListField()
+
+
+class NetworkReportSerializer(serializers.Serializer):
+    hosts = serializers.ListField()
+    domains = serializers.ListField()
+    tcp = serializers.ListField()
+    udp = serializers.ListField()
+    icmp = serializers.ListField()
+    smtp = serializers.ListField()
+    irc = serializers.ListField()
+    http = serializers.ListField()
+    suricata = NetworkSuricataSerializer()
+
+
+class DroppedReportSerializer(serializers.Serializer):
+    dropped = serializers.ListField()
+
+
+class PayloadsReportSerializer(serializers.Serializer):
+    payloads = serializers.ListField()
+
+
+class ScreenshotEntrySerializer(serializers.Serializer):
+    index = serializers.IntegerField()
+    url = serializers.CharField()
+    thumbnail_url = serializers.CharField()
+
+
+class ScreenshotsReportSerializer(serializers.Serializer):
+    count = serializers.IntegerField()
+    shots = ScreenshotEntrySerializer(many=True)

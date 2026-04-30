@@ -108,3 +108,59 @@ export async function fetchReportConfig(taskId: number): Promise<ConfigReport> {
   const { data } = await apiClient.get<ConfigReport>(`/reports/${taskId}/config/`);
   return data;
 }
+
+export interface NetworkReport {
+  hosts: unknown[];
+  domains: unknown[];
+  tcp: unknown[];
+  udp: unknown[];
+  icmp: unknown[];
+  smtp: unknown[];
+  irc: unknown[];
+  http: unknown[];
+  suricata: {
+    alerts: unknown[];
+    tls: unknown[];
+    http: unknown[];
+    files: unknown[];
+  };
+}
+
+export async function fetchReportNetwork(taskId: number): Promise<NetworkReport> {
+  const { data } = await apiClient.get<NetworkReport>(`/reports/${taskId}/network/`);
+  return data;
+}
+
+export interface DroppedReport {
+  dropped: unknown[];
+}
+
+export async function fetchReportDropped(taskId: number): Promise<DroppedReport> {
+  const { data } = await apiClient.get<DroppedReport>(`/reports/${taskId}/dropped/`);
+  return data;
+}
+
+export interface PayloadsReport {
+  payloads: unknown[];
+}
+
+export async function fetchReportPayloads(taskId: number): Promise<PayloadsReport> {
+  const { data } = await apiClient.get<PayloadsReport>(`/reports/${taskId}/payloads/`);
+  return data;
+}
+
+export interface ScreenshotEntry {
+  index: number;
+  url: string;
+  thumbnail_url: string;
+}
+
+export interface ScreenshotsReport {
+  count: number;
+  shots: ScreenshotEntry[];
+}
+
+export async function fetchReportScreenshots(taskId: number): Promise<ScreenshotsReport> {
+  const { data } = await apiClient.get<ScreenshotsReport>(`/reports/${taskId}/screenshots/`);
+  return data;
+}

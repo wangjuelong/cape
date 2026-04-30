@@ -40,6 +40,14 @@ urlpatterns = [
     path("reports/<int:task_id>/static/", views.report_static, name="report-static"),
     path("reports/<int:task_id>/attack/", views.report_attack, name="report-attack"),
     path("reports/<int:task_id>/config/", views.report_config, name="report-config"),
+    path("reports/<int:task_id>/network/", views.report_network, name="report-network"),
+    path("reports/<int:task_id>/dropped/", views.report_dropped, name="report-dropped"),
+    path("reports/<int:task_id>/payloads/", views.report_payloads, name="report-payloads"),
+    path(
+        "reports/<int:task_id>/screenshots/",
+        views.report_screenshots,
+        name="report-screenshots",
+    ),
 
     # Machines
     path("machines/", views.machines_list, name="machines-list"),

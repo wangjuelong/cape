@@ -10,7 +10,11 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AttackTab } from "@/components/report/AttackTab";
 import { BehaviorTab } from "@/components/report/BehaviorTab";
 import { ConfigTab } from "@/components/report/ConfigTab";
+import { DroppedTab } from "@/components/report/DroppedTab";
 import { FindingsRail } from "@/components/report/FindingsRail";
+import { NetworkTab } from "@/components/report/NetworkTab";
+import { PayloadsTab } from "@/components/report/PayloadsTab";
+import { ScreenshotsTab } from "@/components/report/ScreenshotsTab";
 import { StaticTab } from "@/components/report/StaticTab";
 import { SummaryTab } from "@/components/report/SummaryTab";
 import { VerdictBanner } from "@/components/report/VerdictBanner";
@@ -140,6 +144,22 @@ export default function TaskDetailRoute() {
           <ConfigTab taskId={task.id} />
         </TabsContent>
 
+        <TabsContent value="network" className="flex flex-1 overflow-hidden">
+          <NetworkTab taskId={task.id} />
+        </TabsContent>
+
+        <TabsContent value="dropped" className="flex flex-1 overflow-hidden">
+          <DroppedTab taskId={task.id} />
+        </TabsContent>
+
+        <TabsContent value="payloads" className="flex flex-1 overflow-hidden">
+          <PayloadsTab taskId={task.id} />
+        </TabsContent>
+
+        <TabsContent value="screenshots" className="flex flex-1 overflow-hidden">
+          <ScreenshotsTab taskId={task.id} />
+        </TabsContent>
+
         {visibleTabs
           .filter(
             (t) =>
@@ -147,7 +167,11 @@ export default function TaskDetailRoute() {
               t.key !== "behavior" &&
               t.key !== "static" &&
               t.key !== "attack" &&
-              t.key !== "config",
+              t.key !== "config" &&
+              t.key !== "network" &&
+              t.key !== "dropped" &&
+              t.key !== "payloads" &&
+              t.key !== "screenshots",
           )
           .map((t) => (
             <TabsContent
