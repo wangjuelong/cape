@@ -9,6 +9,7 @@ from __future__ import annotations
 import sys
 
 from django.conf import settings
+from django.db.models import Q
 from django.middleware.csrf import get_token
 from django.views.decorators.csrf import ensure_csrf_cookie
 from drf_spectacular.utils import (
@@ -987,16 +988,24 @@ def audits_list(request: Request) -> Response:
         elif succ.lower() in ("false", "0", "no"):
             qs = qs.filter(success=False)
 
+    # since / until: parse via Django's dateparse to avoid ValidationError /
+    # 500 on garbage input. If unparseable, silently skip the filter — better
+    # UX than 500'ing a security-sensitive endpoint.
+    from django.utils.dateparse import parse_datetime  # noqa: PLC0415  (lazy: avoids unused import on most calls)
+
     since = request.query_params.get("since")
     if since:
-        qs = qs.filter(timestamp__gte=since)
+        parsed = parse_datetime(since)
+        if parsed is not None:
+            qs = qs.filter(timestamp__gte=parsed)
     until = request.query_params.get("until")
     if until:
-        qs = qs.filter(timestamp__lt=until)
+        parsed = parse_datetime(until)
+        if parsed is not None:
+            qs = qs.filter(timestamp__lt=parsed)
 
     q = request.query_params.get("q")
     if q:
-        from django.db.models import Q
         qs = qs.filter(Q(actor_username__icontains=q) | Q(target_label__icontains=q))
 
     # ---- cursor pagination (cursor = last seen id; sorted DESC) ----
