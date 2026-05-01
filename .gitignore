@@ -29,3 +29,4 @@ docs/book/src/_build
 # Claude Code harness state (per-developer)
 .claude/
 CLAUDE.md
+.superpowers/
