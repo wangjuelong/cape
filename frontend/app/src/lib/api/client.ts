@@ -43,9 +43,35 @@ function hasSessionCookie(): boolean {
   return cookies.some((c) => c.startsWith("sessionid="));
 }
 
+// Single-flight redirect guard. Multiple in-flight queries that all 401 on
+// the same page would otherwise each fire a window.location.assign() —
+// the FIRST one navigates the browser, but every later one queues another
+// navigation that races with whatever userland navigation we triggered
+// (logout, link click, etc.). With this flag, we redirect at most once
+// per page lifecycle.
+let authRedirectTriggered = false;
+
+/** Call from logout-style flows that own their own navigation, so a 401
+ *  from a follow-up refetch can't race-clobber the redirect target. */
+export function suppressAuthRedirect(): void {
+  authRedirectTriggered = true;
+}
+
 function redirectToLogin(): void {
-  const next = encodeURIComponent(window.location.pathname + window.location.search);
-  window.location.assign(`/login-bridge?next=${next}`);
+  if (authRedirectTriggered) return;
+  authRedirectTriggered = true;
+  const path = window.location.pathname + window.location.search;
+  // Skip useless redirect when we're already on the login page (or the
+  // bridge) — would otherwise loop.
+  if (/^\/accounts\/(login|logout)\b/.test(path) || /^\/login-bridge\b/.test(path)) {
+    return;
+  }
+  const next = encodeURIComponent(path);
+  // Direct hop to allauth's login view (no SPA bridge in between). The
+  // bridge route still exists for historical bookmarks but isn't on the
+  // axios redirect path anymore. `replace()` keeps the broken-anon state
+  // out of the back stack.
+  window.location.replace(`/accounts/login/?next=${next}`);
 }
 
 apiClient.interceptors.response.use(

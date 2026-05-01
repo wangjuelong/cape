@@ -92,6 +92,10 @@ urlpatterns = [
     re_path(r"^machines(?:/.*)?$", spa_view.spa_index, name="spa-machines"),
     re_path(r"^configs(?:/.*)?$", spa_view.spa_index, name="spa-configs"),
     re_path(r"^login(?:/.*)?$", spa_view.spa_index, name="spa-login"),
+    # SPA bounce route used by axios 401/403 interceptor. The page itself
+    # immediately window.location.replace()'s to /accounts/login/?next=… —
+    # we just need Django to serve the SPA shell so the React route runs.
+    re_path(r"^login-bridge(?:/.*)?$", spa_view.spa_index, name="spa-login-bridge"),
 
     # ---- Upstream Bootstrap routes that the SPA shadows above. Re-mount
     # them at the end so `reverse('submission')`, `reverse('compare_left')`,
