@@ -29,7 +29,14 @@ _PROJECTIONS: dict[str, dict[str, int]] = {
         "target.file.ssdeep": 1,
         "target.file.tlsh": 1,
         "target.file.crc32": 1,
+        "target.file.pe": 1,
+        "target.file.selfextract": 1,
+        "target.file.virustotal": 1,
+        "target.file.yara": 1,
+        "target.file.cape_yara": 1,
+        "target.file.clamav": 1,
         "target.url": 1,
+        "statistics": 1,
         "malscore": 1,
         "detections": 1,
         "signatures.name": 1,
@@ -194,6 +201,11 @@ def fetch_summary(task_id: int) -> dict[str, Any] | None:
         "analysis_info": _build_analysis_info(doc),
         "machine_info": _build_machine_info(doc),
         "file_info": _build_file_info(doc),
+        "pe_info": _build_pe_info(doc),
+        "statistics_processing": _build_statistics(doc),
+        "subfiles": _build_subfiles(doc),
+        "yara_matches": _build_yara_matches(doc),
+        "virustotal": _build_virustotal(doc),
     }
 
 
@@ -206,9 +218,16 @@ def _build_analysis_info(doc: dict) -> dict[str, str]:
         ("Package", info.get("package")),
         ("Started", info.get("started")),
         ("Completed", info.get("ended") or info.get("completed")),
-        ("Duration", info.get("duration")),
+        ("Duration", _format_duration(info.get("duration"))),
         ("Route", info.get("route")),
         ("Options", info.get("options")),
+        ("Timeout", info.get("timeout")),
+        ("Custom", info.get("custom")),
+        ("Source URL", info.get("source_url")),
+        ("Parent Sample", info.get("parent_sample")),
+        ("TLP", info.get("tlp")),
+        ("CAPE Version", info.get("version")),
+        ("CAPE Commit", info.get("CAPE_current_commit")),
     ]
     return {k: _stringify(v) for k, v in pairs if v is not None and v != ""}
 
@@ -252,6 +271,230 @@ def _stringify(v: Any) -> str:
     if isinstance(v, (dict, list)):
         return ""
     return str(v)
+
+
+def _format_duration(v: Any) -> str | None:
+    """Upstream renders durations as "Ns" — match that format."""
+    if v is None or v == "":
+        return None
+    if isinstance(v, (int, float)):
+        return f"{int(v)}s"
+    return str(v)
+
+
+def _build_pe_info(doc: dict) -> dict[str, Any]:
+    """Mirror upstream's "PE Information" accordion — version info /
+    sections / resources / imports / overlay / misc kv. Returns ``{}``
+    when no PE data is present (URL/PCAP/non-PE samples)."""
+    pe = _path(doc, "target.file.pe")
+    if not isinstance(pe, dict) or not pe:
+        return {}
+    out: dict[str, Any] = {}
+
+    # Version Info: list of {name, value}
+    versioninfo = pe.get("versioninfo") or []
+    if isinstance(versioninfo, list) and versioninfo:
+        out["versioninfo"] = [
+            {"name": _stringify(v.get("name")), "value": _stringify(v.get("value"))}
+            for v in versioninfo
+            if isinstance(v, dict)
+        ]
+
+    # Sections — name/raw/virtual/size/entropy/characteristics
+    sections = pe.get("sections") or []
+    if isinstance(sections, list) and sections:
+        out["sections"] = [
+            {
+                "name": _stringify(s.get("name")),
+                "raw_address": _stringify(s.get("raw_address")),
+                "virtual_address": _stringify(s.get("virtual_address")),
+                "virtual_size": _stringify(s.get("virtual_size")),
+                "size_of_data": _stringify(s.get("size_of_data")),
+                "entropy": _stringify(s.get("entropy")),
+                "characteristics": _stringify(s.get("characteristics")),
+            }
+            for s in sections
+            if isinstance(s, dict)
+        ]
+
+    # Imports: dict[dll_name -> {dll, imports: [{name, address}]}] or
+    # dict[dll_name -> [{name, address}]]. Normalise to {dll: [funcs]}.
+    imports = pe.get("imports") or {}
+    if isinstance(imports, dict) and imports:
+        norm_imports: list[dict[str, Any]] = []
+        for dll_name, body in imports.items():
+            if isinstance(body, dict):
+                funcs = body.get("imports") or []
+                dll = body.get("dll") or dll_name
+            else:
+                funcs = body if isinstance(body, list) else []
+                dll = dll_name
+            norm_imports.append(
+                {
+                    "dll": _stringify(dll),
+                    "functions": [
+                        {
+                            "name": _stringify(f.get("name")) if isinstance(f, dict) else _stringify(f),
+                            "address": _stringify(f.get("address")) if isinstance(f, dict) else "",
+                        }
+                        for f in funcs
+                    ],
+                }
+            )
+        out["imports"] = norm_imports
+
+    exports = pe.get("exports") or []
+    if isinstance(exports, list) and exports:
+        out["exports"] = [
+            {
+                "name": _stringify(e.get("name")) if isinstance(e, dict) else _stringify(e),
+                "address": _stringify(e.get("address")) if isinstance(e, dict) else "",
+                "ordinal": _stringify(e.get("ordinal")) if isinstance(e, dict) else "",
+            }
+            for e in exports
+        ]
+
+    resources = pe.get("resources") or []
+    if isinstance(resources, list) and resources:
+        out["resources"] = [
+            {
+                "name": _stringify(r.get("name")),
+                "offset": _stringify(r.get("offset")),
+                "size": _stringify(r.get("size")),
+                "filetype": _stringify(r.get("filetype")),
+                "language": _stringify(r.get("language")),
+                "sublanguage": _stringify(r.get("sublanguage")),
+                "entropy": _stringify(r.get("entropy")),
+            }
+            for r in resources
+            if isinstance(r, dict)
+        ]
+
+    # Misc kv — single pane on upstream's PE Info card.
+    misc_pairs = [
+        ("Image Base", pe.get("imagebase")),
+        ("Entry Point", pe.get("entrypoint")),
+        ("EP Bytes", pe.get("ep_bytes")),
+        ("Reported Checksum", pe.get("reported_checksum")),
+        ("Actual Checksum", pe.get("actual_checksum")),
+        ("OS Version", pe.get("osversion")),
+        ("Machine Type", pe.get("machine_type")),
+        ("PDB Path", pe.get("pdbpath")),
+        ("imphash", pe.get("imphash")),
+        ("Compile Timestamp", pe.get("timestamp")),
+        ("Icon Hash", pe.get("icon_hash")),
+        ("Icon dHash", pe.get("icon_dhash")),
+        ("Icon Fuzzy", pe.get("icon_fuzzy")),
+        ("Exported DLL Name", pe.get("exported_dll_name")),
+    ]
+    misc = {k: _stringify(v) for k, v in misc_pairs if v not in (None, "", [], {})}
+    if misc:
+        out["misc"] = misc
+
+    overlay = pe.get("overlay")
+    if isinstance(overlay, dict) and overlay:
+        out["overlay"] = {
+            "offset": _stringify(overlay.get("offset")),
+            "size": _stringify(overlay.get("size")),
+        }
+
+    digital_signers = pe.get("digital_signers") or []
+    if isinstance(digital_signers, list) and digital_signers:
+        out["digital_signers"] = digital_signers
+
+    peid_signatures = pe.get("peid_signatures")
+    if peid_signatures:
+        out["peid_signatures"] = peid_signatures
+
+    return out
+
+
+def _build_statistics(doc: dict) -> dict[str, list[dict[str, Any]]]:
+    """Upstream "Statistics" card — flat list of {name, time} entries
+    grouped into Processing / Signatures / Reporting buckets."""
+    stats = doc.get("statistics") or {}
+    if not isinstance(stats, dict):
+        return {}
+    out: dict[str, list[dict[str, Any]]] = {}
+    for bucket in ("processing", "signatures", "reporting"):
+        items = stats.get(bucket) or []
+        if isinstance(items, list) and items:
+            out[bucket] = [
+                {
+                    "name": _stringify(it.get("name")),
+                    "time": float(it.get("time") or 0.0),
+                }
+                for it in items
+                if isinstance(it, dict)
+            ]
+    return out
+
+
+def _build_subfiles(doc: dict) -> list[dict[str, Any]]:
+    """Mirror upstream's "Subfile Information" card — files extracted
+    from archives or self-extracted by the analyzer.
+
+    Upstream's `target.file.selfextract` is a dict keyed by extraction
+    method (overlay / archive / etc), each holding ``extracted_files``.
+    Flatten across keys for the SPA."""
+    se = _path(doc, "target.file.selfextract")
+    if not isinstance(se, dict):
+        return []
+    out: list[dict[str, Any]] = []
+    for method, body in se.items():
+        if not isinstance(body, dict):
+            continue
+        for f in body.get("extracted_files") or []:
+            if isinstance(f, dict):
+                out.append(
+                    {
+                        "method": _stringify(method),
+                        "name": _stringify(f.get("name")),
+                        "path": _stringify(f.get("path")),
+                        "type": _stringify(f.get("type")),
+                        "size": f.get("size") if isinstance(f.get("size"), (int, float)) else None,
+                        "md5": _stringify(f.get("md5")),
+                        "sha256": _stringify(f.get("sha256")),
+                    }
+                )
+    return out
+
+
+def _build_yara_matches(doc: dict) -> list[dict[str, str]]:
+    """Combined YARA + CAPE-YARA + ClamAV matches against the target."""
+    out: list[dict[str, str]] = []
+    for source_field, source_label in (
+        ("yara", "yara"),
+        ("cape_yara", "cape_yara"),
+        ("clamav", "clamav"),
+    ):
+        items = _path(doc, f"target.file.{source_field}") or []
+        if isinstance(items, list):
+            for it in items:
+                if isinstance(it, dict):
+                    out.append(
+                        {
+                            "source": source_label,
+                            "name": _stringify(it.get("name")),
+                            "meta": _stringify(it.get("meta") or it.get("description") or ""),
+                        }
+                    )
+                elif it:
+                    out.append({"source": source_label, "name": _stringify(it), "meta": ""})
+    return out
+
+
+def _build_virustotal(doc: dict) -> dict[str, Any]:
+    """VirusTotal summary — only the high-level fields we render."""
+    vt = _path(doc, "target.file.virustotal")
+    if not isinstance(vt, dict) or not vt:
+        return {}
+    out: dict[str, Any] = {}
+    for k in ("positives", "total", "permalink", "scan_date", "names"):
+        v = vt.get(k)
+        if v not in (None, "", [], {}):
+            out[k] = v
+    return out
 
 
 def _format_size(v: Any) -> str | None:
@@ -637,13 +880,26 @@ def _verdict_from_score(score: float | None) -> str:
 
 
 def _trim_behavior_summary(summary: dict[str, Any]) -> dict[str, list[str]]:
-    """Reduce behavior.summary to a small set the SPA actually renders.
-
-    The full structure can be megabytes; for the Summary tab we only need
-    counts/preview lists for files / registry / mutexes / commands / APIs.
-    """
+    """Reduce behavior.summary to the 13 categories upstream surfaces on
+    the Summary tab. Keys mirror the Mongo schema (note: ``keys`` not
+    ``registry_keys``). The full structure can be megabytes; we keep at
+    most 50 items per category for preview."""
     result: dict[str, list[str]] = {}
-    for key in ("files", "read_files", "write_files", "delete_files", "registry_keys", "mutexes", "executed_commands", "resolved_apis"):
+    for key in (
+        "files",
+        "read_files",
+        "write_files",
+        "delete_files",
+        "keys",
+        "read_keys",
+        "write_keys",
+        "delete_keys",
+        "executed_commands",
+        "resolved_apis",
+        "mutexes",
+        "created_services",
+        "started_services",
+    ):
         items = summary.get(key)
         if isinstance(items, list):
             result[key] = [str(x) for x in items[:50]]

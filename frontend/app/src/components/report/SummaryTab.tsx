@@ -1,17 +1,33 @@
 import type { ReportSummary } from "@/lib/api/reports";
 
+import { PeInfoPanel } from "./PeInfoPanel";
+import { StatisticsPanel } from "./StatisticsPanel";
+import { SubfilesPanel } from "./SubfilesPanel";
+import { YaraPanel } from "./YaraPanel";
+
 interface SummaryTabProps {
   report: ReportSummary;
 }
 
+/**
+ * Mirror upstream's `behavior_summary` accordion (vertical pills card on
+ * `/analysis/<id>/`). Upstream surfaces 13 categories — match all of them
+ * so the SPA never silently drops a populated bucket.
+ */
 const BEHAVIOR_LABELS: Array<[string, keyof NonNullable<ReportSummary["behavior_summary"]>]> = [
-  ["Files", "files"],
-  ["Files written", "write_files"],
-  ["Files deleted", "delete_files"],
-  ["Registry keys", "registry_keys"],
-  ["Mutexes", "mutexes"],
-  ["Executed commands", "executed_commands"],
+  ["Accessed Files", "files"],
+  ["Read Files", "read_files"],
+  ["Modified Files", "write_files"],
+  ["Deleted Files", "delete_files"],
+  ["Registry Keys", "keys"],
+  ["Read Registry Keys", "read_keys"],
+  ["Modified Registry Keys", "write_keys"],
+  ["Deleted Registry Keys", "delete_keys"],
   ["Resolved APIs", "resolved_apis"],
+  ["Executed Commands", "executed_commands"],
+  ["Mutexes", "mutexes"],
+  ["Created Services", "created_services"],
+  ["Started Services", "started_services"],
 ];
 
 /**
@@ -70,6 +86,23 @@ export function SummaryTab({ report }: SummaryTabProps) {
       {Object.keys(fileInfo).length > 0 && (
         <KvPanel title="File Information" entries={fileInfo} mono />
       )}
+
+      {report.yara_matches && report.yara_matches.length > 0 && (
+        <YaraPanel matches={report.yara_matches} />
+      )}
+
+      {report.subfiles && report.subfiles.length > 0 && (
+        <SubfilesPanel subfiles={report.subfiles} />
+      )}
+
+      {report.pe_info && Object.keys(report.pe_info).length > 0 && (
+        <PeInfoPanel pe={report.pe_info} />
+      )}
+
+      {report.statistics_processing &&
+        Object.keys(report.statistics_processing).length > 0 && (
+          <StatisticsPanel stats={report.statistics_processing} />
+        )}
 
       {populated.length > 0 && (
         <div className="panel">

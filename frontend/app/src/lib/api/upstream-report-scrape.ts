@@ -25,10 +25,12 @@ import type {
   DroppedReport,
   NetworkReport,
   PayloadsReport,
+  PeInfo,
   ReportSummary,
   ScreenshotsReport,
   SignatureLite,
   StaticReport,
+  SubfileEntry,
 } from "./reports";
 import type { Severity, TaskStatus, TaskSummary, Verdict } from "@/types/api";
 
@@ -43,6 +45,12 @@ export interface UpstreamReportScrape {
   analysis_info: Record<string, string>;
   /** Upstream "Machine Information" card: name/label/manager/started_on/shutdown_on. */
   machine_info: Record<string, string>;
+  /** Upstream "PE Information" accordion: version/sections/imports/exports/resources/overlay/misc. */
+  pe_info: PeInfo;
+  /** Upstream "Statistics" card: processing/signatures/reporting timing buckets. */
+  statistics_processing: Record<string, Array<{ name: string; time: number }>>;
+  /** Upstream "Subfile Information" card. */
+  subfiles: SubfileEntry[];
   /** Network sub-tables — empty arrays when upstream's alert says "No X recorded." */
   network: NetworkReport;
   /** Strings from any inline "Strings" collapse, if rendered. */
@@ -107,15 +115,20 @@ export function parseUpstreamReportHtml(html: string, taskId: number): UpstreamR
   }
 
   // ---- Machine Information ----
+  // Upstream renders this as a horizontal `<thead><tr><th>…</th></tr>`
+  // followed by a single `<tbody><tr><td>…</td></tr>` row (same shape
+  // as Analysis Details), so zip header → first data row.
   const machineInfo: Record<string, string> = {};
   const machineCard = findCardByTitle(doc, "Machine Information");
   if (machineCard) {
-    for (const tr of machineCard.querySelectorAll("table tr")) {
-      const th = tr.querySelector("th");
-      const td = tr.querySelector("td");
-      if (!th || !td) continue;
-      const key = textOf(th).replace(/[:\s]+$/, "");
-      const val = textOf(td);
+    const headerCells = [...machineCard.querySelectorAll("table thead th")].map((th) =>
+      textOf(th).replace(/[:\s]+$/, ""),
+    );
+    const dataRow = machineCard.querySelector("table tbody tr");
+    const dataCells = dataRow ? [...dataRow.querySelectorAll("td")] : [];
+    for (let i = 0; i < headerCells.length && i < dataCells.length; i++) {
+      const key = headerCells[i];
+      const val = textOf(dataCells[i]);
       if (key) machineInfo[key] = val;
     }
   }
@@ -161,6 +174,15 @@ export function parseUpstreamReportHtml(html: string, taskId: number): UpstreamR
     const name = textOf(sig.querySelector(".sig-name") ?? sig);
     if (name) signatures.push({ name, description: "", severity: 3, ttp: [] });
   }
+
+  // ---- PE Information (general grid + accordion items) ----
+  const pe_info = parsePeInfoSection(doc);
+
+  // ---- Statistics (processing / signatures / reporting buckets) ----
+  const statistics_processing = parseStatisticsSection(doc);
+
+  // ---- Subfile Information ----
+  const subfiles = parseSubfilesSection(doc);
 
   // ---- Network sub-tables ----
   const network = parseNetworkSection(doc);
@@ -239,6 +261,9 @@ export function parseUpstreamReportHtml(html: string, taskId: number): UpstreamR
     file_info: fileInfo,
     analysis_info: analysisDetails,
     machine_info: machineInfo,
+    pe_info,
+    statistics_processing,
+    subfiles,
     network,
     strings,
     behavior_available,
@@ -267,6 +292,9 @@ export function asReportSummary(s: UpstreamReportScrape): ReportSummary {
     analysis_info: s.analysis_info,
     machine_info: s.machine_info,
     file_info: s.file_info,
+    pe_info: s.pe_info,
+    statistics_processing: s.statistics_processing,
+    subfiles: s.subfiles,
   };
 }
 
@@ -410,4 +438,135 @@ function parseTimestamp(s: string): string | null {
   const m = s.match(/(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2})/);
   if (!m) return s;
   return `${m[1]}T${m[2]}Z`;
+}
+
+// ---------------------------------------------------------------------------
+// PE Information / Statistics / Subfile Information parsers
+// ---------------------------------------------------------------------------
+
+/** Pulls the upstream "PE Information" card into our PeInfo shape. */
+function parsePeInfoSection(doc: Document): PeInfo {
+  const card = findCardByTitle(doc, "PE Information");
+  if (!card) return {};
+  const out: PeInfo = {};
+
+  // General Info Grid → goes into misc.
+  const misc: Record<string, string> = {};
+  for (const col of card.querySelectorAll(".card-body > .row > [class*='col-']")) {
+    const label = col.querySelector("small");
+    const value = col.querySelector("div");
+    if (!label || !value) continue;
+    const k = textOf(label);
+    const v = textOf(value);
+    if (k && v) misc[k] = v;
+  }
+  if (Object.keys(misc).length) out.misc = misc;
+
+  // Accordion items keyed by their header text.
+  for (const item of card.querySelectorAll(".accordion-item")) {
+    const header = textOf(item.querySelector(".accordion-header button"));
+    const tableRows = [...item.querySelectorAll("table tbody tr")];
+
+    if (/Version Info/i.test(header)) {
+      out.versioninfo = tableRows.map((tr) => {
+        const cells = [...tr.querySelectorAll("th, td")].map(textOf);
+        return { name: cells[0] ?? "", value: cells[1] ?? "" };
+      });
+    } else if (/^Sections/i.test(header)) {
+      out.sections = tableRows.map((tr) => {
+        const c = [...tr.querySelectorAll("td")].map(textOf);
+        return {
+          name: c[0] ?? "",
+          raw_address: c[1] ?? "",
+          virtual_address: c[2] ?? "",
+          virtual_size: c[3] ?? "",
+          size_of_data: c[4] ?? "",
+          // Upstream order: Name / RAW Addr / Virt Addr / Virt Size / Raw Size / Characteristics / Entropy
+          characteristics: c[5] ?? "",
+          entropy: c[6] ?? "",
+        };
+      });
+    } else if (/^Resources/i.test(header)) {
+      out.resources = tableRows.map((tr) => {
+        const c = [...tr.querySelectorAll("td")].map(textOf);
+        return {
+          name: c[0] ?? "",
+          offset: c[1] ?? "",
+          size: c[2] ?? "",
+          filetype: c[3] ?? "",
+          language: c[4] ?? "",
+          sublanguage: c[5] ?? "",
+          entropy: c[6] ?? "",
+        };
+      });
+    } else if (/^Imports/i.test(header)) {
+      // Imports are nested accordions: outer = Imports, inner = per-DLL.
+      const imports: PeInfo["imports"] = [];
+      for (const sub of item.querySelectorAll(".accordion-item")) {
+        const dll = textOf(sub.querySelector(".accordion-header button"));
+        const fns: Array<{ name: string; address: string }> = [];
+        for (const tr of sub.querySelectorAll("table tbody tr")) {
+          const c = [...tr.querySelectorAll("td")].map(textOf);
+          if (c.length >= 2) fns.push({ address: c[0], name: c[1] });
+        }
+        if (dll && fns.length) imports.push({ dll, functions: fns });
+      }
+      if (imports.length) out.imports = imports;
+    } else if (/^Exports/i.test(header)) {
+      out.exports = tableRows.map((tr) => {
+        const c = [...tr.querySelectorAll("td")].map(textOf);
+        return { ordinal: c[0] ?? "", address: c[1] ?? "", name: c[2] ?? "" };
+      });
+    }
+  }
+
+  return out;
+}
+
+/** Pulls the upstream "Statistics" card into the bucket->[{name,time}] shape. */
+function parseStatisticsSection(
+  doc: Document,
+): Record<string, Array<{ name: string; time: number }>> {
+  const out: Record<string, Array<{ name: string; time: number }>> = {};
+  const stats = doc.querySelector("#statistics");
+  if (!stats) return out;
+
+  for (const card of stats.querySelectorAll(".card")) {
+    const header = textOf(card.querySelector(".card-header"));
+    // Header is like "Processing 19.95s" or "Reporting 0.01s" — first word is the bucket.
+    const bucketMatch = header.match(/^(Processing|Signatures|Reporting)/i);
+    if (!bucketMatch) continue;
+    const bucket = bucketMatch[1].toLowerCase();
+    const items: Array<{ name: string; time: number }> = [];
+    for (const li of card.querySelectorAll("li")) {
+      const txt = textOf(li);
+      // Item shape: "19.819s CAPE" or "0.097s BehaviorAnalysis"
+      const m = txt.match(/^([0-9.]+)s\s+(.+)$/);
+      if (m) items.push({ name: m[2], time: Number(m[1]) || 0 });
+    }
+    if (items.length) out[bucket] = items;
+  }
+  return out;
+}
+
+/** Pulls the upstream "Subfile Information" card into SubfileEntry[]. */
+function parseSubfilesSection(doc: Document): SubfileEntry[] {
+  const card = findCardByTitle(doc, "Subfile Information");
+  if (!card) return [];
+  const out: SubfileEntry[] = [];
+  for (const tr of card.querySelectorAll("table tbody tr")) {
+    const cells = [...tr.querySelectorAll("td")].map(textOf);
+    if (cells.length === 0) continue;
+    out.push({
+      method: "",
+      // Upstream layout varies; pick the most likely text fields.
+      name: cells[0] ?? "",
+      path: "",
+      type: cells[1] ?? "",
+      size: parseSize(cells[2] ?? "") || null,
+      md5: cells[3] ?? "",
+      sha256: cells[4] ?? "",
+    });
+  }
+  return out;
 }

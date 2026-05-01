@@ -345,6 +345,17 @@ class ReportSummarySerializer(serializers.Serializer):
     analysis_info = serializers.DictField(child=serializers.CharField(), required=False)
     machine_info = serializers.DictField(child=serializers.CharField(), required=False)
     file_info = serializers.DictField(child=serializers.CharField(), required=False)
+    # PE Information accordion (versioninfo / sections / imports / exports /
+    # resources / overlay / misc). Empty for non-PE samples.
+    pe_info = serializers.DictField(required=False)
+    # Processing/signatures/reporting timing breakdown.
+    statistics_processing = serializers.DictField(required=False)
+    # Embedded files extracted from archives / overlay.
+    subfiles = serializers.ListField(child=serializers.DictField(), required=False)
+    # Combined YARA / CAPE-YARA / ClamAV matches against the target file.
+    yara_matches = serializers.ListField(child=serializers.DictField(), required=False)
+    # VirusTotal summary.
+    virustotal = serializers.DictField(required=False)
 
 
 class ProcessSummarySerializer(serializers.Serializer):

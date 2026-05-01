@@ -24,6 +24,63 @@ export interface ReportSummary {
   machine_info?: Record<string, string>;
   /** "File Information" card — name/type/size + md5/sha1/sha256/sha3/ssdeep/tlsh/crc32. */
   file_info?: Record<string, string>;
+  /** "PE Information" accordion — versioninfo / sections / imports / exports / resources / overlay / misc. */
+  pe_info?: PeInfo;
+  /** Processing / signatures / reporting timing breakdown. */
+  statistics_processing?: Record<string, Array<{ name: string; time: number }>>;
+  /** Subfile Information — files extracted from overlay / archive. */
+  subfiles?: SubfileEntry[];
+  /** YARA / CAPE-YARA / ClamAV matches against the target file. */
+  yara_matches?: YaraMatch[];
+  /** VirusTotal summary. */
+  virustotal?: Record<string, unknown>;
+}
+
+export interface PeInfo {
+  versioninfo?: Array<{ name: string; value: string }>;
+  sections?: Array<{
+    name: string;
+    raw_address: string;
+    virtual_address: string;
+    virtual_size: string;
+    size_of_data: string;
+    entropy: string;
+    characteristics: string;
+  }>;
+  imports?: Array<{
+    dll: string;
+    functions: Array<{ name: string; address: string }>;
+  }>;
+  exports?: Array<{ name: string; address: string; ordinal: string }>;
+  resources?: Array<{
+    name: string;
+    offset: string;
+    size: string;
+    filetype: string;
+    language: string;
+    sublanguage: string;
+    entropy: string;
+  }>;
+  overlay?: { offset: string; size: string };
+  misc?: Record<string, string>;
+  digital_signers?: unknown[];
+  peid_signatures?: unknown;
+}
+
+export interface SubfileEntry {
+  method: string;
+  name: string;
+  path: string;
+  type: string;
+  size: number | null;
+  md5: string;
+  sha256: string;
+}
+
+export interface YaraMatch {
+  source: string;
+  name: string;
+  meta: string;
 }
 
 export async function fetchReportSummary(taskId: number): Promise<ReportSummary> {
