@@ -67,7 +67,8 @@ const DropdownMenuItem = React.forwardRef<
       "focus:bg-[var(--color-accent-soft)] focus:text-[var(--color-fg-0)]",
       "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       inset && "pl-8",
-      danger && "text-[var(--color-sev-crit)] focus:bg-[color-mix(in_oklch,var(--color-sev-crit)_18%,transparent)]",
+      danger &&
+        "text-[var(--color-sev-crit)] focus:bg-[color-mix(in_oklch,var(--color-sev-crit)_18%,transparent)]",
       className,
     )}
     {...props}

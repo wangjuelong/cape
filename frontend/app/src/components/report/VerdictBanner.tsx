@@ -131,10 +131,7 @@ function Metric({ label, value, accent }: MetricProps) {
       >
         {label}
       </div>
-      <div
-        className="mono"
-        style={{ fontSize: 18, fontWeight: 600, color, lineHeight: 1.1 }}
-      >
+      <div className="mono" style={{ fontSize: 18, fontWeight: 600, color, lineHeight: 1.1 }}>
         {value}
       </div>
     </div>

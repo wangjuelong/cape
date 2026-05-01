@@ -20,12 +20,7 @@ interface ToggleDef {
   hint?: string;
   /** key under formData.config that gates this toggle (matches upstream
    *  index.html `{% if config.X %}` blocks). Missing → always rendered. */
-  configGate?:
-    | "procmemory"
-    | "amsidump"
-    | "memory"
-    | "interactive_desktop"
-    | "kernel";
+  configGate?: "procmemory" | "amsidump" | "memory" | "interactive_desktop" | "kernel";
   /** Disable + uncheck unless the named other field is true (only used
    *  for `manual`, which upstream marks `disabled` until `interactive`
    *  is checked — see index.html syncManualCheckbox). */
@@ -193,10 +188,7 @@ function ToggleRow({ control, def, visible, forceDisabled }: ToggleRowProps) {
                 <span style={{ color: "var(--color-fg-1)" }}>
                   {def.label}
                   {def.hint && (
-                    <span
-                      className="ml-1.5 text-[10px]"
-                      style={{ color: "var(--color-fg-2)" }}
-                    >
+                    <span className="ml-1.5 text-[10px]" style={{ color: "var(--color-fg-2)" }}>
                       ({def.hint})
                     </span>
                   )}

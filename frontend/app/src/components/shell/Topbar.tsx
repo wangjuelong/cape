@@ -42,7 +42,12 @@ export function Topbar() {
       </div>
 
       <div className="topbar-actions">
-        <button type="button" className="btn ghost" onClick={() => navigate("/submit")} style={{ height: 28 }}>
+        <button
+          type="button"
+          className="btn ghost"
+          onClick={() => navigate("/submit")}
+          style={{ height: 28 }}
+        >
           <Icon.upload size={14} />
           <span>Submit</span>
         </button>

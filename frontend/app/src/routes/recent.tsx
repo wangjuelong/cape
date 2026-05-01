@@ -1,12 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  Files,
-  FileCode,
-  Globe,
-  Network,
-  RefreshCw,
-  Upload,
-} from "lucide-react";
+import { Files, FileCode, Globe, Network, RefreshCw, Upload } from "lucide-react";
 
 import { PageHead } from "@/components/shared/PageHead";
 import { Spinner } from "@/components/ui/spinner";
@@ -124,10 +117,7 @@ export default function RecentRoute() {
   const { connected } = useTaskEvents();
   // Visible items = everything except status="pending" (mirrors upstream
   // `not_status=TASK_PENDING`).
-  const items = useMemo(
-    () => query.tasks.filter((t) => t.status !== "pending"),
-    [query.tasks],
-  );
+  const items = useMemo(() => query.tasks.filter((t) => t.status !== "pending"), [query.tasks]);
 
   return (
     <>
@@ -176,10 +166,10 @@ export default function RecentRoute() {
           <div className="panel">
             <div className="panel-h">
               Recent {tabDef.label}
-              <span className="count">· {items.length} item{items.length === 1 ? "" : "s"}</span>
-              <div className="actions">
-                {query.isFetching && <Spinner size={12} />}
-              </div>
+              <span className="count">
+                · {items.length} item{items.length === 1 ? "" : "s"}
+              </span>
+              <div className="actions">{query.isFetching && <Spinner size={12} />}</div>
             </div>
 
             {query.isError && (

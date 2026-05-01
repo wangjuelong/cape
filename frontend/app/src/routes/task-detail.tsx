@@ -141,11 +141,7 @@ export default function TaskDetailRoute() {
       {/* SUMMARY: 3-pane split */}
       {tab === "summary" && (
         <div className="split" style={{ flex: 1, minHeight: 0 }}>
-          <FindingsRail
-            signatures={signatures}
-            selected={selectedSig}
-            onSelect={setSelectedSig}
-          />
+          <FindingsRail signatures={signatures} selected={selectedSig} onSelect={setSelectedSig} />
           <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
             <SummaryTab report={report} />
           </div>

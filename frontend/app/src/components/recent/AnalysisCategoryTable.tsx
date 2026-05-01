@@ -140,11 +140,7 @@ export function AnalysisCategoryTable({
             )}
             <td>
               {t.family ? (
-                <span
-                  className={
-                    "tag " + (t.score >= 8 ? "crit" : t.score >= 6 ? "high" : "med")
-                  }
-                >
+                <span className={"tag " + (t.score >= 8 ? "crit" : t.score >= 6 ? "high" : "med")}>
                   {t.family}
                 </span>
               ) : (

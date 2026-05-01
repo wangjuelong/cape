@@ -324,20 +324,14 @@ export function AdvancedOptionsCard({
 
           <div className="md:col-span-2">
             <Field label="Options (raw, comma-separated key=val)">
-              <Input
-                placeholder="bp0=ep,base-on-api=NtReadFile,..."
-                {...register("options")}
-              />
+              <Input placeholder="bp0=ep,base-on-api=NtReadFile,..." {...register("options")} />
             </Field>
           </div>
 
           {linuxOnGui && (
             <div className="md:col-span-2">
               <Field label="Linux options (lin_options) — separate from `options`">
-                <Input
-                  placeholder="filename=foo,timeout=120,..."
-                  {...register("lin_options")}
-                />
+                <Input placeholder="filename=foo,timeout=120,..." {...register("lin_options")} />
               </Field>
             </div>
           )}

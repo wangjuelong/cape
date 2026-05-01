@@ -40,10 +40,7 @@ export default function DashboardRoute() {
     [tasks.tasks],
   );
 
-  const liveTasks = useMemo(
-    () => tasks.tasks.slice(0, 7),
-    [tasks.tasks],
-  );
+  const liveTasks = useMemo(() => tasks.tasks.slice(0, 7), [tasks.tasks]);
 
   return (
     <>
@@ -132,8 +129,7 @@ export default function DashboardRoute() {
                         {t.family ? (
                           <span
                             className={
-                              "tag " +
-                              (t.score >= 8 ? "crit" : t.score >= 6 ? "high" : "med")
+                              "tag " + (t.score >= 8 ? "crit" : t.score >= 6 ? "high" : "med")
                             }
                           >
                             {t.family}
@@ -174,9 +170,7 @@ export default function DashboardRoute() {
                       width: 8,
                       height: 8,
                       borderRadius: "50%",
-                      background: m.locked
-                        ? "var(--color-accent)"
-                        : "var(--color-sev-clean)",
+                      background: m.locked ? "var(--color-accent)" : "var(--color-sev-clean)",
                       boxShadow: m.locked ? "0 0 6px var(--color-accent)" : undefined,
                     }}
                   />
@@ -241,10 +235,7 @@ export default function DashboardRoute() {
                         }}
                       />
                     </div>
-                    <span
-                      className="mono dim"
-                      style={{ textAlign: "right", fontSize: 11 }}
-                    >
+                    <span className="mono dim" style={{ textAlign: "right", fontSize: 11 }}>
                       {row.count}
                     </span>
                   </div>
@@ -295,8 +286,7 @@ export default function DashboardRoute() {
                       {t.family ? (
                         <span
                           className={
-                            "tag " +
-                            (t.score >= 8 ? "crit" : t.score >= 6 ? "high" : "med")
+                            "tag " + (t.score >= 8 ? "crit" : t.score >= 6 ? "high" : "med")
                           }
                         >
                           {t.family}

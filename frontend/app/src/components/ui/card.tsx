@@ -7,9 +7,7 @@ import { cn } from "@/lib/utils";
  * Original shadcn structure preserved so existing imports keep working.
  */
 const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
-  ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn("panel", className)} {...props} />
-  ),
+  ({ className, ...props }, ref) => <div ref={ref} className={cn("panel", className)} {...props} />,
 );
 Card.displayName = "Card";
 
@@ -21,9 +19,7 @@ const CardHeader = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDiv
 CardHeader.displayName = "CardHeader";
 
 const CardTitle = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
-  ({ className, ...props }, ref) => (
-    <span ref={ref} className={cn(className)} {...props} />
-  ),
+  ({ className, ...props }, ref) => <span ref={ref} className={cn(className)} {...props} />,
 );
 CardTitle.displayName = "CardTitle";
 

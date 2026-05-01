@@ -38,7 +38,7 @@ export function useTaskList(filters: TaskListFilters = {}): UseTaskListResult {
       } catch (err) {
         // v3 missing — fall back to scraping `/analysis/` HTML. Only first
         // page is populated; cursor pagination doesn't apply to the scrape.
-        if ((pageParam as string | undefined)) {
+        if (pageParam as string | undefined) {
           return { data: [], next_cursor: null };
         }
         const scraped = await fetchUpstreamAnalysisScrape();

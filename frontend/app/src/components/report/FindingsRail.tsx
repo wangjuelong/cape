@@ -43,10 +43,7 @@ export function FindingsRail({ signatures, selected, onSelect }: FindingsRailPro
 
       <div className="lane-scroll" style={{ flex: 1 }}>
         {sorted.length === 0 ? (
-          <div
-            className="dim"
-            style={{ padding: 16, fontSize: 12, textAlign: "center" }}
-          >
+          <div className="dim" style={{ padding: 16, fontSize: 12, textAlign: "center" }}>
             No signatures matched.
           </div>
         ) : (

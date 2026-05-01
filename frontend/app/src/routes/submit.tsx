@@ -617,12 +617,7 @@ function PrimaryInput({ mode, register, control }: PrimaryInputProps) {
               name="job_category"
               render={({ field }) => (
                 <>
-                  <input
-                    type="hidden"
-                    name="job_category"
-                    value={field.value ?? ""}
-                    readOnly
-                  />
+                  <input type="hidden" name="job_category" value={field.value ?? ""} readOnly />
                   <Select
                     value={field.value ?? "__same__"}
                     onValueChange={(v) =>

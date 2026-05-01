@@ -102,8 +102,12 @@ export function parseUpstreamSubmitHtml(html: string): UpstreamScrapeResult {
   };
 
   // ----- Tabs -----
-  // Upstream renders <a id="X-tab" href="#X" data-bs-toggle="pill"> for each
-  // visible tab. Detect via the `id` attribute.
+  // Source of truth: the visible NAV PILLS inside #submissionTabs.
+  // CAREFUL: upstream `index.html` gates the *nav pill* (`<li>`) by
+  //   {% if config.url_analysis %}…<a id="url-tab">…
+  // but the matching tab-pane body (`<div id="url">…<input name="url"/>…`)
+  // is NOT gated. So checking for `input[name='url']` would falsely report
+  // url_analysis as enabled on every deploy. Use the nav pill instead.
   const tabIdMap: Record<string, keyof UpstreamScrapeResult["tabs"]> = {
     "file-tab": "file",
     "pcap-tab": "pcap",
@@ -113,25 +117,20 @@ export function parseUpstreamSubmitHtml(html: string): UpstreamScrapeResult {
     "dl-service-tab": "downloading_service",
     "resubmit-tab": "resubmit",
   };
-  for (const a of doc.querySelectorAll("a[id$='-tab']")) {
+  for (const a of doc.querySelectorAll("ul#submissionTabs a[data-bs-toggle='pill'][id$='-tab']")) {
     const id = a.getAttribute("id");
     if (id && id in tabIdMap) result.tabs[tabIdMap[id]] = true;
   }
-  // Upstream always renders File tab even when others are hidden — file inputs
-  // confirm presence regardless.
-  if (doc.querySelector("input[name='sample']")) result.tabs.file = true;
-  if (doc.querySelector("input[name='pcap']")) result.tabs.pcap = true;
-  if (doc.querySelector("input[name='static'][type='file']")) result.tabs.static = true;
-  if (doc.querySelector("input[name='url']")) result.tabs.url = true;
-  if (doc.querySelector("input[name='dlnexec']")) result.tabs.dlnexec = true;
-  if (doc.querySelector("input[name='hashes']")) result.tabs.downloading_service = true;
-  if (doc.querySelector("input[name='hash']")) result.tabs.resubmit = true;
+  // File / PCAP / Static are always rendered upstream (no gate). Mark them
+  // present regardless of nav scrape so the SPA isn't fooled by an HTML
+  // shape we don't recognise.
+  result.tabs.file = true;
+  result.tabs.pcap = true;
+  result.tabs.static = true;
 
   // ----- Extended toggles -----
   // Upstream's form-check checkboxes inside #extendedCheckboxes.
-  for (const cb of doc.querySelectorAll(
-    "#extendedCheckboxes input[type='checkbox'][name]",
-  )) {
+  for (const cb of doc.querySelectorAll("#extendedCheckboxes input[type='checkbox'][name]")) {
     const name = cb.getAttribute("name");
     if (name) result.toggles.add(name);
     // upstream binds the static_config checkbox to name="static" — alias it

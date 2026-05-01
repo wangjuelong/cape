@@ -16,10 +16,7 @@ interface TaskTableProps {
 export function TaskTable({ data }: TaskTableProps) {
   if (data.length === 0) {
     return (
-      <div
-        className="dim"
-        style={{ padding: "32px 16px", fontSize: 12, textAlign: "center" }}
-      >
+      <div className="dim" style={{ padding: "32px 16px", fontSize: 12, textAlign: "center" }}>
         No tasks match the current filter.
       </div>
     );
@@ -77,12 +74,7 @@ export function TaskTable({ data }: TaskTableProps) {
             </td>
             <td>
               {t.family ? (
-                <span
-                  className={
-                    "tag " +
-                    (t.score >= 8 ? "crit" : t.score >= 6 ? "high" : "med")
-                  }
-                >
+                <span className={"tag " + (t.score >= 8 ? "crit" : t.score >= 6 ? "high" : "med")}>
                   {t.family}
                 </span>
               ) : (
