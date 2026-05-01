@@ -42,7 +42,6 @@ import {
   submitDlnexec,
   submitDownloadServices,
   submitFile,
-  submitUrl,
   type SubmitResponse,
 } from "@/lib/api/tasks";
 import { buildOptionsString, type CapeToggles } from "@/lib/cape-options";
@@ -171,26 +170,9 @@ export default function SubmitRoute() {
     mutationFn: async (values) => {
       const optionsString = buildOptionsString(values.options ?? "", values as CapeToggles);
 
-      if (mode === "url") {
-        return submitUrl({
-          url: values.url ?? "",
-          package: values.package,
-          timeout: values.timeout,
-          priority: values.priority,
-          options: optionsString,
-          machine: values.machine,
-          platform: values.platform,
-          tags: values.tags,
-          custom: values.custom,
-          memory: values.memory,
-          enforce_timeout: values.enforce_timeout,
-          clock: values.clock,
-          referrer: values.referrer,
-          tlp: values.tlp,
-          tags_tasks: values.tags_tasks,
-          route: values.route,
-        });
-      }
+      // mode === "url" was removed from the UI — `submitUrl()` lib func is
+      // still exported for backend parity with /api/v3/tasks/url/, but the
+      // SPA form no longer surfaces it.
 
       if (mode === "dlnexec") {
         return submitDlnexec({
@@ -508,18 +490,6 @@ function PrimaryInput({ mode, register, control }: PrimaryInputProps) {
     case "pcap":
     case "static":
       return <FileDropzone mode={mode} control={control} />;
-    case "url":
-      return (
-        <Block label="URL">
-          <input
-            type="url"
-            placeholder="https://example.com/page"
-            required
-            {...register("url")}
-            style={inputStyle}
-          />
-        </Block>
-      );
     case "dlnexec":
       return (
         <Block label="URL pointing at the binary">
@@ -688,8 +658,7 @@ interface FileDropzoneInnerProps {
 function FileDropzoneInner({ mode, files, invalid, onChange }: FileDropzoneInnerProps) {
   const [over, setOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const label =
-    mode === "pcap" ? "PCAP / SAZ" : mode === "static" ? "static-only" : "sample";
+  const label = mode === "pcap" ? "PCAP / SAZ" : mode === "static" ? "static-only" : "sample";
 
   return (
     <div>
@@ -698,11 +667,7 @@ function FileDropzoneInner({ mode, files, invalid, onChange }: FileDropzoneInner
         style={{
           display: "block",
           cursor: "pointer",
-          borderColor: invalid
-            ? "var(--color-sev-crit)"
-            : over
-              ? "var(--color-accent)"
-              : undefined,
+          borderColor: invalid ? "var(--color-sev-crit)" : over ? "var(--color-accent)" : undefined,
         }}
         onClick={() => inputRef.current?.click()}
         onKeyDown={(e) => {
