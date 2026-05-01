@@ -180,15 +180,22 @@ export function AdvancedOptionsCard({
                       onValueChange={(v) => field.onChange(v === ANY_MACHINE ? "" : v)}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="First available" />
+                        <SelectValue placeholder="Auto" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value={ANY_MACHINE}>First available</SelectItem>
-                        {machines.map((m) => (
-                          <SelectItem key={m.value || "__all__"} value={m.value || "all"}>
-                            {m.label}
-                          </SelectItem>
-                        ))}
+                        {/* "Auto" is the SPA-side default; backend now strips
+                            upstream's `("", "First available")` placeholder
+                            so we don't get a duplicate row. value=="" still
+                            tells the scheduler "pick any free VM matching
+                            platform/tags". */}
+                        <SelectItem value={ANY_MACHINE}>Auto</SelectItem>
+                        {machines
+                          .filter((m) => m.value !== "")
+                          .map((m) => (
+                            <SelectItem key={m.value} value={m.value}>
+                              {m.label}
+                            </SelectItem>
+                          ))}
                       </SelectContent>
                     </Select>
                   </>

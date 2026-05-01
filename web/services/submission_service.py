@@ -80,7 +80,9 @@ def get_form_data() -> dict[str, Any]:
     except Exception:
         log.exception("submission_form_data: upstream get_form_data() failed")
         packages_raw = []
-        machines_raw = [("", "First available")]
+        # Empty machines list — SPA's "Auto" default is what the user sees.
+        # No need to inject a synthetic placeholder here.
+        machines_raw = []
 
     packages = [
         {
@@ -93,7 +95,12 @@ def get_form_data() -> dict[str, Any]:
         for p in sorted(packages_raw, key=lambda i: str(i.get("name", "")).lower())
     ]
 
-    machines = [{"value": v, "label": l} for v, l in machines_raw]
+    # Upstream `views.py:239` does `machines.insert(0, ("", "First available"))`
+    # — a UI-layer placeholder representing "any available VM". v3 returns
+    # only real VMs; the SPA renders its own "Auto" default item so we
+    # don't end up with two competing default rows. Filter out anything
+    # whose value is empty (covers the placeholder + any future variants).
+    machines = [{"value": v, "label": l} for v, l in machines_raw if v]
 
     # ---- machine tags ----
     machine_tags = sorted(load_vms_tags() or [])
