@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Files, FileCode, Globe, Network, RefreshCw, Upload } from "lucide-react";
+import { Files, FileCode, Network, RefreshCw, Upload } from "lucide-react";
 
 import { PageHead } from "@/components/shared/PageHead";
 import { Spinner } from "@/components/ui/spinner";
@@ -8,7 +8,6 @@ import { LiveIndicator } from "@/components/recent/LiveIndicator";
 import { AnalysisCategoryTable } from "@/components/recent/AnalysisCategoryTable";
 import { useTaskList } from "@/hooks/useTaskList";
 import { useTaskEvents } from "@/hooks/useTaskEvents";
-import { useAnalysisScrape } from "@/hooks/useAnalysisScrape";
 import type { TaskListFilters } from "@/types/api";
 
 /**
@@ -22,16 +21,22 @@ import type { TaskListFilters } from "@/types/api";
  * Visual style stays in the SOC dark design system (panel + table.data).
  */
 
-type AnalysisTab = "files" | "static" | "urls" | "pcaps";
+type AnalysisTab = "files" | "static" | "pcaps";
 
 const TABS: Array<{
   key: AnalysisTab;
   label: string;
-  category: "file" | "static" | "url" | "pcap";
+  category: "file" | "static" | "pcap";
   icon: React.ReactNode;
   emptyIcon: React.ReactNode;
   emptyText: string;
 }> = [
+  // URL submissions removed from Submit page (see commit 0ca6d738), so
+  // there's no path for new URL tasks to land in Recent. The legacy "URLs"
+  // sub-tab is removed here too — it would only ever show stale historical
+  // entries and confuse users. Backend `category=url` task records still
+  // exist for /apiv2/ token clients and are still queryable through
+  // /api/v3/tasks/?category=url, the SPA simply doesn't expose a tab.
   {
     key: "files",
     label: "Files",
@@ -49,14 +54,6 @@ const TABS: Array<{
     emptyText: "No static analyses to display on this page.",
   },
   {
-    key: "urls",
-    label: "URLs",
-    category: "url",
-    icon: <Globe size={14} />,
-    emptyIcon: <Globe size={36} />,
-    emptyText: "No URLs to display on this page.",
-  },
-  {
     key: "pcaps",
     label: "PCAPs",
     category: "pcap",
@@ -69,20 +66,10 @@ const TABS: Array<{
 const TAB_STORAGE_KEY = "cape.recent.tab";
 
 export default function RecentRoute() {
-  // Tab gating mirrors upstream's `{% if config.url_analysis %}` block in
-  // analysis/index.html. We always use the upstream `/analysis/` HTML
-  // scrape as the source of truth — it works against both this fork and a
-  // vanilla CAPE since neither replaces the legacy /analysis/ Django app.
-  // While the scrape is in flight, render every tab so the layout doesn't
-  // shift when the data lands.
-  const analysis = useAnalysisScrape().data;
-  const visibleTabs = useMemo(() => {
-    if (!analysis) return TABS;
-    return TABS.filter((t) => {
-      if (t.key !== "urls") return true;
-      return analysis.tabs.url === true;
-    });
-  }, [analysis]);
+  // All three remaining tabs (Files/Static/PCAPs) are always shown — the
+  // old `{% if config.url_analysis %}` upstream gate was specific to the
+  // URLs tab, which is no longer rendered.
+  const visibleTabs = TABS;
 
   const [activeTab, setActiveTab] = useState<AnalysisTab>(() => {
     if (typeof window === "undefined") return "files";
