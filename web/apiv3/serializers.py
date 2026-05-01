@@ -70,6 +70,51 @@ class SubmissionFormDataSerializer(serializers.Serializer):
     config = serializers.DictField()
 
 
+# ---------------------------------------------------------------------------
+# Tasks — TaskSummarySerializer needs to be defined BEFORE the Compare /
+# task-list serializers below, since they embed it as a child field. Class
+# bodies execute at module load time, so a forward reference would raise
+# NameError before Django can finish booting.
+# ---------------------------------------------------------------------------
+
+
+SEVERITY_CHOICES = ("crit", "high", "med", "low", "clean")
+VERDICT_CHOICES = ("malicious", "suspicious", "clean")
+
+
+class TaskSummarySerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    target = serializers.CharField()
+    sha256 = serializers.CharField(allow_null=True)
+    sha1 = serializers.CharField(allow_null=True)
+    md5 = serializers.CharField(allow_null=True)
+    size = serializers.IntegerField(allow_null=True)
+    type = serializers.CharField(allow_null=True)
+    submitted = serializers.CharField(allow_null=True)
+    started = serializers.CharField(allow_null=True)
+    completed = serializers.CharField(allow_null=True)
+    duration = serializers.CharField(allow_null=True)
+    machine = serializers.CharField(allow_null=True)
+    package = serializers.CharField(allow_blank=True)
+    score = serializers.FloatField(allow_null=True)
+    severity = serializers.ChoiceField(choices=SEVERITY_CHOICES)
+    verdict = serializers.ChoiceField(choices=VERDICT_CHOICES)
+    family = serializers.CharField(allow_null=True)
+    signatures_count = serializers.IntegerField()
+    yara_matches = serializers.IntegerField()
+    network_count = serializers.IntegerField()
+    files_dropped = serializers.IntegerField()
+    payloads = serializers.IntegerField()
+    api_calls = serializers.IntegerField()
+    status = serializers.CharField()
+    tags = serializers.ListField(child=serializers.CharField())
+
+
+class TaskListResponseSerializer(serializers.Serializer):
+    data = TaskSummarySerializer(many=True)
+    next_cursor = serializers.CharField(allow_null=True)
+
+
 class CompareCandidatesResponseSerializer(serializers.Serializer):
     ok = serializers.BooleanField()
     error_code = serializers.CharField(required=False, allow_null=True)
@@ -187,45 +232,10 @@ class TaskResubmitSerializer(serializers.Serializer):
 
 
 # ---------------------------------------------------------------------------
-# Tasks
-# ---------------------------------------------------------------------------
-
-
-SEVERITY_CHOICES = ("crit", "high", "med", "low", "clean")
-VERDICT_CHOICES = ("malicious", "suspicious", "clean")
-
-
-class TaskSummarySerializer(serializers.Serializer):
-    id = serializers.IntegerField()
-    target = serializers.CharField()
-    sha256 = serializers.CharField(allow_null=True)
-    sha1 = serializers.CharField(allow_null=True)
-    md5 = serializers.CharField(allow_null=True)
-    size = serializers.IntegerField(allow_null=True)
-    type = serializers.CharField(allow_null=True)
-    submitted = serializers.CharField(allow_null=True)
-    started = serializers.CharField(allow_null=True)
-    completed = serializers.CharField(allow_null=True)
-    duration = serializers.CharField(allow_null=True)
-    machine = serializers.CharField(allow_null=True)
-    package = serializers.CharField(allow_blank=True)
-    score = serializers.FloatField(allow_null=True)
-    severity = serializers.ChoiceField(choices=SEVERITY_CHOICES)
-    verdict = serializers.ChoiceField(choices=VERDICT_CHOICES)
-    family = serializers.CharField(allow_null=True)
-    signatures_count = serializers.IntegerField()
-    yara_matches = serializers.IntegerField()
-    network_count = serializers.IntegerField()
-    files_dropped = serializers.IntegerField()
-    payloads = serializers.IntegerField()
-    api_calls = serializers.IntegerField()
-    status = serializers.CharField()
-    tags = serializers.ListField(child=serializers.CharField())
-
-
-class TaskListResponseSerializer(serializers.Serializer):
-    data = TaskSummarySerializer(many=True)
-    next_cursor = serializers.CharField(allow_null=True)
+# TaskSummarySerializer + TaskListResponseSerializer + SEVERITY_CHOICES /
+# VERDICT_CHOICES were moved earlier in this file (above
+# CompareCandidatesResponseSerializer) to fix a forward-reference NameError
+# at module load time. Other task-related serializers continue below.
 
 
 class TaskCreateResponseSerializer(serializers.Serializer):

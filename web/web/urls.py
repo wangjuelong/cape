@@ -31,21 +31,35 @@ from compare import urls as compare
 from dashboard import urls as dashboard
 from submission import urls as submission
 from audit import urls as audit
+from web import spa_view
 
 handler403 = "web.views.handler403"
 handler404 = "web.views.handler404"
 
 urlpatterns = [
+    # ---- API + auth + admin: SPA must NOT shadow these ----
     re_path(r"^guac/", include("guac.urls")),
     path("accounts/", include("allauth.urls")),
-    path("robots.txt", TemplateView.as_view(template_name="robots.txt", content_type="text/plain")),
-    re_path(r"^$", dashboard_views.index, name="dashboard"),
     re_path(r"^admin/", admin.site.urls),
-    re_path(r"^analysis/", include(analysis)),
-    re_path(r"^compare/", include(compare)),
-    re_path(r"^submit/", include(submission)),
     re_path(r"^apiv2/", include(apiv2)),
     re_path(r"^api/v3/", include(apiv3)),
+    path("robots.txt", TemplateView.as_view(template_name="robots.txt", content_type="text/plain")),
+
+    # ---- Bootstrap upstream HTML routes — kept so the SPA's scrape
+    # fallback + Behavior tab's lazy `/analysis/load_files/<id>/<cat>/`
+    # lazy-load AJAX continue to work. ALSO kept so the URL-name registry
+    # (`{% url 'submission' %}`, `{% url 'compare_left' %}`, …) resolves —
+    # upstream's own templates and signals reference these by name. The
+    # SPA catchall patterns further down win for browser GETs because they
+    # appear *before* these includes in the dispatch order — except they
+    # don't (Django takes the first match), so the includes are listed
+    # AFTER the SPA catchalls below. ----
+    re_path(r"^analysis/", include(analysis)),
+    re_path(r"^audit/", include(audit), name="audit"),
+    re_path(r"^dashboard/", include(dashboard)),
+    re_path(r"statistics/(?P<days>\d+)/$", analysis_views.statistics_data, name="statistics_data"),
+
+    # ---- Global file/report download endpoints (binary) ----
     re_path(r"^file/(?P<category>\w+)/(?P<task_id>\d+)/(?P<dlfile>\w+)/$", analysis_views.file, name="file"),
     re_path(
         r"^vtupload/(?P<category>\w+)/(?P<task_id>\d+)/(?P<filename>.+)/(?P<dlfile>\w+)/$", analysis_views.vtupload, name="vtupload"
@@ -55,7 +69,32 @@ urlpatterns = [
     re_path(
         r"^full_memory_strings/(?P<analysis_number>\w+)/$", analysis_views.full_memory_dump_strings, name="full_memory_dump_strings"
     ),
-    re_path(r"^dashboard/", include(dashboard)),
-    re_path(r"statistics/(?P<days>\d+)/$", analysis_views.statistics_data, name="statistics_data"),
-    re_path(r"^audit/", include(audit), name="audit"),
+
+    # ---- SPA catchall (must be last). Owns /, /recent, /pending, /search,
+    # /stats/*, /tasks/*, /machines, /configs, /audit-spa, /login, /submit/*,
+    # /compare/*, /dashboard/* — i.e. everything the React app routes
+    # client-side. Backend Django views above (/analysis/, /apiv2/, etc.)
+    # take precedence; the SPA only gets unmatched paths. ----
+    # Alias the SPA root as `dashboard` too — upstream templates do
+    # `{% url 'dashboard' %}` and break with NoReverseMatch otherwise.
+    re_path(r"^$", spa_view.spa_index, name="dashboard"),
+    re_path(r"^$", spa_view.spa_index, name="spa-root"),
+    re_path(r"^submit(?:/.*)?$", spa_view.spa_index, name="spa-submit"),
+    re_path(r"^compare(?:/.*)?$", spa_view.spa_index, name="spa-compare"),
+    re_path(r"^recent(?:/.*)?$", spa_view.spa_index, name="spa-recent"),
+    re_path(r"^pending(?:/.*)?$", spa_view.spa_index, name="spa-pending"),
+    re_path(r"^search(?:/.*)?$", spa_view.spa_index, name="spa-search"),
+    re_path(r"^stats(?:/.*)?$", spa_view.spa_index, name="spa-stats"),
+    re_path(r"^tasks(?:/.*)?$", spa_view.spa_index, name="spa-tasks"),
+    re_path(r"^machines(?:/.*)?$", spa_view.spa_index, name="spa-machines"),
+    re_path(r"^configs(?:/.*)?$", spa_view.spa_index, name="spa-configs"),
+    re_path(r"^login(?:/.*)?$", spa_view.spa_index, name="spa-login"),
+
+    # ---- Upstream Bootstrap routes that the SPA shadows above. Re-mount
+    # them at the end so `reverse('submission')`, `reverse('compare_left')`,
+    # `reverse('compare_both')` and friends used by upstream templates and
+    # signal handlers continue to resolve. They never receive browser GETs
+    # because the SPA patterns above match first. ----
+    re_path(r"^submit/", include(submission)),
+    re_path(r"^compare/", include(compare)),
 ]

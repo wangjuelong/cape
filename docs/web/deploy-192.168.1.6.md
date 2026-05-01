@@ -1,0 +1,123 @@
+# 192.168.1.6 SPA 部署记录
+
+> 把 `refactor/web-spa` 分支的 React SPA 部署到 `192.168.1.6:8000`，替换上游 Bootstrap 前端。后端 (apiv2 / 调度器 / Mongo / Postgres / VM machinery) 保持不变。
+
+## 部署环境
+
+| 项 | 值 |
+|---|---|
+| 主机 | `192.168.1.6` |
+| 登录 | `ubuntu / ubuntu` (SSH, sudo NOPASSWD) |
+| CAPE 安装路径 | `/opt/CAPEv2/` (上游 fork, owner `cape:cape`) |
+| Web service | `cape-web.service` (`runserver_plus 0.0.0.0:8000`, User `cape`) |
+| Python 环境 | `/opt/CAPEv2/.venv/` (poetry, Python 3.12) |
+| 反向代理 | 无 — Django 直接监听 `:8000` |
+| Node.js | 远端无；SPA 在本机 build 后 rsync `dist/` 上去 |
+
+## 部署变更
+
+| 改的东西 | 内容 |
+|---|---|
+| `web/apiv3/*` | **整个 app 新加** — drf-spectacular OpenAPI、SSE、12 个 service helpers |
+| `web/services/*` | service 层（report / task / submission / search / statistics / compare / machine / event）|
+| `web/static/spa/` | **新加** Vite build 产物 (`dist/` rsync 进来) |
+| `web/static/css/cape-auth.css` | 新登录/注册皮肤 |
+| `web/templates/account/*` | 新 auth 模板 (allauth) |
+| `web/templates/submission/index.html` | 给 SPA scrape 用的字段对齐 |
+| `web/web/settings.py` | `INSTALLED_APPS += ['drf_spectacular', 'apiv3']`；DRF schema class；SPECTACULAR_SETTINGS dict |
+| `web/web/urls.py` | 加 `/api/v3/` 挂载 + SPA catchall + 旧 Bootstrap include 后置（保 reverse url 名）|
+| `web/web/spa_view.py` | **新加** — Django 视图返回 `web/static/spa/index.html` |
+| Python deps | `drf-spectacular>=0.27.2` 装到 cape 的 poetry venv |
+
+### URL 路由表（部署后）
+
+```
+/                               → SPA (name=dashboard)        [新]
+/recent /pending /search /stats /tasks/* /machines /configs /login /submit/* /compare/*
+                                → SPA catchall                [新]
+/api/v3/                        → DRF apiv3                   [新]
+/api/v3/docs/  /api/v3/schema/  → drf-spectacular Swagger     [新]
+
+/apiv2/                         → Token-auth REST API         [保留]
+/admin/  /accounts/             → Django admin / allauth      [保留]
+/static/                        → Django static               [保留]
+/analysis/                      → Bootstrap (lazy load_files) [保留]
+/audit/  /dashboard/            → Bootstrap                   [保留]
+/file/* /vtupload/* /filereport/* /full_memory/*  /statistics/<n>/
+                                → 任务工件下载                [保留]
+/robots.txt                     → 静态                        [保留]
+/submit/  /compare/             → Django (仅供 reverse 解析)  [保留]
+```
+
+旧 `submit/` `compare/` include 后置保留——SPA catchall 在前面已经匹配，浏览器永远走 SPA；include 只为 `{% url 'submission' %}` 模板反向 URL 解析服务。
+
+### 端点验收
+
+```
+GET /                          200  (SPA index.html)
+GET /api/v3/system/info/       403  (auth required, expected)
+GET /api/v3/auth/csrf/         200
+GET /api/v3/docs/              200  (Swagger UI)
+GET /api/v3/schema/            200  (OpenAPI JSON)
+GET /apiv2/                    200
+GET /static/spa/index.html     200  (576 bytes)
+GET /static/spa/assets/index-*.js   200  (431 KB)
+GET /static/spa/assets/index-*.css  200  (41 KB)
+GET /tasks/3                   200  (SPA → SPA index, client-side route)
+GET /analysis/2/               200  (Bootstrap, kept)
+GET /submit/                   200  (Bootstrap; SPA catchall shadows it for browser reads — see urls.py)
+GET /compare/2/                200
+GET /robots.txt                200
+GET /admin/login/              500  (PRE-EXISTING — unapplied django_site migrations, not introduced by this deploy)
+GET /accounts/login/           500  (同上)
+```
+
+## 部署流程（已执行）
+
+```bash
+# 本机
+cd /Users/lamba/github/cape/frontend/app && npx vite build
+# stage tarball at /tmp/cape-deploy/web/{apiv3,services,static,templates,web}
+
+# 远端
+sudo tar -czf /opt/CAPEv2/web.bak.20260501-152918.tar.gz -C /opt/CAPEv2 web
+# rsync 部署 (注意：用 -az --delete-excluded 会删 manage.py 等不在 payload 里的文件，
+# 已用 `tar -xzf web.bak --skip-old-files` 恢复缺失文件)
+sshpass -p ubuntu rsync -az /tmp/cape-deploy/web/ ubuntu@192.168.1.6:/opt/CAPEv2/web/
+sudo chown -R cape:cape /opt/CAPEv2/web
+sudo -u cape /etc/poetry/bin/poetry add drf-spectacular --quiet
+sudo systemctl restart cape-web
+```
+
+### 部署后修了 2 个真错（forward-reference + 模板 reverse）
+
+1. `apiv3/serializers.py` 第 73 行 `CompareCandidatesResponseSerializer` 引用第 198 行才定义的 `TaskSummarySerializer` — Python 类体在 module load 时立即执行，导致 `NameError` 启动失败。把 `TaskSummarySerializer` 上移到 `CompareCandidatesResponseSerializer` 之前。
+2. `web/web/urls.py` SPA 化后丢了 `name="dashboard"` / `name="submission"` / `name="compare_*"` URL 名，上游模板 `{% url 'dashboard' %}` 等抛 `NoReverseMatch`。把 root SPA 视图改名 `dashboard`，并把 `submit/` `compare/` Django include 重新挂载在 SPA catchall 之后（仅用作 reverse 解析，不接收 GET）。
+
+## 回滚 SOP
+
+```bash
+# 直接回滚 web/ 整个目录
+ssh ubuntu@192.168.1.6
+sudo systemctl stop cape-web
+sudo rm -rf /opt/CAPEv2/web
+sudo tar -xzf /opt/CAPEv2/web.bak.20260501-152918.tar.gz -C /opt/CAPEv2
+sudo chown -R cape:cape /opt/CAPEv2/web
+# 反向操作可选：drf-spectacular 卸载（不必，留着无副作用）
+# sudo -u cape /etc/poetry/bin/poetry remove drf-spectacular
+sudo systemctl restart cape-web
+```
+
+回滚后 5 秒内服务恢复到上游 Bootstrap UI 状态。备份 tar.gz 大小 2.3MB，已留在 `/opt/CAPEv2/web.bak.20260501-152918.tar.gz`。
+
+## 已知遗留
+
+- `admin/login/` `accounts/login/` 返回 500 — 上游部署 sqlite `django_site` 表没跑过 `manage.py migrate`，部署前后都是这个状态。修复：`sudo -u cape /etc/poetry/bin/poetry run python /opt/CAPEv2/web/manage.py migrate`。
+- `OPTIONAL! Missed dependency: httpreplay` — 上游也是 missing，与 SPA 无关。
+- `runserver_plus` 是 Django dev server，**不是生产 WSGI server**。systemd 单元里写死的 `manage.py runserver_plus 0.0.0.0:8000`。生产建议换 daphne / gunicorn + uvicorn-worker。
+
+## 后续可做
+
+- 修 `manage.py migrate` 让 admin/allauth 登录可用
+- 把 `cape-web.service` 切到 daphne (SSE `/api/v3/events/tasks` 需要 ASGI)
+- 把 `192.168.1.6` 加进 `frontend/app/playwright.config.mjs` 的 `PARITY_*` 环境变量直接跑 e2e
