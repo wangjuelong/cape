@@ -10,7 +10,9 @@ import functools
 import logging
 from typing import Any
 
+from django.contrib.admin.models import ADDITION, CHANGE, DELETION, LogEntry
 from django.contrib.auth.signals import user_login_failed
+from django.db.models.signals import post_save
 from django.dispatch import receiver
 
 from audit_log import helpers
@@ -140,9 +142,6 @@ if _HAS_ALLAUTH:
 # ---------------------------------------------------------------------------
 # Django admin LogEntry bridge
 # ---------------------------------------------------------------------------
-
-from django.contrib.admin.models import LogEntry, ADDITION, CHANGE, DELETION
-from django.db.models.signals import post_save
 
 
 _LOG_ACTION_FLAG_MAP = {
