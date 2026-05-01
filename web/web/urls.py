@@ -56,6 +56,10 @@ urlpatterns = [
     # don't (Django takes the first match), so the includes are listed
     # AFTER the SPA catchalls below. ----
     re_path(r"^analysis/", include(analysis)),
+    # SPA owns `/audit` (audit log browser); legacy upstream `audit/` test
+    # suite include is shadowed for browser GETs but kept further down so
+    # url-name reverses (`reverse('audit_index')`, etc.) still work.
+    re_path(r"^audit(?:/.*)?$", spa_view.spa_index, name="spa-audit"),
     re_path(r"^audit/", include(audit), name="audit"),
     # NB: `/dashboard/` Django Bootstrap include intentionally NOT mounted
     # at the top — anonymous redirects (allauth `next=/dashboard/`,
