@@ -157,3 +157,26 @@ curl -H "Authorization: Token <key>" http://192.168.1.6:8000/api/v3/legacy/tasks
 ```
 
 未来要修改某条 legacy 端点的行为时，**只在 apiv3/legacy_views.py 修改**，apiv2/views.py 保持冻结。如果需要更深度重构，把 thin wrapper 升级成独立实现即可。
+
+## 2026-05-02 增量：audit_log phase 1 部署
+
+按 `docs/superpowers/specs/2026-05-01-audit-log-design.md` + `docs/superpowers/plans/2026-05-01-audit-log.md` 部署:
+
+- 新 Django app `audit_log/` 落地 + 0001_initial migration applied (siteauth.sqlite)
+- `cape-audit-prune.timer` 安装并 `enable --now` (每日 03:00 prune > 90 天事件)
+- 重启 cape-web 让 allauth + LogEntry 信号 receivers 注册
+- SPA `/audit` 路由前置在 Django audit/ 测试套件 include 之前
+
+实测端点:
+  GET /api/v3/audits/?limit=5    → 200, 含 admin login_success 行
+  GET /api/v3/audits/?action=login_failed → 200, 含 attempted_username=admin
+  GET /api/v3/audits/?actor=admin → 200, 单行筛选准确
+  GET /api/v3/audits/actions/    → 200, 12 个 action 全列出
+
+Playwright e2e (tests/e2e/audit-log.spec.mjs):
+  ✓ anonymous /audit redirects to login
+  ✓ admin /audit shows table + filter + login_success row (5 rows, 1 login_failed)
+  ✓ filter ?action=login_failed narrows result
+  3/3 PASS.
+
+凭证不变, /audit 页面只对 is_staff 可见.
