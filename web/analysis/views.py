@@ -56,6 +56,7 @@ except ImportError:
     except ImportError:
         print("missed dependency: poetry install")
 
+from audit_log import helpers as audit
 from lib.cuckoo.common.webadmin_utils import disable_user
 
 try:
@@ -3160,6 +3161,20 @@ def on_demand(request, service: str, task_id: str, category: str, sha256):
 def ban_all_user_tasks(request, user_id: int):
     if request.user.is_staff or request.user.is_superuser:
         db.ban_user_tasks(user_id)
+        try:
+            from django.contrib.auth import get_user_model
+
+            target = get_user_model().objects.get(pk=user_id)
+            audit.log(
+                "ban_user_tasks",
+                request=request,
+                target_type="user",
+                target_id=target.id,
+                target_label=f"user:{target.username}",
+                reason=request.POST.get("reason", "") if request.method == "POST" else "",
+            )
+        except Exception:
+            pass  # never let audit short-circuit the ban
         return HttpResponseRedirect(request.META.get("HTTP_REFERER", "/"))
     return render(request, "error.html", {"error": "Nice try! You don't have permission to ban user tasks"})
 
@@ -3169,6 +3184,20 @@ def ban_user(request, user_id: int):
     if request.user.is_staff or request.user.is_superuser:
         success = disable_user(user_id)
         if success:
+            try:
+                from django.contrib.auth import get_user_model
+
+                target = get_user_model().objects.get(pk=user_id)
+                audit.log(
+                    "ban_user",
+                    request=request,
+                    target_type="user",
+                    target_id=target.id,
+                    target_label=f"user:{target.username}",
+                    reason=request.POST.get("reason", "") if request.method == "POST" else "",
+                )
+            except Exception:
+                pass  # never let audit short-circuit the ban
             return HttpResponseRedirect(request.META.get("HTTP_REFERER", "/"))
         else:
             return render(request, "error.html", {"error": f"Can't ban user id {user_id}"})
