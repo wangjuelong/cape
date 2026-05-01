@@ -133,3 +133,23 @@ def test_audits_list_pagination(staff_client, db):
     assert len(seen_actors) == 20
     # All distinct
     assert len(set(seen_actors)) == 20
+
+
+@pytest.mark.django_db
+def test_audits_actions_returns_enum(staff_client):
+    resp = staff_client.get("/api/v3/audits/actions/")
+    assert resp.status_code == 200
+    body = resp.json()
+    values = {row["value"] for row in body["data"]}
+    expected = {
+        "login_success", "login_failed", "logout",
+        "password_change", "password_reset_request", "signup",
+        "ban_user", "ban_user_tasks", "unban_user",
+        "admin_addition", "admin_change", "admin_deletion",
+    }
+    assert expected.issubset(values)
+    # category mapping correct
+    by_value = {row["value"]: row["category"] for row in body["data"]}
+    assert by_value["login_success"] == "auth"
+    assert by_value["ban_user"] == "user_mgmt"
+    assert by_value["admin_change"] == "admin"

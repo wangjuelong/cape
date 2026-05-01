@@ -89,6 +89,7 @@ urlpatterns = [
 
     # Audit log
     path("audits/", views.audits_list, name="audits-list"),
+    path("audits/actions/", views.audits_actions, name="audits-actions"),
 
     # Events (SSE; PRD §6.5 — session auth only, requires ASGI / daphne)
     path("events/tasks", sse.task_events, name="events-tasks"),

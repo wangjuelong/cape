@@ -1046,3 +1046,22 @@ def audits_list(request: Request) -> Response:
         "next_cursor": next_cursor,
     }
     return Response(AuditListResponseSerializer(payload).data)
+
+
+@extend_schema(
+    tags=["audit"],
+    summary="List the action-value catalog (for SPA filter dropdown).",
+)
+@api_view(["GET"])
+@permission_classes([IsAdminUser])
+def audits_actions(_request: Request) -> Response:
+    from audit_log import ACTIONS
+    from apiv3.serializers import AuditActionListResponseSerializer
+
+    payload = {
+        "data": [
+            {"value": v, "label": l, "category": c}
+            for (v, l, c) in ACTIONS
+        ]
+    }
+    return Response(AuditActionListResponseSerializer(payload).data)
