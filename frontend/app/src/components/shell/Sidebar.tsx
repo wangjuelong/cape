@@ -14,7 +14,7 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { to: "/dashboard", label: "Dashboard", icon: Icon.grid },
+  { to: "/", label: "Dashboard", icon: Icon.grid },
   { to: "/submit", label: "Submit", icon: Icon.upload, flag: "filecreate" },
   { to: "/recent", label: "Recent", icon: Icon.list, flag: "tasklist" },
   { to: "/pending", label: "Pending", icon: Icon.pulse, flag: "tasklist" },
@@ -37,7 +37,7 @@ function NavRow({ item }: { item: NavItem }) {
   return (
     <NavLink
       to={item.to}
-      end={item.to === "/dashboard"}
+      end={item.to === "/"}
       className={({ isActive }) => "nav-item" + (isActive ? " active" : "")}
     >
       <span className="ico">

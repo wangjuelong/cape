@@ -46,8 +46,12 @@ export const router = createBrowserRouter([
     path: "/",
     element: <Shell />,
     children: [
-      { index: true, element: <Navigate to="/dashboard" replace /> },
-      { path: "dashboard", element: withSuspense(<DashboardRoute />) },
+      // Dashboard lives at the root path. The legacy /dashboard child
+      // route is kept as an alias for old bookmarks (it just renders the
+      // same component) so deep links still work — but new navigation
+      // goes through `/`.
+      { index: true, element: withSuspense(<DashboardRoute />) },
+      { path: "dashboard", element: <Navigate to="/" replace /> },
       { path: "submit", element: withSuspense(<SubmitRoute />) },
       {
         path: "submit/resubmit/:task_id/:hash",

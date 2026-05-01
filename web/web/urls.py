@@ -3,7 +3,6 @@
 # See the file 'docs/LICENSE' for copying permission.
 
 from analysis import views as analysis_views
-from dashboard import views as dashboard_views
 from django.conf import settings
 from django.conf.urls import include
 
@@ -30,7 +29,6 @@ from apiv2 import urls as apiv2
 from apiv3 import urls as apiv3
 from compare import urls as compare
 from compare import views as compare_views
-from dashboard import urls as dashboard
 from submission import urls as submission
 from submission import views as submission_views
 from audit import urls as audit
@@ -59,7 +57,12 @@ urlpatterns = [
     # AFTER the SPA catchalls below. ----
     re_path(r"^analysis/", include(analysis)),
     re_path(r"^audit/", include(audit), name="audit"),
-    re_path(r"^dashboard/", include(dashboard)),
+    # NB: `/dashboard/` Django Bootstrap include intentionally NOT mounted
+    # at the top — anonymous redirects (allauth `next=/dashboard/`,
+    # Django APPEND_SLASH on /dashboard) would otherwise land on the legacy
+    # Bootstrap dashboard.views.index. The SPA catchall below now owns
+    # `/dashboard*` exclusively and renders the SPA shell; the URL is just
+    # an alias for `/` (router does Navigate(to="/")).
     re_path(r"statistics/(?P<days>\d+)/$", analysis_views.statistics_data, name="statistics_data"),
 
     # ---- Global file/report download endpoints (binary) ----
@@ -96,6 +99,11 @@ urlpatterns = [
     # immediately window.location.replace()'s to /accounts/login/?next=… —
     # we just need Django to serve the SPA shell so the React route runs.
     re_path(r"^login-bridge(?:/.*)?$", spa_view.spa_index, name="spa-login-bridge"),
+    # Legacy /dashboard URL — SPA owns it now. allauth's LOGIN_REDIRECT_URL
+    # default is `/`, but old bookmarks / hand-typed URLs still reach
+    # /dashboard. SPA's React route does Navigate(to="/") and renders the
+    # dashboard component there.
+    re_path(r"^dashboard(?:/.*)?$", spa_view.spa_index, name="spa-dashboard"),
 
     # ---- Upstream Bootstrap routes that the SPA shadows above. Re-mount
     # them at the end so `reverse('submission')`, `reverse('compare_left')`,

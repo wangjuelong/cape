@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { LogOut, KeyRound, Mail } from "lucide-react";
+import { LogOut, KeyRound } from "lucide-react";
 
 import { Icon } from "./icons";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -117,12 +117,6 @@ export function Topbar() {
               )}
             </div>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <a href="/accounts/email/">
-                <Mail size={12} />
-                <span>Manage emails</span>
-              </a>
-            </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <a href="/accounts/password/change/">
                 <KeyRound size={12} />
