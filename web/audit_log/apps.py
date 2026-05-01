@@ -5,7 +5,11 @@ are imported lazily (inside `ready()`) so test harnesses that import the
 model directly don't trigger circular imports.
 """
 
+import logging
+
 from django.apps import AppConfig
+
+log = logging.getLogger(__name__)
 
 
 class AuditLogConfig(AppConfig):
@@ -19,7 +23,4 @@ class AuditLogConfig(AppConfig):
         except ImportError:
             # signals.py is added in Task 4 — until then, audit_log boots
             # without signal handlers (model + helpers still work for tests).
-            import logging
-            logging.getLogger(__name__).warning(
-                "audit_log.signals not yet present — signal-driven capture inactive"
-            )
+            log.warning("audit_log.signals not yet present — signal-driven capture inactive")
