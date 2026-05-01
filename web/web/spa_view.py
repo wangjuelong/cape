@@ -20,7 +20,9 @@ from __future__ import annotations
 from pathlib import Path
 
 from django.conf import settings
+from django.contrib.auth.decorators import login_required
 from django.http import FileResponse, Http404
+from django.utils.decorators import method_decorator  # noqa: F401  (reserved for class-based use)
 
 
 _INDEX_PATH_CACHE: Path | None = None
@@ -49,10 +51,7 @@ def _resolve_index() -> Path | None:
     return None
 
 
-def spa_index(request, path: str = ""):
-    """Serve the SPA shell. The path arg is captured by the urlconf but
-    ignored — client-side routing handles it."""
-    del request, path
+def _serve_index():
     idx = _resolve_index()
     if idx is None:
         raise Http404(
@@ -60,3 +59,20 @@ def spa_index(request, path: str = ""):
             "and deploy `frontend/app/dist/` to `web/static/spa/`."
         )
     return FileResponse(open(idx, "rb"), content_type="text/html")
+
+
+def spa_index(request, path: str = ""):
+    """Serve the SPA shell. When CAPE's `WEB_AUTHENTICATION` is on we wrap
+    the response in `@login_required` — anonymous users get redirected to
+    `LOGIN_URL` (the allauth `/accounts/login/` view) before any SPA
+    bundle gets fetched. With auth disabled the shell loads anonymously
+    just like upstream's Bootstrap.
+
+    The `path` arg is captured by the urlconf but ignored — client-side
+    routing handles it."""
+    del path
+    if getattr(settings, "WEB_AUTHENTICATION", False):
+        # Equivalent to applying @login_required dynamically — keeps the
+        # decision driven by the runtime config rather than import time.
+        return login_required(lambda r: _serve_index())(request)
+    return _serve_index()
