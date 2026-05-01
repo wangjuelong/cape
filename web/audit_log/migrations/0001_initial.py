@@ -1,5 +1,6 @@
 # Generated migration for audit_log.AuditEvent model
 
+import django.utils.timezone
 from django.db import migrations, models
 
 
@@ -18,7 +19,7 @@ class Migration(migrations.Migration):
                     "timestamp",
                     models.DateTimeField(
                         db_index=True,
-                        default="django.utils.timezone.now",
+                        default=django.utils.timezone.now,
                     ),
                 ),
                 (
