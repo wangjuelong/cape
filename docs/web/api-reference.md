@@ -375,6 +375,19 @@ type SSEEvent =
 | GET | `/full_memory/<id>/` | 完整内存 dump | `[full_memory_dump_file]` |
 | GET | `/full_memory_strings/<id>/` | 内存 strings | `[full_memory_dump_file_strings]` |
 
+### 2.X 审计日志 (`/api/v3/audits/`)
+
+| Method | Path | 描述 |
+|---|---|---|
+| GET | `/api/v3/audits/?cursor=&limit=&actor=&action=&target_user=&target_type=&success=&since=&until=&q=` | 列表 + cursor 分页, `IsAdminUser` |
+| GET | `/api/v3/audits/actions/` | action catalog 枚举 (给 SPA filter dropdown) |
+
+权限：`IsAdminUser`（必须 `is_staff=True`），普通用户 403。
+
+事件类（phase 1）：`login_success / login_failed / logout / password_change / password_reset_request / signup / ban_user / ban_user_tasks / unban_user / admin_addition / admin_change / admin_deletion`。
+
+详情：`docs/web/audit-log.md`。
+
 ---
 
 ## 4. 鉴权 / 节流 / CSRF / CORS 速览
