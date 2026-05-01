@@ -121,3 +121,39 @@ sudo systemctl restart cape-web
 - 修 `manage.py migrate` 让 admin/allauth 登录可用
 - 把 `cape-web.service` 切到 daphne (SSE `/api/v3/events/tasks` 需要 ASGI)
 - 把 `192.168.1.6` 加进 `frontend/app/playwright.config.mjs` 的 `PARITY_*` 环境变量直接跑 e2e
+
+---
+
+## 2026-05-01 增量：apiv2 → apiv3 整合（保留 apiv2）
+
+按用户指示「不改变原有的 apiv2 相关的后端接口，后续所有后端接口功能都在 apiv3 上进行修改，并对将之前的接口都先都转移到 apiv3 上（保留 apiv2 接口）」做完整合：
+
+### 实现
+
+`web/apiv3/legacy_views.py`（新增）：31 个 thin delegation wrapper，每个就是 `return v2.<fn>(request._request, ...)`。共享 apiv2 全部业务逻辑，0 行代码复制。
+
+`web/apiv3/urls.py` 加 31 条 `/api/v3/legacy/...` 路由 + 多个变体（如 `/tasks/get/report/<id>/[<fmt>/[<zip>/]]` 多个 path matcher）。
+
+### 192.168.1.6 实测联调
+
+| 维度 | 结果 |
+|---|---|
+| 端点状态码一致性 | **16/16 OK** （v2 和 v3-legacy 同步骤返回相同 HTTP code） |
+| Body 字节级一致 | **6/7** identical（包括 1.2MB IOCs JSON 这种大对象） |
+| zip 类端点 | byte-not-identical 但解压后内容相等（zip 元数据时间戳每次不同，连续调 v2 自己也不一致） |
+| 匿名访问 | 都 401（`IsAuthenticated`）|
+| OpenAPI schema | drf-spectacular 自动列出 41 个 `/legacy/` paths，Swagger UI 可直接试 |
+
+### 调用方迁移路径
+
+老脚本（继续可用，0 中断）：
+```bash
+curl -H "Authorization: Token <key>" http://192.168.1.6:8000/apiv2/tasks/get/report/3/json/
+```
+
+新脚本（推荐）：
+```bash
+curl -H "Authorization: Token <key>" http://192.168.1.6:8000/api/v3/legacy/tasks/get/report/3/json/
+```
+
+未来要修改某条 legacy 端点的行为时，**只在 apiv3/legacy_views.py 修改**，apiv2/views.py 保持冻结。如果需要更深度重构，把 thin wrapper 升级成独立实现即可。
