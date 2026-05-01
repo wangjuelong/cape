@@ -16,7 +16,7 @@ import json
 import logging
 from typing import Any
 
-log = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 
 _SENSITIVE_KEYWORDS = ("password", "token", "secret", "cookie", "authorization")
@@ -106,4 +106,4 @@ def log(
             metadata=_build_metadata(metadata),
         )
     except Exception:
-        log.exception("audit log write failed (action=%s)", action)
+        _logger.exception("audit log write failed (action=%s)", action)
