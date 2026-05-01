@@ -18,6 +18,12 @@ export interface ReportSummary {
   verdict: Verdict;
   family: string | null;
   behavior_summary?: Record<string, string[]>;
+  /** "Analysis Details" card — category/package/started/completed/duration/route/options. */
+  analysis_info?: Record<string, string>;
+  /** "Machine Information" card — name/label/manager/started_on/shutdown_on. */
+  machine_info?: Record<string, string>;
+  /** "File Information" card — name/type/size + md5/sha1/sha256/sha3/ssdeep/tlsh/crc32. */
+  file_info?: Record<string, string>;
 }
 
 export async function fetchReportSummary(taskId: number): Promise<ReportSummary> {

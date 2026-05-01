@@ -340,6 +340,11 @@ class ReportSummarySerializer(serializers.Serializer):
     verdict = serializers.ChoiceField(choices=VERDICT_CHOICES)
     family = serializers.CharField(allow_null=True)
     behavior_summary = serializers.DictField(required=False)
+    # Upstream "Summary" tab cards — mirror analysis-details / machine-info
+    # / file-info kv tables. Values are pre-stringified for direct render.
+    analysis_info = serializers.DictField(child=serializers.CharField(), required=False)
+    machine_info = serializers.DictField(child=serializers.CharField(), required=False)
+    file_info = serializers.DictField(child=serializers.CharField(), required=False)
 
 
 class ProcessSummarySerializer(serializers.Serializer):

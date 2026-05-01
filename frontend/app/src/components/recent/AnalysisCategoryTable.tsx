@@ -50,7 +50,7 @@ export function AnalysisCategoryTable({
       <thead>
         <tr>
           <th style={{ width: 60 }}>ID</th>
-          <th style={{ width: 130 }}>Timestamp</th>
+          <th style={{ width: 170 }}>Timestamp</th>
           <th style={{ width: 70 }}>Package</th>
           <th>{category === "url" ? "URL" : "Filename"}</th>
           {showHashesCol && <th style={{ width: 240 }}>Hashes</th>}
@@ -89,7 +89,9 @@ export function AnalysisCategoryTable({
                 #{t.id}
               </Link>
             </td>
-            <td className="dim">{formatTs(t.submitted)}</td>
+            <td className="dim mono" style={{ fontSize: 11.5, whiteSpace: "nowrap" }}>
+              {formatTs(t.submitted)}
+            </td>
             <td>
               {t.package ? (
                 <span className="tag">{t.package}</span>

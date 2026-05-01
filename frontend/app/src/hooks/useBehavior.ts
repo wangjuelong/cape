@@ -6,10 +6,7 @@ import {
   type BehaviorCallsPage,
   type BehaviorSummary,
 } from "@/lib/api/reports";
-import {
-  asBehaviorReport,
-  fetchUpstreamReport,
-} from "@/lib/api/upstream-report-scrape";
+import { asBehaviorReport, fetchUpstreamReport } from "@/lib/api/upstream-report-scrape";
 import { queryKeys } from "@/lib/query-keys";
 
 export function useReportBehavior(taskId: number): UseQueryResult<BehaviorSummary, Error> {

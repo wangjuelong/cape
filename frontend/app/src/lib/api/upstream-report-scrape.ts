@@ -30,12 +30,7 @@ import type {
   SignatureLite,
   StaticReport,
 } from "./reports";
-import type {
-  Severity,
-  TaskStatus,
-  TaskSummary,
-  Verdict,
-} from "@/types/api";
+import type { Severity, TaskStatus, TaskSummary, Verdict } from "@/types/api";
 
 export interface UpstreamReportScrape {
   task: TaskSummary;
@@ -44,6 +39,10 @@ export interface UpstreamReportScrape {
   tab_counts: Record<string, number | string>;
   /** Raw file-info kv table from upstream's "File Information" card. */
   file_info: Record<string, string>;
+  /** Upstream "Analysis Details" card: category/package/started/completed/duration/route/options. */
+  analysis_info: Record<string, string>;
+  /** Upstream "Machine Information" card: name/label/manager/started_on/shutdown_on. */
+  machine_info: Record<string, string>;
   /** Network sub-tables — empty arrays when upstream's alert says "No X recorded." */
   network: NetworkReport;
   /** Strings from any inline "Strings" collapse, if rendered. */
@@ -77,10 +76,7 @@ export function fetchUpstreamReport(taskId: number): Promise<UpstreamReportScrap
   return p;
 }
 
-export function parseUpstreamReportHtml(
-  html: string,
-  taskId: number,
-): UpstreamReportScrape {
+export function parseUpstreamReportHtml(html: string, taskId: number): UpstreamReportScrape {
   const doc = new DOMParser().parseFromString(html, "text/html");
 
   // ---- File Information card (key/value table) ----
@@ -102,9 +98,7 @@ export function parseUpstreamReportHtml(
   const analysisDetails: Record<string, string> = {};
   const detailsCard = findCardByTitle(doc, "Analysis Details");
   if (detailsCard) {
-    const headerCells = [
-      ...detailsCard.querySelectorAll("table thead th"),
-    ].map((th) => textOf(th));
+    const headerCells = [...detailsCard.querySelectorAll("table thead th")].map((th) => textOf(th));
     const dataRow = detailsCard.querySelector("table tbody tr");
     const dataCells = dataRow ? [...dataRow.querySelectorAll("td")] : [];
     for (let i = 0; i < headerCells.length && i < dataCells.length; i++) {
@@ -151,8 +145,7 @@ export function parseUpstreamReportHtml(
   // ---- Behavior availability ----
   const behaviorPanel = doc.querySelector("#behavior");
   const behavior_available =
-    !!behaviorPanel &&
-    !/No behavioral analysis data/i.test(textOf(behaviorPanel));
+    !!behaviorPanel && !/No behavioral analysis data/i.test(textOf(behaviorPanel));
 
   // ---- Dropped / payloads / screenshots / attack / config ----
   // Detect by checking for non-empty card content (not "No X" alert).
@@ -244,6 +237,8 @@ export function parseUpstreamReportHtml(
     available_sections: [...visibleTabs],
     tab_counts,
     file_info: fileInfo,
+    analysis_info: analysisDetails,
+    machine_info: machineInfo,
     network,
     strings,
     behavior_available,
@@ -269,6 +264,9 @@ export function asReportSummary(s: UpstreamReportScrape): ReportSummary {
     severity: "clean",
     verdict: "clean",
     family: null,
+    analysis_info: s.analysis_info,
+    machine_info: s.machine_info,
+    file_info: s.file_info,
   };
 }
 

@@ -15,13 +15,19 @@ const BEHAVIOR_LABELS: Array<[string, keyof NonNullable<ReportSummary["behavior_
 ];
 
 /**
- * Summary tab — port of the design's center pane in PageReport summary.
- * Uses .panel/.kv/.tag for visuals.
+ * Summary tab — mirrors upstream's `/analysis/<id>/` Quick Overview pane
+ * (Verdict + Analysis Details + Machine Information + File Information +
+ * Behavior summary) so we don't drop fields the user expects to see.
  */
 export function SummaryTab({ report }: SummaryTabProps) {
   const populated = BEHAVIOR_LABELS.filter(
     ([, key]) => (report.behavior_summary?.[key]?.length ?? 0) > 0,
   );
+  // Fall back to TaskSummary when the dicts haven't been wired through —
+  // ensures the cards still render against an older v3 backend.
+  const analysisInfo = report.analysis_info ?? buildAnalysisInfoFallback(report);
+  const machineInfo = report.machine_info ?? buildMachineInfoFallback(report);
+  const fileInfo = report.file_info ?? buildFileInfoFallback(report);
 
   return (
     <div className="scroll" style={{ padding: 14 }}>
@@ -52,6 +58,18 @@ export function SummaryTab({ report }: SummaryTabProps) {
           </dl>
         </div>
       </div>
+
+      {Object.keys(analysisInfo).length > 0 && (
+        <KvPanel title="Analysis Details" entries={analysisInfo} />
+      )}
+
+      {Object.keys(machineInfo).length > 0 && (
+        <KvPanel title="Machine Information" entries={machineInfo} />
+      )}
+
+      {Object.keys(fileInfo).length > 0 && (
+        <KvPanel title="File Information" entries={fileInfo} mono />
+      )}
 
       {populated.length > 0 && (
         <div className="panel">
@@ -112,4 +130,76 @@ export function SummaryTab({ report }: SummaryTabProps) {
       )}
     </div>
   );
+}
+
+interface KvPanelProps {
+  title: string;
+  entries: Record<string, string>;
+  mono?: boolean;
+}
+
+function KvPanel({ title, entries, mono }: KvPanelProps) {
+  return (
+    <div className="panel" style={{ marginBottom: 14 }}>
+      <div className="panel-h">{title}</div>
+      <div style={{ padding: 14 }}>
+        <dl
+          className={mono ? "kv mono" : "kv"}
+          style={{
+            gridTemplateColumns: "150px 1fr",
+            fontSize: mono ? 11.5 : undefined,
+          }}
+        >
+          {Object.entries(entries).map(([k, v]) => (
+            <FragmentKv key={k} k={k} v={v} />
+          ))}
+        </dl>
+      </div>
+    </div>
+  );
+}
+
+function FragmentKv({ k, v }: { k: string; v: string }) {
+  return (
+    <>
+      <dt>{k}</dt>
+      <dd
+        style={{
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+        title={v}
+      >
+        {v || <span className="dim">—</span>}
+      </dd>
+    </>
+  );
+}
+
+function buildAnalysisInfoFallback(r: ReportSummary): Record<string, string> {
+  const t = r.task;
+  const out: Record<string, string> = {};
+  if (t.package) out["Package"] = t.package;
+  if (t.started) out["Started"] = t.started;
+  if (t.completed) out["Completed"] = t.completed;
+  if (t.duration) out["Duration"] = t.duration;
+  if (t.submitted) out["Submitted"] = t.submitted;
+  return out;
+}
+
+function buildMachineInfoFallback(r: ReportSummary): Record<string, string> {
+  return r.task.machine ? { Name: r.task.machine } : {};
+}
+
+function buildFileInfoFallback(r: ReportSummary): Record<string, string> {
+  const t = r.task;
+  const out: Record<string, string> = {};
+  if (t.target) out["File Name"] = t.target;
+  if (t.type) out["File Type"] = t.type;
+  if (t.size) out["File Size"] = `${t.size} bytes`;
+  if (t.md5) out["MD5"] = t.md5;
+  if (t.sha1) out["SHA1"] = t.sha1;
+  if (t.sha256) out["SHA256"] = t.sha256;
+  return out;
 }

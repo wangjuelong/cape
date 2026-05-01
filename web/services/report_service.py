@@ -21,6 +21,14 @@ _PROJECTIONS: dict[str, dict[str, int]] = {
         "info": 1,
         "target.file.name": 1,
         "target.file.type": 1,
+        "target.file.size": 1,
+        "target.file.md5": 1,
+        "target.file.sha1": 1,
+        "target.file.sha256": 1,
+        "target.file.sha3_384": 1,
+        "target.file.ssdeep": 1,
+        "target.file.tlsh": 1,
+        "target.file.crc32": 1,
         "target.url": 1,
         "malscore": 1,
         "detections": 1,
@@ -183,7 +191,77 @@ def fetch_summary(task_id: int) -> dict[str, Any] | None:
         "verdict": _verdict_from_score(score_val),
         "family": family,
         "behavior_summary": _trim_behavior_summary(behavior_summary),
+        "analysis_info": _build_analysis_info(doc),
+        "machine_info": _build_machine_info(doc),
+        "file_info": _build_file_info(doc),
     }
+
+
+def _build_analysis_info(doc: dict) -> dict[str, str]:
+    """Mirror upstream's "Analysis Details" card — the high-level fields
+    every report shows even when Mongo has nothing else to say."""
+    info = doc.get("info") or {}
+    pairs = [
+        ("Category", info.get("category")),
+        ("Package", info.get("package")),
+        ("Started", info.get("started")),
+        ("Completed", info.get("ended") or info.get("completed")),
+        ("Duration", info.get("duration")),
+        ("Route", info.get("route")),
+        ("Options", info.get("options")),
+    ]
+    return {k: _stringify(v) for k, v in pairs if v is not None and v != ""}
+
+
+def _build_machine_info(doc: dict) -> dict[str, str]:
+    """Mirror upstream's "Machine Information" card."""
+    machine = (doc.get("info") or {}).get("machine") or {}
+    if not isinstance(machine, dict):
+        return {}
+    pairs = [
+        ("Name", machine.get("name")),
+        ("Label", machine.get("label")),
+        ("Manager", machine.get("manager")),
+        ("Started On", machine.get("started_on")),
+        ("Shutdown On", machine.get("shutdown_on")),
+    ]
+    return {k: _stringify(v) for k, v in pairs if v is not None and v != ""}
+
+
+def _build_file_info(doc: dict) -> dict[str, str]:
+    """Mirror upstream's "File Information" card — name/type/size + hashes."""
+    target_file = _path(doc, "target.file") or {}
+    if not isinstance(target_file, dict):
+        return {}
+    pairs = [
+        ("File Name", target_file.get("name")),
+        ("File Type", target_file.get("type")),
+        ("File Size", _format_size(target_file.get("size"))),
+        ("MD5", target_file.get("md5")),
+        ("SHA1", target_file.get("sha1")),
+        ("SHA256", target_file.get("sha256")),
+        ("SHA3-384", target_file.get("sha3_384")),
+        ("CRC32", target_file.get("crc32")),
+        ("ssdeep", target_file.get("ssdeep")),
+        ("TLSH", target_file.get("tlsh")),
+    ]
+    return {k: _stringify(v) for k, v in pairs if v is not None and v != ""}
+
+
+def _stringify(v: Any) -> str:
+    if isinstance(v, (dict, list)):
+        return ""
+    return str(v)
+
+
+def _format_size(v: Any) -> str | None:
+    if v is None:
+        return None
+    try:
+        n = int(v)
+    except (TypeError, ValueError):
+        return str(v)
+    return f"{n} bytes"
 
 
 def list_sections(task_id: int) -> list[str]:

@@ -1,10 +1,7 @@
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 
 import { fetchReportSummary, type ReportSummary } from "@/lib/api/reports";
-import {
-  asReportSummary,
-  fetchUpstreamReport,
-} from "@/lib/api/upstream-report-scrape";
+import { asReportSummary, fetchUpstreamReport } from "@/lib/api/upstream-report-scrape";
 import { queryKeys } from "@/lib/query-keys";
 
 /**
