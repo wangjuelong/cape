@@ -31,7 +31,9 @@ export const queryKeys = {
     trends: (window: string) => ["dashboard", "trends", window] as const,
   },
   audits: {
-    list: (filters: AuditFilters) => ["audits", filters] as const,
+    all: ["audits"] as const,
+    list: (filters: AuditFilters) => ["audits", "list", filters] as const,
+    actions: ["audits", "actions"] as const,
   },
   system: {
     info: ["system", "info"] as const,
