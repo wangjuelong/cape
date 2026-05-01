@@ -17,9 +17,7 @@ export interface UpstreamSearchResult {
   items: TaskSummary[];
 }
 
-export async function fetchUpstreamSearchScrape(
-  rawQuery: string,
-): Promise<UpstreamSearchResult> {
+export async function fetchUpstreamSearchScrape(rawQuery: string): Promise<UpstreamSearchResult> {
   const params = new URLSearchParams({ search: rawQuery });
   const resp = await fetch(`/_upstream/analysis/search/?${params.toString()}`, {
     credentials: "include",
@@ -31,10 +29,7 @@ export async function fetchUpstreamSearchScrape(
   return parseUpstreamSearchHtml(await resp.text(), rawQuery);
 }
 
-export function parseUpstreamSearchHtml(
-  html: string,
-  rawQuery: string,
-): UpstreamSearchResult {
+export function parseUpstreamSearchHtml(html: string, rawQuery: string): UpstreamSearchResult {
   const doc = new DOMParser().parseFromString(html, "text/html");
 
   // Upstream renders errors inside an `.alert.alert-danger` block above
@@ -55,13 +50,14 @@ export function parseUpstreamSearchHtml(
     const id = Number(idText);
     if (!Number.isFinite(id) || id <= 0) continue;
 
-    const timestamp = textOf(tds[1]).replace(/\(added\)\s*$/, "").trim();
+    const timestamp = textOf(tds[1])
+      .replace(/\(added\)\s*$/, "")
+      .trim();
     const pkg = textOf(tds[2].querySelector(".badge") ?? tds[2]);
     const filename = (tds[3].getAttribute("title") || textOf(tds[3])).trim();
     const targetCell = tds[4];
     const target =
-      targetCell.getAttribute("title") ||
-      textOf(targetCell.querySelector("a") ?? targetCell);
+      targetCell.getAttribute("title") || textOf(targetCell.querySelector("a") ?? targetCell);
 
     const detectionsBadge = tds[5].querySelector(".badge");
     let family: string | null = null;

@@ -46,6 +46,7 @@ from apiv3.serializers import (
     ScreenshotsReportSerializer,
     SearchPrefixesResponseSerializer,
     SearchResponseSerializer,
+    StatisticsResponseSerializer,
     StaticReportSerializer,
     SubmissionFormDataSerializer,
     SystemInfoSerializer,
@@ -61,6 +62,7 @@ from services import (
     machine_service,
     report_service,
     search_service,
+    statistics_service,
     submission_service,
     task_service,
 )
@@ -249,6 +251,36 @@ def search(request: Request) -> Response:
 @permission_classes([IsAuthenticated])
 def search_prefixes(_request: Request) -> Response:
     return Response({"prefixes": search_service.list_search_prefixes()})
+
+
+# ---------------------------------------------------------------------------
+# Statistics
+# ---------------------------------------------------------------------------
+
+
+@extend_schema(
+    tags=["statistics"],
+    summary="Time-windowed statistics — mirror of upstream /statistics/<days>/.",
+    description=(
+        "Aggregates over the trailing N days: total/average tasks, per-day "
+        "added/reported/failed counts, processing/signatures/reporting "
+        "module timings, top samples / detections / ASNs."
+    ),
+    parameters=[
+        OpenApiParameter(
+            name="days",
+            type=OpenApiTypes.INT,
+            location=OpenApiParameter.PATH,
+            description="Window size in days (e.g. 7, 30, 365).",
+        ),
+    ],
+    responses={200: StatisticsResponseSerializer},
+)
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def statistics(_request: Request, days: int) -> Response:
+    payload = statistics_service.get_statistics(int(days))
+    return Response(StatisticsResponseSerializer(payload).data)
 
 
 # ---------------------------------------------------------------------------

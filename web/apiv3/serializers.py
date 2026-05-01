@@ -70,6 +70,58 @@ class SubmissionFormDataSerializer(serializers.Serializer):
     config = serializers.DictField()
 
 
+class StatisticsTaskDaySerializer(serializers.Serializer):
+    day = serializers.CharField()
+    added = serializers.IntegerField()
+    reported = serializers.IntegerField()
+    failed = serializers.IntegerField()
+
+
+class StatisticsModuleRowSerializer(serializers.Serializer):
+    name = serializers.CharField()
+    total = serializers.FloatField()
+    runs = serializers.IntegerField()
+    avg = serializers.FloatField()
+
+
+class StatisticsTopSampleSerializer(serializers.Serializer):
+    day = serializers.CharField()
+    sha256 = serializers.CharField()
+    count = serializers.IntegerField()
+
+
+class StatisticsDetectionSerializer(serializers.Serializer):
+    family = serializers.CharField()
+    count = serializers.IntegerField()
+
+
+class StatisticsAsnSerializer(serializers.Serializer):
+    asn = serializers.CharField()
+    count = serializers.IntegerField()
+
+
+class StatisticsDistributedSerializer(serializers.Serializer):
+    day = serializers.CharField()
+    node = serializers.CharField()
+    count = serializers.IntegerField()
+
+
+class StatisticsResponseSerializer(serializers.Serializer):
+    days = serializers.IntegerField()
+    total = serializers.IntegerField()
+    average = serializers.FloatField()
+    tasks_per_day = StatisticsTaskDaySerializer(many=True)
+    processing = StatisticsModuleRowSerializer(many=True)
+    signatures = StatisticsModuleRowSerializer(many=True)
+    reporting = StatisticsModuleRowSerializer(many=True)
+    custom_statistics = StatisticsModuleRowSerializer(many=True)
+    top_samples = StatisticsTopSampleSerializer(many=True)
+    detections = StatisticsDetectionSerializer(many=True)
+    asns = StatisticsAsnSerializer(many=True)
+    distributed_tasks = StatisticsDistributedSerializer(many=True)
+    error = serializers.CharField(allow_null=True, allow_blank=True)
+
+
 class SearchPrefixSerializer(serializers.Serializer):
     prefix = serializers.CharField()
     description = serializers.CharField()

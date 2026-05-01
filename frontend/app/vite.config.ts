@@ -41,6 +41,13 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/_upstream\/analysis/, "/analysis"),
       },
+      // /_upstream/statistics → upstream /statistics/<days>/ for the
+      // Statistics page scrape fallback.
+      "/_upstream/statistics": {
+        target: apiTarget,
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/_upstream\/statistics/, "/statistics"),
+      },
     },
   },
   build: {
