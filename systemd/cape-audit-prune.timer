@@ -5,6 +5,7 @@ Requires=cape-audit-prune.service
 [Timer]
 OnCalendar=*-*-* 03:00:00
 Persistent=true
+# Jitter prevents thundering-herd when multiple CAPE deployments share infra.
 RandomizedDelaySec=300
 Unit=cape-audit-prune.service
 
