@@ -92,39 +92,53 @@ SPA `/audit` 当前是 StubPage，只列了 TODO（`GET /api/v3/audits/...`、�
 - `frontend/app/src/routes/audit.tsx` 替换 StubPage + 一组 audit 子组件
 - `utils/audit_prune.py` + systemd timer
 
+**Database 选址**：`audit_events` 表落在 **`siteauth.sqlite`（Django default DB）**，而非 cape PostgreSQL。理由：
+- Django `auth_user` 表在 siteauth.sqlite，audit 行需要引用 user.id 才能连关系；跨 DB FK 在 Django/SQLAlchemy 都做不了
+- 信号 / LogEntry 桥接全在 Django ORM 层，同库省一层路由
+- Phase 1 写量低（认证 + 用户管理事件 ~ 100/day），SQLite 单写入 connection 完全够；担心并发的话可后续 swap 到 PostgreSQL（schema 不变）
+- Migration 用 Django `makemigrations` / `migrate`，不动 Alembic（Alembic 在 cape PostgreSQL 上）
+
 ## 4. 数据模型
 
-### 4.1 `audit_events` 表
+### 4.1 `audit_events` 表（Django ORM model on siteauth.sqlite）
 
-```sql
-CREATE TABLE audit_events (
-  id              BIGSERIAL PRIMARY KEY,
-  timestamp       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+实际由 Django `makemigrations` 生成 SQLite DDL；下面是逻辑 schema（**注意不再有 FK** — `actor_user_id` 是裸整数 + snapshot username 兜底，跨场景都 OK）：
 
-  -- 谁做的（actor 可能是匿名 / 失败登录场景 → nullable）
-  actor_user_id   INTEGER       NULL REFERENCES auth_user(id) ON DELETE SET NULL,
-  actor_username  VARCHAR(150)  NULL,   -- snapshot, 用户被删之后仍可读
-  actor_ip        INET          NULL,
-  actor_user_agent TEXT         NULL,
+```python
+# web/audit_log/models.py
+class AuditEvent(models.Model):
+    id              = models.BigAutoField(primary_key=True)
+    timestamp       = models.DateTimeField(default=timezone.now, db_index=True)
 
-  -- 做了什么
-  action          VARCHAR(64)   NOT NULL,
-  success         BOOLEAN       NOT NULL DEFAULT TRUE,
+    # 谁做的（actor 可能是匿名 / 失败登录场景 → nullable）
+    actor_user_id   = models.IntegerField(null=True, blank=True)   # 裸整数, 不加 FK (跨库不行 + 用户被删后仍要保留行)
+    actor_username  = models.CharField(max_length=150, null=True, blank=True)
+    actor_ip        = models.GenericIPAddressField(null=True, blank=True)
+    actor_user_agent = models.TextField(null=True, blank=True)
 
-  -- 对谁做（user mgmt 场景的目标账号 / 也支持后续 phase 的 task / machine）
-  target_type     VARCHAR(32)   NULL,    -- 'user' | 'task' | 'machine' | NULL
-  target_id       VARCHAR(64)   NULL,    -- str 兼容 user.id (int) / task.id (int) / machine.name
-  target_label    VARCHAR(255)  NULL,    -- snapshot, e.g. "user:bob"
+    # 做了什么
+    action          = models.CharField(max_length=64)
+    success         = models.BooleanField(default=True)
 
-  -- 灵活字段（action 特定）
-  metadata        JSONB         NOT NULL DEFAULT '{}'
-);
+    # 对谁做
+    target_type     = models.CharField(max_length=32, null=True, blank=True)
+    target_id       = models.CharField(max_length=64, null=True, blank=True)
+    target_label    = models.CharField(max_length=255, null=True, blank=True)
 
-CREATE INDEX audit_events_timestamp_idx     ON audit_events (timestamp DESC);
-CREATE INDEX audit_events_actor_idx         ON audit_events (actor_user_id, timestamp DESC);
-CREATE INDEX audit_events_target_idx        ON audit_events (target_type, target_id, timestamp DESC);
-CREATE INDEX audit_events_action_idx        ON audit_events (action, timestamp DESC);
+    # action 特定字段
+    metadata        = models.JSONField(default=dict)
+
+    class Meta:
+        db_table = "audit_events"
+        indexes = [
+            models.Index(fields=["-timestamp"]),                              # 主排序
+            models.Index(fields=["actor_user_id", "-timestamp"]),
+            models.Index(fields=["target_type", "target_id", "-timestamp"]),
+            models.Index(fields=["action", "-timestamp"]),
+        ]
 ```
+
+`models.JSONField` 在 SQLite ≥ 3.9 受 Django 原生支持。query 时用 `__contains` / `__has_key` lookup。
 
 ### 4.2 Phase 1 `action` 取值（11 个）
 
@@ -148,8 +162,9 @@ CREATE INDEX audit_events_action_idx        ON audit_events (action, timestamp D
 - 模块**不导出** model 的可改实例（无 `.save()` / `.delete()` 出口给业务代码）
 - DB 层不加触发器（"软留痕"决定），只靠代码约定 + `grep` 审计
 - 唯一允许的 DELETE 路径是 `utils/audit_prune.py`，systemd timer 每天 03:00 跑：
-  ```sql
-  DELETE FROM audit_events WHERE timestamp < NOW() - INTERVAL '90 days';
+  ```python
+  # 用 Django ORM, 不用 raw SQL
+  AuditEvent.objects.filter(timestamp__lt=timezone.now() - timedelta(days=90)).delete()
   ```
 
 ### 4.4 Snapshot 字段
@@ -180,9 +195,9 @@ def log(
 
 约束：
 - **never raise** — 异常吞掉 + journal `log.exception(...)`
-- 自动从 `request.META["REMOTE_ADDR" / "HTTP_USER_AGENT"]` + `request.user` 抽 actor 默认值
+- actor / IP / UA 取值优先级：显式 `actor=` 参数 > `request.user / request.META`；request 也未给 → 全部为 `NULL`（合法，匿名失败登录场景）
 - 写完不返回 model 实例（避免误改）
-- metadata key 名命中 `password|token|secret|cookie|authorization` 的，值替换为 `"[REDACTED]"`
+- metadata key 名命中 `password|token|secret|cookie|authorization` 的（case-insensitive 子串匹配），值替换为 `"[REDACTED]"`
 - 不可序列化 metadata 值用 `json.dumps(default=str)` 兜底
 
 ### 5.2 allauth 信号（认证）
@@ -241,7 +256,7 @@ GET  /api/v3/audits/actions/         action 取值集（给 SPA 填 filter 下�
 | `limit` | int | 默认 50，最大 200 |
 | `actor` | str | actor_username 精确匹配 |
 | `action` | str | action 精确匹配（多值用逗号）|
-| `target_user` | str | target_label 精确匹配 (e.g. `user:bob`) 或 target_id 数字 |
+| `target_user` | str | 在 `target_type='user'` 行里匹配：值为纯数字 → 按 `target_id` 精确匹配；非数字 → 按 `target_label` 精确匹配（e.g. `user:bob`）|
 | `target_type` | str | `user` / `task` / `machine` |
 | `success` | bool | 只看成功 / 失败 |
 | `since` / `until` | ISO8601 | 时间窗 |
@@ -471,7 +486,7 @@ filter 全部进 query string：`/audit?action=login_failed&since=2026-04-25&act
 | # | 模块 | 大致 |
 |---|---|---|
 | W1 | Django app `web/audit_log/` 骨架 + INSTALLED_APPS | S |
-| W2 | Alembic migration `audit_events` + 4 个 index | S |
+| W2 | Django migration `audit_events` + 4 个 index (`makemigrations audit_log` + `migrate`) | S |
 | W3 | `helpers.py` `audit.log()` + redaction + try/except | M |
 | W4 | `signals.py` 6 个 allauth/auth handler | M |
 | W5 | LogEntry post_save 桥接 | S |
