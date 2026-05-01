@@ -5,6 +5,7 @@ import {
   fetchUpstreamAnalysisScrape,
   type AnalysisCategory,
 } from "@/lib/api/upstream-analysis-scrape";
+import { fetchUpstreamPendingScrape } from "@/lib/api/upstream-pending-scrape";
 import { queryKeys } from "@/lib/query-keys";
 import type { TaskListFilters, TaskSummary } from "@/types/api";
 
@@ -36,10 +37,20 @@ export function useTaskList(filters: TaskListFilters = {}): UseTaskListResult {
           cursor: (pageParam as string | undefined) ?? undefined,
         });
       } catch (err) {
-        // v3 missing — fall back to scraping `/analysis/` HTML. Only first
+        // v3 missing — fall back to scraping upstream HTML. Only first
         // page is populated; cursor pagination doesn't apply to the scrape.
         if (pageParam as string | undefined) {
           return { data: [], next_cursor: null };
+        }
+        // status=["pending"] → /analysis/pending/ (excluded from /analysis/)
+        const statuses = Array.isArray(filters.status)
+          ? filters.status
+          : filters.status
+            ? [filters.status]
+            : [];
+        if (statuses.length === 1 && statuses[0] === "pending") {
+          const pending = await fetchUpstreamPendingScrape();
+          return { data: pending.tasks, next_cursor: null };
         }
         const scraped = await fetchUpstreamAnalysisScrape();
         const cat = (filters.category as AnalysisCategory | undefined) ?? "file";

@@ -1,40 +1,52 @@
 import { useMemo } from "react";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Clock, CheckCircle2 } from "lucide-react";
 
 import { PageHead } from "@/components/shared/PageHead";
 import { Spinner } from "@/components/ui/spinner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { LiveIndicator } from "@/components/recent/LiveIndicator";
-import { TaskTable } from "@/components/recent/TaskTable";
+import { PendingTable } from "@/components/recent/PendingTable";
 import { useTaskList } from "@/hooks/useTaskList";
 import { useTaskEvents } from "@/hooks/useTaskEvents";
-import type { TaskListFilters, TaskStatus } from "@/types/api";
+import type { TaskListFilters } from "@/types/api";
 
-const ACTIVE_STATUSES: TaskStatus[] = ["pending", "running", "completed"];
-
+/**
+ * Pending tasks — mirrors upstream `web/analysis/views.py:pending()` +
+ * `templates/analysis/pending.html`. Single card showing only tasks in
+ * status=PENDING; columns ID/Timestamp/Category/Target/Hashes/Action.
+ *
+ * v3 backend serves `/api/v3/tasks/?status=pending`; on failure (vanilla
+ * upstream Django without our v3 app) `useTaskList` falls back to
+ * scraping `/_upstream/analysis/pending/` HTML.
+ */
 export default function PendingRoute() {
-  const filters = useMemo<TaskListFilters>(() => ({ status: ACTIVE_STATUSES, limit: 100 }), []);
+  const filters = useMemo<TaskListFilters>(
+    () => ({ status: ["pending"], limit: 200 }),
+    [],
+  );
   const list = useTaskList(filters);
   const { connected } = useTaskEvents();
 
-  const counts = useMemo(() => {
-    const c = { pending: 0, running: 0, completed: 0 };
-    for (const t of list.tasks) {
-      if (t.status in c) {
-        c[t.status as keyof typeof c] += 1;
-      }
-    }
-    return c;
-  }, [list.tasks]);
+  // After v3 returns a mixed status list, narrow to pending defensively.
+  const pending = useMemo(
+    () => list.tasks.filter((t) => t.status === "pending"),
+    [list.tasks],
+  );
+  const count = pending.length;
 
   return (
     <>
       <PageHead
-        crumbs={["CAPE", "Pending queue"]}
+        crumbs={["CAPE", "Pending tasks"]}
         actions={
           <>
             <LiveIndicator connected={connected} />
-            <button type="button" className="btn" onClick={() => list.refetch()}>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => list.refetch()}
+              disabled={list.isFetching}
+            >
               <RefreshCw size={14} />
               <span>Refresh</span>
             </button>
@@ -42,57 +54,76 @@ export default function PendingRoute() {
         }
       />
 
-      <div className="scroll" style={{ padding: 14 }}>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(4, 1fr)",
-            gap: 10,
-            marginBottom: 14,
-          }}
-        >
-          <StatTile label="Pending" value={counts.pending} color="var(--color-sev-med)" />
-          <StatTile label="Running" value={counts.running} color="var(--color-accent)" />
-          <StatTile label="Completed" value={counts.completed} color="var(--color-sev-clean)" />
-          <StatTile
-            label="Total active"
-            value={counts.pending + counts.running + counts.completed}
-            color="var(--color-fg-0)"
-          />
-        </div>
+      <div className="scroll" style={{ flex: 1 }}>
+        <div style={{ padding: 14 }}>
+          <div className="panel">
+            {/* Header — matches upstream's card-header layout: title +
+                badge (warning bg when count>0, dark when 0). */}
+            <div className="panel-h">
+              <Clock
+                size={14}
+                style={{
+                  color: "var(--color-sev-med)",
+                  marginRight: 6,
+                  display: "inline-block",
+                  verticalAlign: -2,
+                }}
+              />
+              Pending tasks
+              <div className="actions">
+                <span
+                  className="tag"
+                  style={
+                    count > 0
+                      ? {
+                          background: "var(--color-sev-med-bg)",
+                          color: "var(--color-sev-med)",
+                          borderColor: "rgba(240,179,71,0.3)",
+                        }
+                      : undefined
+                  }
+                >
+                  {count} pending
+                </span>
+                {list.isFetching && <Spinner size={12} />}
+              </div>
+            </div>
 
-        {list.isError && (
-          <Alert variant="destructive" style={{ marginBottom: 14 }}>
-            <AlertTitle>Failed to load active tasks</AlertTitle>
-            <AlertDescription>{(list.error as Error).message}</AlertDescription>
-          </Alert>
-        )}
+            {list.isError && (
+              <div style={{ padding: 12 }}>
+                <Alert variant="destructive">
+                  <AlertTitle>Failed to load pending tasks</AlertTitle>
+                  <AlertDescription>{(list.error as Error).message}</AlertDescription>
+                </Alert>
+              </div>
+            )}
 
-        <div className="panel">
-          <div className="panel-h">
-            Queue <span className="count">· {list.tasks.length} active</span>
-            <div className="actions">{list.isFetching && <Spinner size={12} />}</div>
+            {/* When empty, render upstream's "all caught up" empty state. */}
+            {count === 0 && !list.isLoading ? (
+              <div
+                style={{
+                  padding: "60px 20px",
+                  textAlign: "center",
+                  color: "var(--color-fg-2)",
+                }}
+              >
+                <CheckCircle2
+                  size={44}
+                  style={{
+                    color: "var(--color-sev-clean)",
+                    marginBottom: 10,
+                  }}
+                />
+                <p style={{ margin: 0, fontSize: 14 }}>
+                  No pending tasks. You&apos;re all caught up!
+                </p>
+              </div>
+            ) : (
+              <PendingTable data={pending} />
+            )}
           </div>
-          <TaskTable data={list.tasks} />
         </div>
       </div>
     </>
-  );
-}
-
-interface StatTileProps {
-  label: string;
-  value: number | string;
-  color?: string;
-}
-
-function StatTile({ label, value, color }: StatTileProps) {
-  return (
-    <div className="stat">
-      <div className="label">{label}</div>
-      <div className="val" style={color ? { color } : undefined}>
-        {value}
-      </div>
-    </div>
   );
 }
