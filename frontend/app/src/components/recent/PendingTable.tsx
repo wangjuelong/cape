@@ -51,9 +51,7 @@ export function PendingTable({ data, onDeleted }: PendingTableProps) {
                 whiteSpace: "normal",
               }}
             >
-              <div style={{ marginBottom: 8, color: "var(--color-sev-clean)" }}>
-                ✓
-              </div>
+              <div style={{ marginBottom: 8, color: "var(--color-sev-clean)" }}>✓</div>
               No pending tasks. You&apos;re all caught up!
             </td>
           </tr>
@@ -112,9 +110,7 @@ export function PendingTable({ data, onDeleted }: PendingTableProps) {
                 title={`SHA256: ${t.sha256 ?? ""}`}
               >
                 <span style={{ color: "var(--color-fg-3)", marginRight: 4 }}>SHA256:</span>
-                <span style={{ color: "var(--color-fg-1)" }}>
-                  {t.sha256 || "—"}
-                </span>
+                <span style={{ color: "var(--color-fg-1)" }}>{t.sha256 || "—"}</span>
               </div>
             </td>
             <td style={{ textAlign: "center" }}>

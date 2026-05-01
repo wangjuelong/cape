@@ -20,18 +20,12 @@ import type { TaskListFilters } from "@/types/api";
  * scraping `/_upstream/analysis/pending/` HTML.
  */
 export default function PendingRoute() {
-  const filters = useMemo<TaskListFilters>(
-    () => ({ status: ["pending"], limit: 200 }),
-    [],
-  );
+  const filters = useMemo<TaskListFilters>(() => ({ status: ["pending"], limit: 200 }), []);
   const list = useTaskList(filters);
   const { connected } = useTaskEvents();
 
   // After v3 returns a mixed status list, narrow to pending defensively.
-  const pending = useMemo(
-    () => list.tasks.filter((t) => t.status === "pending"),
-    [list.tasks],
-  );
+  const pending = useMemo(() => list.tasks.filter((t) => t.status === "pending"), [list.tasks]);
   const count = pending.length;
 
   return (

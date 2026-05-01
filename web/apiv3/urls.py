@@ -24,6 +24,10 @@ urlpatterns = [
     path("system/feature-flags/", views.feature_flags, name="feature-flags"),
     path("system/submission-form/", views.submission_form_data, name="submission-form-data"),
 
+    # Search
+    path("search/", views.search, name="search"),
+    path("search/prefixes/", views.search_prefixes, name="search-prefixes"),
+
     # Tasks
     path("tasks/", views.tasks_list, name="tasks-list"),
     path("tasks/<int:task_id>/", views.task_detail, name="task-detail"),

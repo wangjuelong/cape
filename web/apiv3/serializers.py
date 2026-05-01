@@ -70,6 +70,25 @@ class SubmissionFormDataSerializer(serializers.Serializer):
     config = serializers.DictField()
 
 
+class SearchPrefixSerializer(serializers.Serializer):
+    prefix = serializers.CharField()
+    description = serializers.CharField()
+    group = serializers.CharField()
+
+
+class SearchPrefixesResponseSerializer(serializers.Serializer):
+    prefixes = SearchPrefixSerializer(many=True)
+
+
+class SearchResponseSerializer(serializers.Serializer):
+    ok = serializers.BooleanField()
+    term = serializers.CharField(allow_blank=True)
+    value = serializers.JSONField(allow_null=True)
+    raw = serializers.CharField(allow_blank=True)
+    error = serializers.CharField(allow_null=True)
+    items = TaskSummarySerializer(many=True)
+
+
 class TaskResubmitSerializer(serializers.Serializer):
     package = serializers.CharField(required=False, allow_blank=True)
     timeout = serializers.IntegerField(required=False, min_value=0)

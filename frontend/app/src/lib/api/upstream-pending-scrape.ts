@@ -49,9 +49,7 @@ export function parseUpstreamPendingHtml(html: string): UpstreamPendingScrape {
     if (!Number.isFinite(id) || id <= 0) continue;
     const timestamp = textOf(tds[1]);
     const category = textOf(tds[2].querySelector(".badge") ?? tds[2]).toLowerCase();
-    const target =
-      tds[3].getAttribute("title") ||
-      textOf(tds[3].querySelector("a") ?? tds[3]);
+    const target = tds[3].getAttribute("title") || textOf(tds[3].querySelector("a") ?? tds[3]);
     const md5 = extractHashByLabel(tds[4], "MD5");
     const sha256 = extractHashByLabel(tds[4], "SHA256");
 

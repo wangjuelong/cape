@@ -44,6 +44,8 @@ from apiv3.serializers import (
     PayloadsReportSerializer,
     ReportSummarySerializer,
     ScreenshotsReportSerializer,
+    SearchPrefixesResponseSerializer,
+    SearchResponseSerializer,
     StaticReportSerializer,
     SubmissionFormDataSerializer,
     SystemInfoSerializer,
@@ -55,7 +57,13 @@ from apiv3.serializers import (
     TaskSummarySerializer,
     TaskUrlSubmitSerializer,
 )
-from services import machine_service, report_service, submission_service, task_service
+from services import (
+    machine_service,
+    report_service,
+    search_service,
+    submission_service,
+    task_service,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -189,6 +197,58 @@ def feature_flags(_request: Request) -> Response:
 def submission_form_data(_request: Request) -> Response:
     payload = submission_service.get_form_data()
     return Response(SubmissionFormDataSerializer(payload).data)
+
+
+# ---------------------------------------------------------------------------
+# Search
+# ---------------------------------------------------------------------------
+
+
+@extend_schema(
+    tags=["search"],
+    summary="Cross-store extended search (mirror of upstream /analysis/search/).",
+    description=(
+        "Accepts the same `?search=<term>` query the upstream Bootstrap "
+        "form posts. Auto-detects md5/sha1/sha256 hashes when no prefix "
+        "is given. Returns TaskSummary[] for matching tasks."
+    ),
+    parameters=[
+        OpenApiParameter(
+            name="search",
+            type=OpenApiTypes.STR,
+            description="Raw search query. Use `prefix:value` form for typed searches.",
+        ),
+    ],
+    responses={200: SearchResponseSerializer},
+)
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def search(request: Request) -> Response:
+    raw = request.query_params.get("search", "") or ""
+    user = request.user
+    user_id = getattr(user, "id", None) or 0
+    privs = bool(getattr(user, "is_staff", False))
+    result = search_service.run_search(raw, user_id=user_id, privs=privs)
+    payload = {
+        "ok": result.ok,
+        "term": result.term,
+        "value": result.value,
+        "raw": result.raw,
+        "error": result.error,
+        "items": result.items,
+    }
+    return Response(SearchResponseSerializer(payload).data)
+
+
+@extend_schema(
+    tags=["search"],
+    summary="Available search prefixes + their descriptions, grouped.",
+    responses={200: SearchPrefixesResponseSerializer},
+)
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def search_prefixes(_request: Request) -> Response:
+    return Response({"prefixes": search_service.list_search_prefixes()})
 
 
 # ---------------------------------------------------------------------------
