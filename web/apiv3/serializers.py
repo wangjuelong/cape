@@ -474,3 +474,46 @@ class ScreenshotEntrySerializer(serializers.Serializer):
 class ScreenshotsReportSerializer(serializers.Serializer):
     count = serializers.IntegerField()
     shots = ScreenshotEntrySerializer(many=True)
+
+
+# ---------------------------------------------------------------------------
+# Audit log
+# ---------------------------------------------------------------------------
+
+
+class AuditEventActorSerializer(serializers.Serializer):
+    user_id = serializers.IntegerField(allow_null=True, required=False)
+    username = serializers.CharField(allow_null=True, allow_blank=True, required=False)
+    ip = serializers.CharField(allow_null=True, allow_blank=True, required=False)
+    user_agent = serializers.CharField(allow_null=True, allow_blank=True, required=False)
+
+
+class AuditEventTargetSerializer(serializers.Serializer):
+    type = serializers.CharField(allow_null=True, allow_blank=True, required=False)
+    id = serializers.CharField(allow_null=True, allow_blank=True, required=False)
+    label = serializers.CharField(allow_null=True, allow_blank=True, required=False)
+
+
+class AuditEventSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    timestamp = serializers.DateTimeField()
+    actor = AuditEventActorSerializer()
+    action = serializers.CharField()
+    success = serializers.BooleanField()
+    target = AuditEventTargetSerializer()
+    metadata = serializers.DictField()
+
+
+class AuditListResponseSerializer(serializers.Serializer):
+    data = AuditEventSerializer(many=True)
+    next_cursor = serializers.CharField(allow_null=True)
+
+
+class AuditActionDescriptorSerializer(serializers.Serializer):
+    value = serializers.CharField()
+    label = serializers.CharField()
+    category = serializers.CharField()
+
+
+class AuditActionListResponseSerializer(serializers.Serializer):
+    data = AuditActionDescriptorSerializer(many=True)

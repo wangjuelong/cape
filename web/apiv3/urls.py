@@ -87,6 +87,9 @@ urlpatterns = [
     path("machines/", views.machines_list, name="machines-list"),
     path("machines/<str:name>/", views.machine_detail, name="machine-detail"),
 
+    # Audit log
+    path("audits/", views.audits_list, name="audits-list"),
+
     # Events (SSE; PRD §6.5 — session auth only, requires ASGI / daphne)
     path("events/tasks", sse.task_events, name="events-tasks"),
 

@@ -25,7 +25,7 @@ from rest_framework.decorators import (
     permission_classes,
 )
 from rest_framework.parsers import FormParser, MultiPartParser
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 
@@ -924,3 +924,116 @@ def machine_detail(_request: Request, name: str) -> Response:
     if not machine:
         return _error("machine_not_found", f"Machine '{name}' not found", http_code=http_status.HTTP_404_NOT_FOUND)
     return Response(MachineSerializer(machine).data)
+
+
+# ---------------------------------------------------------------------------
+# Audit log
+# ---------------------------------------------------------------------------
+
+
+@extend_schema(
+    tags=["audit"],
+    summary="List audit events with optional filters (cursor-paginated).",
+    parameters=[
+        OpenApiParameter("cursor", str, OpenApiParameter.QUERY, required=False),
+        OpenApiParameter("limit", int, OpenApiParameter.QUERY, required=False),
+        OpenApiParameter("actor", str, OpenApiParameter.QUERY, required=False,
+                         description="Match actor_username exactly."),
+        OpenApiParameter("action", str, OpenApiParameter.QUERY, required=False,
+                         description="Comma-separated action names; rows match if action is in the set."),
+        OpenApiParameter("target_user", str, OpenApiParameter.QUERY, required=False,
+                         description="Numeric → match target_id; non-numeric → match target_label."),
+        OpenApiParameter("target_type", str, OpenApiParameter.QUERY, required=False),
+        OpenApiParameter("success", bool, OpenApiParameter.QUERY, required=False),
+        OpenApiParameter("since", OpenApiTypes.DATETIME, OpenApiParameter.QUERY, required=False),
+        OpenApiParameter("until", OpenApiTypes.DATETIME, OpenApiParameter.QUERY, required=False),
+        OpenApiParameter("q", str, OpenApiParameter.QUERY, required=False,
+                         description="Fallback ILIKE on actor_username + target_label."),
+    ],
+)
+@api_view(["GET"])
+@permission_classes([IsAdminUser])
+def audits_list(request: Request) -> Response:
+    from audit_log.models import AuditEvent
+    from apiv3.serializers import AuditListResponseSerializer
+
+    qs = AuditEvent.objects.all().order_by("-timestamp", "-id")
+
+    # ---- filters ----
+    actor = request.query_params.get("actor")
+    if actor:
+        qs = qs.filter(actor_username=actor)
+
+    action = request.query_params.get("action")
+    if action:
+        qs = qs.filter(action__in=[a.strip() for a in action.split(",") if a.strip()])
+
+    tu = request.query_params.get("target_user")
+    if tu:
+        qs = qs.filter(target_type="user")
+        if tu.isdigit():
+            qs = qs.filter(target_id=tu)
+        else:
+            qs = qs.filter(target_label=tu)
+
+    tt = request.query_params.get("target_type")
+    if tt:
+        qs = qs.filter(target_type=tt)
+
+    succ = request.query_params.get("success")
+    if succ is not None:
+        if succ.lower() in ("true", "1", "yes"):
+            qs = qs.filter(success=True)
+        elif succ.lower() in ("false", "0", "no"):
+            qs = qs.filter(success=False)
+
+    since = request.query_params.get("since")
+    if since:
+        qs = qs.filter(timestamp__gte=since)
+    until = request.query_params.get("until")
+    if until:
+        qs = qs.filter(timestamp__lt=until)
+
+    q = request.query_params.get("q")
+    if q:
+        from django.db.models import Q
+        qs = qs.filter(Q(actor_username__icontains=q) | Q(target_label__icontains=q))
+
+    # ---- cursor pagination (cursor = last seen id; sorted DESC) ----
+    cursor = request.query_params.get("cursor")
+    if cursor and cursor.isdigit():
+        qs = qs.filter(id__lt=int(cursor))
+
+    try:
+        limit = max(1, min(int(request.query_params.get("limit", 50)), 200))
+    except ValueError:
+        limit = 50
+
+    rows = list(qs[:limit])
+    next_cursor = str(rows[-1].id) if len(rows) == limit else None
+
+    payload = {
+        "data": [
+            {
+                "id": r.id,
+                "timestamp": r.timestamp,
+                "actor": {
+                    "user_id": r.actor_user_id,
+                    "username": r.actor_username,
+                    "ip": r.actor_ip,
+                    "user_agent": r.actor_user_agent,
+                },
+                "action": r.action,
+                "success": r.success,
+                "target": {
+                    "type": r.target_type,
+                    "id": r.target_id,
+                    "label": r.target_label,
+                },
+                "metadata": r.metadata or {},
+            }
+            for r in rows
+        ],
+        "next_cursor": next_cursor,
+    }
+    return Response(AuditListResponseSerializer(payload).data)
