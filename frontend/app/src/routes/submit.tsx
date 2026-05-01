@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
@@ -9,11 +9,11 @@ import {
   ExternalLink,
   FileCode,
   Files,
-  Globe,
   Network,
   Play,
   RotateCcw,
   Upload,
+  X,
 } from "lucide-react";
 
 import { PageHead } from "@/components/shared/PageHead";
@@ -70,13 +70,11 @@ const TABS: TabDef[] = [
     flag: "downloading_services",
     hint: "Pull from VirusTotal / MalwareBazaar by hash",
   },
-  {
-    key: "url",
-    label: "URL",
-    icon: <Globe size={14} />,
-    flag: "urlcreate",
-    hint: "Open URL inside the VM browser",
-  },
+  // URL-mode submission removed per product decision — analysing a URL
+  // by opening it inside the VM browser was rarely used and gave the
+  // weakest signal. Use DL & Exec or Download from third-party services
+  // instead. Backend `/api/v3/tasks/url/` stays available for legacy
+  // callers (apiv2 unchanged either way).
   {
     key: "dlnexec",
     label: "DL & Exec",
@@ -509,44 +507,7 @@ function PrimaryInput({ mode, register, control }: PrimaryInputProps) {
     case "file":
     case "pcap":
     case "static":
-      return (
-        <label
-          className="dropzone"
-          htmlFor="cape-file-input"
-          style={{ display: "block", cursor: "pointer" }}
-        >
-          <Upload
-            size={20}
-            style={{ color: "var(--color-fg-2)", margin: "0 auto 6px", display: "block" }}
-          />
-          <div style={{ fontSize: 13, color: "var(--color-fg-0)", marginBottom: 2 }}>
-            Drop {mode === "pcap" ? "PCAP / SAZ" : mode === "static" ? "static-only" : "sample"}{" "}
-            file(s) or{" "}
-            <span style={{ color: "var(--color-accent)", textDecoration: "underline" }}>
-              browse
-            </span>
-          </div>
-          <div className="dim" style={{ fontSize: 11 }}>
-            Multiple files supported · each becomes a separate task
-          </div>
-          <input
-            id="cape-file-input"
-            type="file"
-            multiple
-            required
-            {...register("files")}
-            style={{ display: "none" }}
-          />
-          {/* Upstream-name mirrors so DOM scrape (parity test) finds the
-              canonical names; controlled by react-hook-form `files`. */}
-          <input
-            type="hidden"
-            name={mode === "pcap" ? "pcap" : mode === "static" ? "static" : "sample"}
-            value=""
-            readOnly
-          />
-        </label>
-      );
+      return <FileDropzone mode={mode} control={control} />;
     case "url":
       return (
         <Block label="URL">
@@ -671,4 +632,203 @@ function Block({ label, children }: BlockProps) {
       {children}
     </>
   );
+}
+
+interface FileDropzoneProps {
+  mode: "file" | "pcap" | "static";
+  control: ReturnType<typeof useForm<SubmitFormValues>>["control"];
+}
+
+/**
+ * Drag-and-drop file picker with selected-files preview.
+ *
+ * Why a controlled component instead of plain `register("files")`:
+ * - Lets the user see WHICH file they chose (previously the input was
+ *   hidden + no feedback → users thought "click → nothing happened" =
+ *   broken upload).
+ * - Adds drag-and-drop, which the upstream Bootstrap form supports too.
+ * - Lets us drop individual files via the × buttons.
+ *
+ * Sync to react-hook-form happens via `Controller` so the existing
+ * mutation `values.files` consumer keeps working unchanged.
+ */
+function FileDropzone({ mode, control }: FileDropzoneProps) {
+  return (
+    <Controller
+      control={control}
+      name="files"
+      rules={{ validate: (v) => !!(v && v.length > 0) || "Select at least one file." }}
+      render={({ field, fieldState }) => {
+        const fileList = field.value as FileList | undefined;
+        const files = fileList ? Array.from(fileList) : [];
+        return (
+          <FileDropzoneInner
+            mode={mode}
+            files={files}
+            invalid={!!fieldState.error}
+            onChange={(next) => {
+              const dt = new DataTransfer();
+              for (const f of next) dt.items.add(f);
+              field.onChange(dt.files);
+            }}
+          />
+        );
+      }}
+    />
+  );
+}
+
+interface FileDropzoneInnerProps {
+  mode: "file" | "pcap" | "static";
+  files: File[];
+  invalid: boolean;
+  onChange: (next: File[]) => void;
+}
+
+function FileDropzoneInner({ mode, files, invalid, onChange }: FileDropzoneInnerProps) {
+  const [over, setOver] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const label =
+    mode === "pcap" ? "PCAP / SAZ" : mode === "static" ? "static-only" : "sample";
+
+  return (
+    <div>
+      <div
+        className={"dropzone" + (over ? " over" : "")}
+        style={{
+          display: "block",
+          cursor: "pointer",
+          borderColor: invalid
+            ? "var(--color-sev-crit)"
+            : over
+              ? "var(--color-accent)"
+              : undefined,
+        }}
+        onClick={() => inputRef.current?.click()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            inputRef.current?.click();
+          }
+        }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setOver(true);
+        }}
+        onDragLeave={() => setOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setOver(false);
+          const dropped = Array.from(e.dataTransfer.files);
+          if (dropped.length === 0) return;
+          // Append, dedupe by (name,size)
+          const existing = new Map(files.map((f) => [`${f.name}:${f.size}`, f]));
+          for (const f of dropped) existing.set(`${f.name}:${f.size}`, f);
+          onChange([...existing.values()]);
+        }}
+        role="button"
+        tabIndex={0}
+      >
+        <Upload
+          size={20}
+          style={{ color: "var(--color-fg-2)", margin: "0 auto 6px", display: "block" }}
+        />
+        <div style={{ fontSize: 13, color: "var(--color-fg-0)", marginBottom: 2 }}>
+          Drop {label} file(s) or{" "}
+          <span style={{ color: "var(--color-accent)", textDecoration: "underline" }}>browse</span>
+        </div>
+        <div className="dim" style={{ fontSize: 11 }}>
+          Multiple files supported · each becomes a separate task
+        </div>
+      </div>
+      <input
+        ref={inputRef}
+        id="cape-file-input"
+        type="file"
+        multiple
+        style={{ display: "none" }}
+        onChange={(e) => {
+          const picked = Array.from(e.target.files ?? []);
+          if (picked.length === 0) return;
+          const existing = new Map(files.map((f) => [`${f.name}:${f.size}`, f]));
+          for (const f of picked) existing.set(`${f.name}:${f.size}`, f);
+          onChange([...existing.values()]);
+          // reset native value so re-picking the same file fires onChange again
+          e.target.value = "";
+        }}
+      />
+      {/* Upstream-name mirror so DOM scrape parity tests find the canonical name. */}
+      <input
+        type="hidden"
+        name={mode === "pcap" ? "pcap" : mode === "static" ? "static" : "sample"}
+        value=""
+        readOnly
+      />
+      {files.length > 0 && (
+        <ul
+          style={{
+            listStyle: "none",
+            margin: "10px 0 0 0",
+            padding: 0,
+            display: "flex",
+            flexDirection: "column",
+            gap: 4,
+          }}
+        >
+          {files.map((f, i) => (
+            <li
+              key={`${f.name}:${f.size}:${i}`}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "6px 10px",
+                background: "var(--color-bg-2)",
+                border: "1px solid var(--color-border)",
+                borderRadius: 3,
+                fontSize: 12,
+              }}
+            >
+              <Files size={13} style={{ color: "var(--color-fg-2)", flexShrink: 0 }} />
+              <span
+                className="mono"
+                style={{
+                  flex: 1,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  color: "var(--color-fg-0)",
+                }}
+                title={f.name}
+              >
+                {f.name}
+              </span>
+              <span className="dim mono" style={{ fontSize: 11 }}>
+                {formatBytes(f.size)}
+              </span>
+              <button
+                type="button"
+                className="icon-btn"
+                title={`Remove ${f.name}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onChange(files.filter((_, j) => j !== i));
+                }}
+                style={{ flexShrink: 0 }}
+              >
+                <X size={12} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  if (n < 1024 * 1024 * 1024) return `${(n / 1024 / 1024).toFixed(1)} MB`;
+  return `${(n / 1024 / 1024 / 1024).toFixed(2)} GB`;
 }

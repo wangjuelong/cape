@@ -62,9 +62,10 @@ export type SubmitFileResponse = SubmitResponse;
  * Caller is responsible for setting the right boolean flag.
  */
 export async function submitFile(form: FormData): Promise<SubmitResponse> {
-  const { data } = await apiClient.post<SubmitResponse>("/tasks/file/", form, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
+  // Don't set Content-Type — axios + browser auto-detect FormData and
+  // emit `multipart/form-data; boundary=…`. Setting it manually risks
+  // dropping the boundary on some axios versions.
+  const { data } = await apiClient.post<SubmitResponse>("/tasks/file/", form);
   return data;
 }
 
