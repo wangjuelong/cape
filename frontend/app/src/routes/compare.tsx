@@ -40,9 +40,7 @@ export default function CompareRoute() {
           {leftId !== null && rightId === null && (
             <CandidatePicker leftId={leftId} navigate={navigate} />
           )}
-          {leftId !== null && rightId !== null && (
-            <DiffPane leftId={leftId} rightId={rightId} />
-          )}
+          {leftId !== null && rightId !== null && <DiffPane leftId={leftId} rightId={rightId} />}
         </div>
       </div>
     </>
@@ -100,7 +98,10 @@ function CandidatePicker({ leftId, navigate }: CandidatePickerProps) {
       {/* Left: Analysis 1 */}
       <div className="panel">
         <div className="panel-h">
-          <FileText size={13} style={{ marginRight: 6, verticalAlign: -2, color: "var(--color-accent)" }} />
+          <FileText
+            size={13}
+            style={{ marginRight: 6, verticalAlign: -2, color: "var(--color-accent)" }}
+          />
           Analysis {leftId}
         </div>
         {candidates.isLoading ? (
@@ -127,7 +128,10 @@ function CandidatePicker({ leftId, navigate }: CandidatePickerProps) {
             fontWeight: 600,
           }}
         >
-          <Shuffle size={14} style={{ color: "var(--color-sev-med)", marginRight: 6, verticalAlign: -2 }} />
+          <Shuffle
+            size={14}
+            style={{ color: "var(--color-sev-med)", marginRight: 6, verticalAlign: -2 }}
+          />
           Select Analysis 2
         </h4>
 
@@ -142,9 +146,7 @@ function CandidatePicker({ leftId, navigate }: CandidatePickerProps) {
             <div style={{ padding: "20px 16px" }}>
               <Alert variant="info">
                 <Info size={14} />
-                <AlertDescription>
-                  No other analysis found for this file.
-                </AlertDescription>
+                <AlertDescription>No other analysis found for this file.</AlertDescription>
               </Alert>
             </div>
           ) : (
@@ -170,11 +172,7 @@ function CandidatePicker({ leftId, navigate }: CandidatePickerProps) {
             >
               Enter MD5 hash to find a different analysis:
             </p>
-            <form
-              onSubmit={onHashSubmit}
-              style={{ display: "flex", gap: 8 }}
-              id="hash"
-            >
+            <form onSubmit={onHashSubmit} style={{ display: "flex", gap: 8 }} id="hash">
               <input
                 type="text"
                 name="hash"
@@ -325,14 +323,20 @@ function DiffPane({ leftId, rightId }: DiffPaneProps) {
       >
         <div className="panel">
           <div className="panel-h">
-            <FileText size={13} style={{ marginRight: 6, verticalAlign: -2, color: "var(--color-accent)" }} />
+            <FileText
+              size={13}
+              style={{ marginRight: 6, verticalAlign: -2, color: "var(--color-accent)" }}
+            />
             Analysis {leftId}
           </div>
           {data.left ? <TaskOverviewTable rows={[data.left]} /> : <Empty text="No data" />}
         </div>
         <div className="panel">
           <div className="panel-h">
-            <FileText size={13} style={{ marginRight: 6, verticalAlign: -2, color: "var(--color-sev-med)" }} />
+            <FileText
+              size={13}
+              style={{ marginRight: 6, verticalAlign: -2, color: "var(--color-sev-med)" }}
+            />
             Analysis {rightId}
           </div>
           {data.right ? <TaskOverviewTable rows={[data.right]} /> : <Empty text="No data" />}
@@ -375,7 +379,8 @@ function DiffPane({ leftId, rightId }: DiffPaneProps) {
       {/* Behavior summary intersection */}
       <div className="panel">
         <div className="panel-h">
-          Behavior summary intersection <span className="count">· {Object.keys(data.summary ?? {}).length} categories</span>
+          Behavior summary intersection{" "}
+          <span className="count">· {Object.keys(data.summary ?? {}).length} categories</span>
         </div>
         {Object.keys(data.summary ?? {}).length === 0 ? (
           <Empty text="No overlapping behavior summary keys between the two tasks." />
@@ -407,9 +412,7 @@ function DiffPane({ leftId, rightId }: DiffPaneProps) {
                   {items.slice(0, 20).map((item) => (
                     <li key={item}>{item}</li>
                   ))}
-                  {items.length > 20 && (
-                    <li className="dim">… and {items.length - 20} more</li>
-                  )}
+                  {items.length > 20 && <li className="dim">… and {items.length - 20} more</li>}
                 </ul>
               </div>
             ))}
@@ -422,10 +425,7 @@ function DiffPane({ leftId, rightId }: DiffPaneProps) {
 
 function Empty({ text }: { text: string }) {
   return (
-    <div
-      className="dim"
-      style={{ padding: 24, textAlign: "center", fontSize: 12 }}
-    >
+    <div className="dim" style={{ padding: 24, textAlign: "center", fontSize: 12 }}>
       {text}
     </div>
   );

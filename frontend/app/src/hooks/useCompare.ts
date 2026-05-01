@@ -38,10 +38,7 @@ export function useCompareDiff(leftId: number | null, rightId: number | null) {
   return useQuery<CompareDiffResponse>({
     queryKey: ["compare", "diff", leftId, rightId],
     enabled:
-      leftId !== null &&
-      rightId !== null &&
-      Number.isFinite(leftId) &&
-      Number.isFinite(rightId),
+      leftId !== null && rightId !== null && Number.isFinite(leftId) && Number.isFinite(rightId),
     queryFn: async () => {
       const left = leftId as number;
       const right = rightId as number;
