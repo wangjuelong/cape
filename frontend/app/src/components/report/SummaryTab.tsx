@@ -99,10 +99,9 @@ export function SummaryTab({ report }: SummaryTabProps) {
         <PeInfoPanel pe={report.pe_info} />
       )}
 
-      {report.statistics_processing &&
-        Object.keys(report.statistics_processing).length > 0 && (
-          <StatisticsPanel stats={report.statistics_processing} />
-        )}
+      {report.statistics_processing && Object.keys(report.statistics_processing).length > 0 && (
+        <StatisticsPanel stats={report.statistics_processing} />
+      )}
 
       {populated.length > 0 && (
         <div className="panel">

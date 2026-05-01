@@ -764,10 +764,39 @@ def report_behavior_calls(request: Request, task_id: int) -> Response:
     except ValueError:
         return _error("invalid_param", "pid and page must be integers", http_code=http_status.HTTP_400_BAD_REQUEST)
 
-    data = report_service.fetch_behavior_calls(task_id, pid=pid, page=page)
+    # Optional upstream-parity filters — see fetch_behavior_calls docstring.
+    category = request.query_params.get("category") or None
+    apifilter = request.query_params.get("apifilter") or None
+    caller = request.query_params.get("caller") or None
+    tid = request.query_params.get("tid") or None
+
+    data = report_service.fetch_behavior_calls(
+        task_id,
+        pid=pid,
+        page=page,
+        category=category,
+        apifilter=apifilter,
+        caller=caller,
+        tid=tid,
+    )
     if data is None:
         return _error("behavior_unavailable", "No behavior data for this task", http_code=http_status.HTTP_404_NOT_FOUND)
     return Response(BehaviorCallsResponseSerializer(data).data)
+
+
+@extend_schema(
+    tags=["reports"],
+    summary="Search behavior — query against summary buckets + recent API calls",
+    responses={200: dict, 404: ApiErrorSerializer},
+)
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def report_behavior_search(request: Request, task_id: int) -> Response:
+    q = request.query_params.get("q") or ""
+    data = report_service.search_behavior(task_id, q)
+    if data is None:
+        return _error("behavior_unavailable", "No behavior data for this task", http_code=http_status.HTTP_404_NOT_FOUND)
+    return Response(data)
 
 
 @extend_schema(

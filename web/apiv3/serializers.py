@@ -364,23 +364,36 @@ class ProcessSummarySerializer(serializers.Serializer):
     name = serializers.CharField(allow_blank=True)
     calls_count = serializers.IntegerField()
     chunk_count = serializers.IntegerField()
+    # Upstream "process info banner" fields. Empty strings on Linux/non-PE
+    # samples; the SPA hides empty rows.
+    module_path = serializers.CharField(allow_blank=True, required=False)
+    image_base = serializers.CharField(allow_blank=True, required=False)
+    size = serializers.CharField(allow_blank=True, required=False)
+    bitness = serializers.CharField(allow_blank=True, required=False)
+    first_seen = serializers.CharField(allow_blank=True, required=False)
+    environ = serializers.DictField(child=serializers.CharField(allow_blank=True), required=False)
 
 
 class BehaviorSummaryResponseSerializer(serializers.Serializer):
     platform = serializers.CharField(allow_null=True)
     processtree = serializers.ListField()
     processes = ProcessSummarySerializer(many=True)
+    detections2pid = serializers.DictField(required=False)
 
 
 class ApiCallSerializer(serializers.Serializer):
     id = serializers.IntegerField(allow_null=True, required=False)
-    thread_id = serializers.IntegerField(allow_null=True, required=False)
+    thread_id = serializers.CharField(allow_blank=True, allow_null=True, required=False)
     category = serializers.CharField(allow_blank=True, allow_null=True, required=False)
     api = serializers.CharField(allow_blank=True, allow_null=True, required=False)
-    status = serializers.IntegerField(allow_null=True, required=False)
-    return_value = serializers.CharField(allow_null=True, required=False)
+    status = serializers.BooleanField(allow_null=True, required=False)
+    return_value = serializers.CharField(allow_null=True, allow_blank=True, required=False)
+    pretty_return = serializers.CharField(allow_blank=True, required=False)
+    caller = serializers.CharField(allow_blank=True, required=False)
+    parentcaller = serializers.CharField(allow_blank=True, required=False)
+    repeated = serializers.IntegerField(required=False)
     timestamp = serializers.CharField(allow_null=True, required=False)
-    arguments = serializers.ListField(required=False)
+    arguments = serializers.ListField(child=serializers.DictField(), required=False)
 
 
 class BehaviorCallsResponseSerializer(serializers.Serializer):

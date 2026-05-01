@@ -155,18 +155,20 @@ export function PeInfoPanel({ pe }: PeInfoPanelProps) {
         )}
 
         {hasMisc && (
-          <Accordion
-            label="Misc"
-            open={open.misc}
-            onClick={() => toggle("misc")}
-          >
+          <Accordion label="Misc" open={open.misc} onClick={() => toggle("misc")}>
             <KvList rows={Object.entries(pe.misc!)} mono />
           </Accordion>
         )}
 
         {pe.overlay && (
           <Accordion label="Overlay" open onClick={() => {}}>
-            <KvList rows={[["offset", pe.overlay.offset], ["size", pe.overlay.size]]} mono />
+            <KvList
+              rows={[
+                ["offset", pe.overlay.offset],
+                ["size", pe.overlay.size],
+              ]}
+              mono
+            />
           </Accordion>
         )}
       </div>
@@ -209,7 +211,9 @@ function Accordion({ label, open, onClick, children }: AccordionProps) {
         }}
       >
         <span>{label}</span>
-        <span className="dim" style={{ fontSize: 10.5 }}>{open ? "▾" : "▸"}</span>
+        <span className="dim" style={{ fontSize: 10.5 }}>
+          {open ? "▾" : "▸"}
+        </span>
       </button>
       {open && <div style={{ padding: 10, background: "var(--color-bg-1)" }}>{children}</div>}
     </div>

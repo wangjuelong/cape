@@ -66,6 +66,11 @@ urlpatterns = [
         views.report_behavior_calls,
         name="report-behavior-calls",
     ),
+    path(
+        "reports/<int:task_id>/behavior/search/",
+        views.report_behavior_search,
+        name="report-behavior-search",
+    ),
     path("reports/<int:task_id>/static/", views.report_static, name="report-static"),
     path("reports/<int:task_id>/attack/", views.report_attack, name="report-attack"),
     path("reports/<int:task_id>/config/", views.report_config, name="report-config"),

@@ -88,12 +88,27 @@ export async function fetchReportSummary(taskId: number): Promise<ReportSummary>
   return data;
 }
 
+export interface ProcessEnviron {
+  CommandLine?: string;
+  MainExeBase?: string;
+  MainExeSize?: string;
+  Bitness?: string;
+  DllBase?: string;
+}
+
 export interface ProcessSummary {
   pid: number | null;
   ppid: number | null;
   name: string;
   calls_count: number;
   chunk_count: number;
+  // Upstream "process info banner" fields — empty strings on non-PE samples.
+  module_path?: string;
+  image_base?: string;
+  size?: string;
+  bitness?: string;
+  first_seen?: string;
+  environ?: ProcessEnviron;
 }
 
 export interface BehaviorSummary {
@@ -101,6 +116,8 @@ export interface BehaviorSummary {
   /** Recursive `{pid, name, command_line, children: [...]}` from CAPE. */
   processtree: unknown[];
   processes: ProcessSummary[];
+  /** Upstream `detections2pid` map: pid (str) → list of signature names. */
+  detections2pid?: Record<string, string[]>;
 }
 
 export async function fetchReportBehavior(taskId: number): Promise<BehaviorSummary> {
@@ -110,18 +127,23 @@ export async function fetchReportBehavior(taskId: number): Promise<BehaviorSumma
 
 export interface ApiCallArgument {
   name?: string;
-  value?: unknown;
+  value?: string;
+  pretty_value?: string;
 }
 
 export interface ApiCall {
   id?: number;
-  thread_id?: number;
+  thread_id?: string;
   category?: string | null;
   api?: string | null;
-  status?: number | null;
+  status?: boolean | null;
   return_value?: string | null;
+  pretty_return?: string;
+  caller?: string;
+  parentcaller?: string;
+  repeated?: number;
   timestamp?: string | null;
-  arguments?: ApiCallArgument[] | unknown[];
+  arguments?: ApiCallArgument[];
 }
 
 export interface BehaviorCallsPage {
@@ -131,14 +153,48 @@ export interface BehaviorCallsPage {
   has_next: boolean;
 }
 
+/**
+ * Filter parameters mirror upstream's
+ * `/analysis/filtered/<id>/<pid>/<cat>/<apilist>/<caller>/<tid>/` endpoint:
+ *   - category: one of `default|all|registry|filesystem|network|process|
+ *               threading|services|sync|crypto|browser|device`
+ *   - apifilter: comma-separated allow-list; items prefixed with `!` are
+ *                negated (e.g. "CreateFile, !CloseHandle")
+ *   - caller: literal substring match against caller / parentcaller hex
+ *   - tid: thread id
+ */
+export interface BehaviorCallFilters {
+  category?: string;
+  apifilter?: string;
+  caller?: string;
+  tid?: string | number;
+}
+
 export async function fetchReportBehaviorCalls(
   taskId: number,
   pid: number,
   page = 0,
+  filters: BehaviorCallFilters = {},
 ): Promise<BehaviorCallsPage> {
   const { data } = await apiClient.get<BehaviorCallsPage>(`/reports/${taskId}/behavior/calls/`, {
-    params: { pid, page },
+    params: { pid, page, ...filters },
   });
+  return data;
+}
+
+export interface BehaviorSearchResponse {
+  summary_hits: Record<string, string[]>;
+  call_hits: Array<{ pid: number; process_name: string; call: ApiCall }>;
+}
+
+export async function fetchReportBehaviorSearch(
+  taskId: number,
+  q: string,
+): Promise<BehaviorSearchResponse> {
+  const { data } = await apiClient.get<BehaviorSearchResponse>(
+    `/reports/${taskId}/behavior/search/`,
+    { params: { q } },
+  );
   return data;
 }
 

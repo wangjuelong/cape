@@ -692,7 +692,14 @@ def fetch_behavior(task_id: int) -> dict[str, Any] | None:
             "behavior.processes.process_id": 1,
             "behavior.processes.parent_id": 1,
             "behavior.processes.process_name": 1,
+            "behavior.processes.module_path": 1,
+            "behavior.processes.image_base": 1,
+            "behavior.processes.size": 1,
+            "behavior.processes.bitness": 1,
+            "behavior.processes.first_seen": 1,
+            "behavior.processes.environ": 1,
             "behavior.processes.calls": 1,
+            "detections2pid": 1,
             "_id": 0,
         },
     )
@@ -704,6 +711,9 @@ def fetch_behavior(task_id: int) -> dict[str, Any] | None:
     processes = []
     for p in raw_processes:
         chunks = p.get("calls") or []
+        environ = p.get("environ") or {}
+        if not isinstance(environ, dict):
+            environ = {}
         processes.append(
             {
                 "pid": p.get("process_id"),
@@ -714,6 +724,20 @@ def fetch_behavior(task_id: int) -> dict[str, Any] | None:
                 # requires fetching every chunk so we approximate.
                 "calls_count": len(chunks) * 100,
                 "chunk_count": len(chunks),
+                # Upstream "process info banner" fields — mirror exactly so
+                # the SPA can render the same kv block.
+                "module_path": p.get("module_path") or "",
+                "image_base": _stringify(p.get("image_base")) if p.get("image_base") not in (None, "") else "",
+                "size": _stringify(p.get("size")) if p.get("size") not in (None, "") else "",
+                "bitness": _stringify(p.get("bitness")) if p.get("bitness") not in (None, "") else "",
+                "first_seen": _stringify(p.get("first_seen")) if p.get("first_seen") else "",
+                "environ": {
+                    "CommandLine": _stringify(environ.get("CommandLine")) if environ.get("CommandLine") else "",
+                    "MainExeBase": _stringify(environ.get("MainExeBase")) if environ.get("MainExeBase") else "",
+                    "MainExeSize": _stringify(environ.get("MainExeSize")) if environ.get("MainExeSize") else "",
+                    "Bitness": _stringify(environ.get("Bitness")) if environ.get("Bitness") else "",
+                    "DllBase": _stringify(environ.get("DllBase")) if environ.get("DllBase") else "",
+                },
             }
         )
 
@@ -721,18 +745,50 @@ def fetch_behavior(task_id: int) -> dict[str, Any] | None:
         "platform": _path(doc, "info.machine.platform"),
         "processtree": behavior.get("processtree") or [],
         "processes": processes,
+        "detections2pid": doc.get("detections2pid") or {},
     }
+
+
+_CATEGORY_BUCKETS: dict[str, set[str]] = {
+    # Mirror upstream `analysis/behavior/_processes.html`'s 12 category pills.
+    # Empty buckets just pass through (no filtering) — used for "all" / "default".
+    "default": set(),
+    "all": set(),
+    "registry": {"registry"},
+    "filesystem": {"filesystem", "file"},
+    "network": {"network", "socket", "internet"},
+    "process": {"process"},
+    "threading": {"threading", "thread"},
+    "services": {"services", "service"},
+    "sync": {"synchronization", "synchronisation", "sync"},
+    "crypto": {"crypto", "cryptography"},
+    "browser": {"browser", "browserhelper"},
+    "device": {"device", "system"},
+}
 
 
 def fetch_behavior_calls(
     task_id: int,
     pid: int,
     page: int = 0,
+    category: str | None = None,
+    apifilter: str | None = None,
+    caller: str | None = None,
+    tid: int | str | None = None,
 ) -> dict[str, Any] | None:
     """Returns one chunk (~100 calls) for the given process.
 
     ``page`` is the 0-based chunk index — i.e. ``behavior.processes[…].calls[page]``
     is dereferenced as an ObjectId in the ``calls`` collection.
+
+    Optional filters mirror upstream's ``/analysis/filtered/<id>/<pid>/<cat>/<api>/<caller>/<tid>/``
+    endpoint:
+    - ``category``: one of ``_CATEGORY_BUCKETS`` keys (case-insensitive); falls
+      back to no filter for unknown / "default" / "all".
+    - ``apifilter``: comma-separated allow-list. Items prefixed with ``!`` are
+      negated. Special ``!null`` marker = no filter (matches upstream JS).
+    - ``caller``: matched literally against ``call.caller`` or ``parentcaller``.
+    - ``tid``: integer thread id.
     """
     doc = _mongo_find_one(
         task_id,
@@ -761,12 +817,129 @@ def fetch_behavior_calls(
     chunk_doc = _fetch_calls_chunk(chunk_ids[page])
     calls = (chunk_doc or {}).get("calls", [])
 
+    filtered = [_normalise_call(c) for c in calls]
+    filtered = _filter_calls(filtered, category=category, apifilter=apifilter, caller=caller, tid=tid)
+
     return {
-        "calls": [_normalise_call(c) for c in calls],
+        "calls": filtered,
         "page": page,
         "total_chunks": total_chunks,
         "has_next": page + 1 < total_chunks,
     }
+
+
+def _filter_calls(
+    calls: list[dict[str, Any]],
+    *,
+    category: str | None,
+    apifilter: str | None,
+    caller: str | None,
+    tid: int | str | None,
+) -> list[dict[str, Any]]:
+    bucket = _CATEGORY_BUCKETS.get((category or "").lower()) if category else None
+    api_allow: set[str] = set()
+    api_deny: set[str] = set()
+    if apifilter and apifilter.strip() and apifilter.strip() != "!null":
+        for item in apifilter.split(","):
+            it = item.strip()
+            if not it:
+                continue
+            if it.startswith("!"):
+                api_deny.add(it[1:].lower())
+            else:
+                api_allow.add(it.lower())
+    caller_norm = (caller or "").strip().lower() if caller and caller.lower() != "null" else ""
+    tid_norm = ""
+    if tid not in (None, "", 0, "0", "null"):
+        tid_norm = str(tid).strip()
+
+    out: list[dict[str, Any]] = []
+    for c in calls:
+        if bucket:
+            cat = (c.get("category") or "").lower()
+            if cat not in bucket:
+                continue
+        if api_allow or api_deny:
+            api = (c.get("api") or "").lower()
+            if api_allow and api not in api_allow:
+                continue
+            if api_deny and api in api_deny:
+                continue
+        if caller_norm:
+            ca = (c.get("caller") or "").lower()
+            pca = (c.get("parentcaller") or "").lower()
+            if caller_norm not in ca and caller_norm not in pca:
+                continue
+        if tid_norm:
+            if str(c.get("thread_id") or "") != tid_norm:
+                continue
+        out.append(c)
+    return out
+
+
+def search_behavior(task_id: int, query: str) -> dict[str, Any] | None:
+    """Mirror upstream's ``/analysis/search/<id>/`` POST behavior search.
+
+    Walks ``behavior.summary`` 13 buckets + the first chunk of every process
+    looking for ``query`` (case-insensitive substring). Returns groupings the
+    SPA can render directly."""
+    if not query or len(query.strip()) < 2:
+        return {"summary_hits": {}, "call_hits": []}
+    q = query.strip().lower()
+
+    doc = _mongo_find_one(
+        task_id,
+        {
+            "behavior.summary": 1,
+            "behavior.processes.process_id": 1,
+            "behavior.processes.process_name": 1,
+            "behavior.processes.calls": 1,
+            "_id": 0,
+        },
+    )
+    if doc is None:
+        return None
+
+    summary = _path(doc, "behavior.summary") or {}
+    summary_hits: dict[str, list[str]] = {}
+    if isinstance(summary, dict):
+        for k, items in summary.items():
+            if not isinstance(items, list):
+                continue
+            matched = [str(it) for it in items if q in str(it).lower()]
+            if matched:
+                summary_hits[k] = matched[:50]
+
+    call_hits: list[dict[str, Any]] = []
+    for p in (_path(doc, "behavior.processes") or []):
+        chunk_ids = p.get("calls") or []
+        # Only scan first 3 chunks per process to keep the request bounded.
+        for cid in chunk_ids[:3]:
+            chunk = _fetch_calls_chunk(cid)
+            for raw in (chunk or {}).get("calls", []):
+                call = _normalise_call(raw)
+                hay = " ".join(
+                    str(x) for x in (
+                        call.get("api"),
+                        call.get("caller"),
+                        call.get("parentcaller"),
+                        call.get("return_value"),
+                        call.get("pretty_return"),
+                        *(f"{a.get('name')}={a.get('value')}" for a in call.get("arguments") or []),
+                    )
+                    if x
+                ).lower()
+                if q in hay:
+                    call_hits.append(
+                        {
+                            "pid": p.get("process_id"),
+                            "process_name": p.get("process_name") or "",
+                            "call": call,
+                        }
+                    )
+                if len(call_hits) >= 200:
+                    return {"summary_hits": summary_hits, "call_hits": call_hits}
+    return {"summary_hits": summary_hits, "call_hits": call_hits}
 
 
 def _fetch_calls_chunk(object_id: Any) -> dict[str, Any] | None:
@@ -787,19 +960,40 @@ def _fetch_calls_chunk(object_id: Any) -> dict[str, Any] | None:
 
 
 def _normalise_call(call: dict[str, Any]) -> dict[str, Any]:
-    """Project a raw API-call record onto the shape the SPA expects."""
+    """Project a raw API-call record onto the shape the SPA expects.
+
+    Mirrors upstream's `_api_call.html` field set so the SPA can render the
+    full 8-column behavior table without follow-up requests.
+    """
     args = call.get("arguments") or call.get("args") or []
     if isinstance(args, dict):
         args = [{"name": k, "value": v} for k, v in args.items()]
+    norm_args = []
+    for a in args[:30]:
+        if isinstance(a, dict):
+            norm_args.append(
+                {
+                    "name": _stringify(a.get("name")),
+                    "value": _stringify(a.get("value")),
+                    "pretty_value": _stringify(a.get("pretty_value") or ""),
+                }
+            )
+        else:
+            norm_args.append({"name": "", "value": _stringify(a), "pretty_value": ""})
+
     return {
         "id": call.get("id") or call.get("_id"),
-        "thread_id": call.get("thread_id") or call.get("tid"),
+        "thread_id": str(call.get("thread_id") or call.get("tid") or ""),
         "category": call.get("category"),
         "api": call.get("api") or call.get("name"),
         "status": call.get("status"),
         "return_value": call.get("return") if "return" in call else call.get("return_value"),
+        "pretty_return": _stringify(call.get("pretty_return") or ""),
+        "caller": _stringify(call.get("caller") or ""),
+        "parentcaller": _stringify(call.get("parentcaller") or ""),
+        "repeated": int(call.get("repeated") or 0),
         "timestamp": call.get("timestamp") or call.get("time"),
-        "arguments": args[:30],
+        "arguments": norm_args,
     }
 
 
