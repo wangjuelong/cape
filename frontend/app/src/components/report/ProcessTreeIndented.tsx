@@ -60,7 +60,7 @@ function Node({
   const pid = node.process_id ?? node.pid;
   const name = node.process_name ?? node.name ?? "(unknown)";
   const cmd = node.command_line ?? node.commandline ?? "";
-  const detections = pid !== undefined ? detections2pid?.[String(pid)] ?? [] : [];
+  const detections = pid !== undefined ? (detections2pid?.[String(pid)] ?? []) : [];
   const children = node.children ?? [];
 
   return (
@@ -69,8 +69,7 @@ function Node({
         marginLeft: depth * 16,
         marginBottom: 2,
         paddingLeft: depth > 0 ? 8 : 0,
-        borderLeft:
-          depth > 0 ? "1px solid var(--color-border)" : "none",
+        borderLeft: depth > 0 ? "1px solid var(--color-border)" : "none",
         fontSize: 11.5,
         lineHeight: 1.6,
       }}

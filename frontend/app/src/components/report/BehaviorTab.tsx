@@ -141,8 +141,7 @@ export function BehaviorTab({ taskId }: BehaviorTabProps) {
             <ProcessPane
               taskId={taskId}
               process={
-                sortedProcesses.find((p) => `process:${p.pid}` === activeTab) ??
-                sortedProcesses[0]
+                sortedProcesses.find((p) => `process:${p.pid}` === activeTab) ?? sortedProcesses[0]
               }
             />
           )}
@@ -386,8 +385,7 @@ function ProcessInfoBanner({ process }: { process: ProcessSummary }) {
         {process.name}
       </div>
       <div style={{ fontSize: 11.5 }}>
-        PID: <strong>{process.pid}</strong> | Parent PID:{" "}
-        <strong>{process.ppid ?? "—"}</strong>
+        PID: <strong>{process.pid}</strong> | Parent PID: <strong>{process.ppid ?? "—"}</strong>
         {process.module_path && (
           <>
             <br />
@@ -461,9 +459,7 @@ function CategoryButtons({
             opacity: active === b.key ? 1 : 0.62,
             fontWeight: active === b.key ? 700 : 400,
             border:
-              active === b.key
-                ? "1px solid var(--color-accent)"
-                : "1px solid var(--color-border)",
+              active === b.key ? "1px solid var(--color-accent)" : "1px solid var(--color-border)",
           }}
         >
           {b.label}
@@ -514,11 +510,7 @@ function Pagination({ page, totalPages, onChange }: PaginationProps) {
     >
       {dedup.map((it, idx) =>
         it === "..." ? (
-          <span
-            key={`ell-${idx}`}
-            className="dim"
-            style={{ padding: "4px 10px", fontSize: 11 }}
-          >
+          <span key={`ell-${idx}`} className="dim" style={{ padding: "4px 10px", fontSize: 11 }}>
             …
           </span>
         ) : (
@@ -601,7 +593,10 @@ function CallRow({ call }: { call: ApiCall }) {
           </>
         ) : null}
       </td>
-      <td className="mono" style={{ fontWeight: 700, color: "var(--color-fg-0)", wordBreak: "break-all" }}>
+      <td
+        className="mono"
+        style={{ fontWeight: 700, color: "var(--color-fg-0)", wordBreak: "break-all" }}
+      >
         {call.api}
       </td>
       <td style={{ wordWrap: "break-word", fontSize: 10.5, lineHeight: 1.5 }}>
@@ -817,9 +812,7 @@ function PillButton({
       style={{
         background: active ? "var(--color-accent)" : "transparent",
         color: active ? "var(--color-bg-0)" : "var(--color-fg-1)",
-        border: active
-          ? "1px solid var(--color-accent)"
-          : "1px solid var(--color-border)",
+        border: active ? "1px solid var(--color-accent)" : "1px solid var(--color-border)",
         borderRadius: 4,
         padding: "4px 10px",
         fontSize: 11,
