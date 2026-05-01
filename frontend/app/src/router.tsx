@@ -57,6 +57,8 @@ export const router = createBrowserRouter([
       { path: "pending", element: withSuspense(<PendingRoute />) },
       { path: "search", element: withSuspense(<SearchRoute />) },
       { path: "compare", element: withSuspense(<CompareRoute />) },
+      { path: "compare/:left", element: withSuspense(<CompareRoute />) },
+      { path: "compare/:left/:right", element: withSuspense(<CompareRoute />) },
       { path: "configs", element: withSuspense(<ConfigsRoute />) },
       { path: "stats", element: <Navigate to="/stats/7" replace /> },
       { path: "stats/:days", element: withSuspense(<StatsRoute />) },

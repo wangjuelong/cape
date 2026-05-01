@@ -46,7 +46,11 @@ export default function StatsRoute() {
     () => [
       { label: "Timeframe", value: `${days}`, suffix: " days", icon: <Calendar size={14} /> },
       { label: "Total Tasks", value: stats.data?.total ?? 0, icon: <Activity size={14} /> },
-      { label: "Average per Day", value: (stats.data?.average ?? 0).toFixed(2), icon: <ChartLine size={14} /> },
+      {
+        label: "Average per Day",
+        value: (stats.data?.average ?? 0).toFixed(2),
+        icon: <ChartLine size={14} />,
+      },
     ],
     [days, stats.data?.total, stats.data?.average],
   );
@@ -234,11 +238,7 @@ export default function StatsRoute() {
                       </span>
                     </td>
                     <td style={{ textAlign: "right" }}>
-                      <span
-                        className={"tag " + (row.failed > 0 ? "crit" : "")}
-                      >
-                        {row.failed}
-                      </span>
+                      <span className={"tag " + (row.failed > 0 ? "crit" : "")}>{row.failed}</span>
                     </td>
                   </tr>
                 ))}
@@ -338,10 +338,7 @@ interface ModuleTableProps {
 function ModuleTable({ rows }: ModuleTableProps) {
   if (rows.length === 0) {
     return (
-      <div
-        className="dim"
-        style={{ textAlign: "center", padding: 24, fontSize: 12 }}
-      >
+      <div className="dim" style={{ textAlign: "center", padding: 24, fontSize: 12 }}>
         No data.
       </div>
     );

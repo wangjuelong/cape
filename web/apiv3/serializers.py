@@ -70,6 +70,29 @@ class SubmissionFormDataSerializer(serializers.Serializer):
     config = serializers.DictField()
 
 
+class CompareCandidatesResponseSerializer(serializers.Serializer):
+    ok = serializers.BooleanField()
+    error_code = serializers.CharField(required=False, allow_null=True)
+    error_value = serializers.CharField(required=False, allow_null=True)
+    left = TaskSummarySerializer(allow_null=True)
+    records = TaskSummarySerializer(many=True)
+    md5 = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+
+
+class CompareDiffResponseSerializer(serializers.Serializer):
+    ok = serializers.BooleanField()
+    error_code = serializers.CharField(required=False, allow_null=True)
+    error_value = serializers.CharField(required=False, allow_null=True)
+    left = TaskSummarySerializer(allow_null=True, required=False)
+    right = TaskSummarySerializer(allow_null=True, required=False)
+    left_counts = serializers.DictField(child=serializers.FloatField(), required=False)
+    right_counts = serializers.DictField(child=serializers.FloatField(), required=False)
+    summary = serializers.DictField(
+        child=serializers.ListField(child=serializers.CharField()),
+        required=False,
+    )
+
+
 class StatisticsTaskDaySerializer(serializers.Serializer):
     day = serializers.CharField()
     added = serializers.IntegerField()

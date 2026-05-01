@@ -34,9 +34,7 @@ export interface StatisticsScrape {
   error: string | null;
 }
 
-export async function fetchUpstreamStatisticsScrape(
-  days: number,
-): Promise<StatisticsScrape> {
+export async function fetchUpstreamStatisticsScrape(days: number): Promise<StatisticsScrape> {
   const resp = await fetch(`/_upstream/statistics/${days}/`, {
     credentials: "include",
     headers: { Accept: "text/html" },
@@ -47,10 +45,7 @@ export async function fetchUpstreamStatisticsScrape(
   return parseUpstreamStatisticsHtml(await resp.text(), days);
 }
 
-export function parseUpstreamStatisticsHtml(
-  html: string,
-  days: number,
-): StatisticsScrape {
+export function parseUpstreamStatisticsHtml(html: string, days: number): StatisticsScrape {
   const doc = new DOMParser().parseFromString(html, "text/html");
 
   const result: StatisticsScrape = {

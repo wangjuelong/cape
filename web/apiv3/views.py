@@ -34,6 +34,8 @@ from apiv3.serializers import (
     AttackReportSerializer,
     BehaviorCallsResponseSerializer,
     BehaviorSummaryResponseSerializer,
+    CompareCandidatesResponseSerializer,
+    CompareDiffResponseSerializer,
     ConfigReportSerializer,
     CsrfTokenSerializer,
     CurrentUserSerializer,
@@ -59,6 +61,7 @@ from apiv3.serializers import (
     TaskUrlSubmitSerializer,
 )
 from services import (
+    compare_service,
     machine_service,
     report_service,
     search_service,
@@ -281,6 +284,60 @@ def search_prefixes(_request: Request) -> Response:
 def statistics(_request: Request, days: int) -> Response:
     payload = statistics_service.get_statistics(int(days))
     return Response(StatisticsResponseSerializer(payload).data)
+
+
+# ---------------------------------------------------------------------------
+# Compare
+# ---------------------------------------------------------------------------
+
+
+@extend_schema(
+    tags=["compare"],
+    summary="Compare candidates — same-md5 analyses for the given task.",
+    description=(
+        "Mirror of upstream `web/compare/views.py:left()`. Returns the "
+        "left task's TaskSummary plus every other Mongo analysis with the "
+        "same `target.file.md5`."
+    ),
+    responses={200: CompareCandidatesResponseSerializer, 404: ApiErrorSerializer},
+)
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def compare_candidates(_request: Request, left_id: int) -> Response:
+    result = compare_service.candidates(int(left_id))
+    if not result.get("ok"):
+        code = result.get("error_code", "compare_failed")
+        return _error(
+            code,
+            result.get("error_value", "compare failed"),
+            http_code=http_status.HTTP_404_NOT_FOUND if code.endswith("_not_found") else http_status.HTTP_400_BAD_REQUEST,
+        )
+    return Response(CompareCandidatesResponseSerializer(result).data)
+
+
+@extend_schema(
+    tags=["compare"],
+    summary="Compare two analyses — behavior counts + summary intersection.",
+    description=(
+        "Mirror of upstream `web/compare/views.py:both()`. Calls "
+        "`lib.cuckoo.common.compare.helper_percentages_mongo` and "
+        "`helper_summary_mongo` to compute per-task behavior category "
+        "percentages and the overlap of behavior-summary keys."
+    ),
+    responses={200: CompareDiffResponseSerializer, 404: ApiErrorSerializer},
+)
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def compare_diff(_request: Request, left_id: int, right_id: int) -> Response:
+    result = compare_service.diff(int(left_id), int(right_id))
+    if not result.get("ok"):
+        code = result.get("error_code", "compare_failed")
+        return _error(
+            code,
+            result.get("error_value", "compare failed"),
+            http_code=http_status.HTTP_404_NOT_FOUND if code.endswith("_not_found") else http_status.HTTP_400_BAD_REQUEST,
+        )
+    return Response(CompareDiffResponseSerializer(result).data)
 
 
 # ---------------------------------------------------------------------------

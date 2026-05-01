@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { Download, GitCompare, RefreshCw, Trash2 } from "lucide-react";
 
 import { PageHead } from "@/components/shared/PageHead";
@@ -37,6 +37,7 @@ const TABS: TabDef[] = [
 
 export default function TaskDetailRoute() {
   const params = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const taskId = Number(params.id);
   const summaryQuery = useReportSummary(taskId);
   const [tab, setTab] = useState("summary");
@@ -94,7 +95,12 @@ export default function TaskDetailRoute() {
         crumbs={["CAPE", "Recent", `Task #${task.id}`]}
         actions={
           <>
-            <button type="button" className="btn" disabled title="Coming in P1">
+            <button
+              type="button"
+              className="btn"
+              onClick={() => navigate(`/compare/${task.id}`)}
+              title="Compare this analysis against another sample with the same hash"
+            >
               <GitCompare size={14} />
               <span>Compare</span>
             </button>

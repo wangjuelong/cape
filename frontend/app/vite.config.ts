@@ -48,6 +48,12 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/_upstream\/statistics/, "/statistics"),
       },
+      // /_upstream/compare → upstream /compare/<left>/[<right>/].
+      "/_upstream/compare": {
+        target: apiTarget,
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/_upstream\/compare/, "/compare"),
+      },
     },
   },
   build: {

@@ -31,6 +31,14 @@ urlpatterns = [
     # Statistics
     path("statistics/<int:days>/", views.statistics, name="statistics"),
 
+    # Compare (mirror of upstream /compare/<left>/[<right>/])
+    path("compare/<int:left_id>/", views.compare_candidates, name="compare-candidates"),
+    path(
+        "compare/<int:left_id>/<int:right_id>/",
+        views.compare_diff,
+        name="compare-diff",
+    ),
+
     # Tasks
     path("tasks/", views.tasks_list, name="tasks-list"),
     path("tasks/<int:task_id>/", views.task_detail, name="task-detail"),

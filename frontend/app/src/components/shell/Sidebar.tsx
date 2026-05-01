@@ -20,7 +20,9 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/pending", label: "Pending", icon: Icon.pulse, flag: "tasklist" },
   { to: "/search", label: "Search", icon: Icon.search, flag: "extendedtasksearch" },
   { to: "/configs", label: "Configs", icon: Icon.tag },
-  { to: "/compare", label: "Compare", icon: Icon.diff },
+  // Compare: upstream nav doesn't expose this — users enter via the
+  // "Compare" button on a task detail page (/compare/<task_id>/). The
+  // SPA route still exists but is intentionally not advertised here.
   { to: "/stats", label: "Statistics", icon: Icon.pulse, flag: "statistics" },
 ];
 
