@@ -6,6 +6,7 @@ otherwise prevent ALL users from logging in)."""
 
 from __future__ import annotations
 
+import functools
 import logging
 from typing import Any
 
@@ -38,13 +39,13 @@ def _safe(fn):
     """Decorate a receiver so its exceptions never escape into Django's
     signal dispatch loop. We log + swallow."""
 
+    @functools.wraps(fn)
     def wrapper(*args, **kwargs):
         try:
             return fn(*args, **kwargs)
         except Exception:
             _logger.exception("audit_log signal handler failed: %s", fn.__name__)
 
-    wrapper.__name__ = fn.__name__
     return wrapper
 
 
@@ -106,6 +107,9 @@ if _HAS_ALLAUTH:
             target_label=f"user:{getattr(user, 'username', '?')}",
         )
 
+    # `password_set` fires when allauth assigns a password the first time
+    # (e.g. completing a social signup); `password_changed` fires when an
+    # existing password is replaced. Same audit semantic — one handler.
     @receiver(password_changed)
     @receiver(password_set)
     @_safe
