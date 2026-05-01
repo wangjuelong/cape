@@ -1,0 +1,12 @@
+[Unit]
+Description=Run CAPE audit_log prune nightly
+Requires=cape-audit-prune.service
+
+[Timer]
+OnCalendar=*-*-* 03:00:00
+Persistent=true
+RandomizedDelaySec=300
+Unit=cape-audit-prune.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,14 @@
+[Unit]
+Description=CAPE audit_log retention prune
+After=network.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/CAPEv2
+ExecStart=/opt/CAPEv2/.venv/bin/python /opt/CAPEv2/utils/audit_prune.py --days 90
+User=cape
+Group=cape
+Restart=no
+
+[Install]
+WantedBy=multi-user.target
