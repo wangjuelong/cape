@@ -58,3 +58,34 @@ def test_logout_creates_audit_row(alice, client):
     rows = list(AuditEvent.objects.filter(action="logout"))
     assert len(rows) == 1
     assert rows[0].actor_username == "alice"
+
+
+@pytest.mark.django_db
+def test_admin_logentry_bridge(alice):
+    """A Django admin action (logged via LogEntry) produces an audit row."""
+    from django.contrib.admin.models import LogEntry, ADDITION, CHANGE
+    from django.contrib.contenttypes.models import ContentType
+    from django.contrib.auth import get_user_model
+
+    from audit_log.models import AuditEvent
+
+    User = get_user_model()
+    admin = User.objects.create_superuser(username="admin2", email="a@x", password="adminpw1234")
+    ct = ContentType.objects.get_for_model(User)
+
+    LogEntry.objects.log_action(
+        user_id=admin.id,
+        content_type_id=ct.id,
+        object_id=alice.id,
+        object_repr=f"user:{alice.username}",
+        action_flag=CHANGE,
+        change_message="Changed is_active",
+    )
+
+    rows = list(AuditEvent.objects.filter(action="admin_change"))
+    assert len(rows) == 1
+    assert rows[0].actor_user_id == admin.id
+    assert rows[0].target_type == "user"
+    assert rows[0].target_id == str(alice.id)
+    assert rows[0].target_label == f"user:{alice.username}"
+    assert rows[0].metadata.get("change_message") == "Changed is_active"

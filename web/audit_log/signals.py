@@ -135,3 +135,37 @@ if _HAS_ALLAUTH:
             target_label=f"user:{getattr(user, 'username', '?')}" if user else None,
             email=getattr(user, "email", "") if user else "",
         )
+
+
+# ---------------------------------------------------------------------------
+# Django admin LogEntry bridge
+# ---------------------------------------------------------------------------
+
+from django.contrib.admin.models import LogEntry, ADDITION, CHANGE, DELETION
+from django.db.models.signals import post_save
+
+
+_LOG_ACTION_FLAG_MAP = {
+    ADDITION: "admin_addition",
+    CHANGE: "admin_change",
+    DELETION: "admin_deletion",
+}
+
+
+@receiver(post_save, sender=LogEntry)
+@_safe
+def _on_admin_logentry(sender: Any, instance: LogEntry, created: bool, **kw):
+    if not created:
+        return  # only first save (LogEntry rows aren't typically updated)
+    action = _LOG_ACTION_FLAG_MAP.get(instance.action_flag)
+    if action is None:
+        return
+    actor = instance.user  # django.contrib.auth.User
+    helpers.log(
+        action,
+        actor=actor,
+        target_type=getattr(instance.content_type, "model", None) if instance.content_type_id else None,
+        target_id=str(instance.object_id) if instance.object_id else None,
+        target_label=instance.object_repr,
+        change_message=instance.change_message or "",
+    )
