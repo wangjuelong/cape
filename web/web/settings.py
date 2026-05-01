@@ -272,6 +272,7 @@ INSTALLED_APPS = [
     "rest_framework.authtoken",
     "drf_spectacular",
     "apiv3",
+    "audit_log",
 ]
 
 AUDIT_FRAMEWORK = web_cfg.audit_framework.get("enabled", False)
