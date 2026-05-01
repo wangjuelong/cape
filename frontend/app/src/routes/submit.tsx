@@ -378,15 +378,10 @@ export default function SubmitRoute() {
                   gap: 8,
                 }}
               >
-                <button
-                  type="submit"
-                  className="btn primary"
-                  disabled={isPending}
-                  style={{ height: 32, justifyContent: "center" }}
-                >
-                  {isPending ? <Spinner size={12} /> : <Upload size={14} />}
-                  <span>Analyze</span>
-                </button>
+                {/* Primary "Analyze" lives in PageHead actions (top-right) —
+                    it stays in view while the user scrolls the long form.
+                    This panel only carries the secondary Reset + the
+                    where-to-watch hint. */}
                 <button
                   type="button"
                   className="btn"
