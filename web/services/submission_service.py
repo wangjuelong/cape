@@ -9,12 +9,15 @@ same data to the SPA without coupling to the Django template layer.
 
 from __future__ import annotations
 
+import logging
 import os
 import random
 from dataclasses import dataclass
 from typing import Any
 
 from django.conf import settings
+
+log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -63,13 +66,19 @@ def get_form_data() -> dict[str, Any]:
 
     db = Database()
 
-    # ---- packages ----
+    # ---- packages + machines ----
+    # Upstream `get_form_data()` reads from the Cuckoo database for the
+    # machine list, plus walks `analyzer/<platform>/modules/packages/` for
+    # packages. If anything blows up here we fall back to an empty form
+    # rather than 500 the whole Submit page — but we WANT to know about
+    # it (otherwise the user sees an empty MACHINE dropdown silently). So
+    # log the full traceback at WARNING so it shows up in journalctl.
     try:
         from submission.views import get_form_data as upstream_get_form_data
 
         packages_raw, machines_raw = upstream_get_form_data()
     except Exception:
-        # Filesystem layout missing — return empty but don't crash the SPA.
+        log.exception("submission_form_data: upstream get_form_data() failed")
         packages_raw = []
         machines_raw = [("", "First available")]
 
