@@ -6,12 +6,12 @@ import {
   type SearchPrefix,
   type SearchResponse,
 } from "@/lib/api/search";
-import { fetchUpstreamSearchScrape } from "@/lib/api/upstream-search-scrape";
 
 /**
- * Run a search query. Tries v3 `/api/v3/search/` first; falls back to
- * scraping upstream `/_upstream/analysis/search/?search=...` HTML when
- * the v3 endpoint is unavailable (vanilla CAPEv2 deploy).
+ * Run a search query via apiv3 `/api/v3/search/`.
+ *
+ * The previous "scrape upstream HTML on apiv3 failure" fallback has been
+ * removed — apiv3 is now authoritative.
  */
 export function useSearch(rawQuery: string) {
   return useQuery<SearchResponse>({
@@ -19,20 +19,7 @@ export function useSearch(rawQuery: string) {
     enabled: rawQuery.trim().length > 0,
     staleTime: 30_000,
     retry: 0,
-    queryFn: async () => {
-      try {
-        return await fetchSearch(rawQuery);
-      } catch {
-        const scraped = await fetchUpstreamSearchScrape(rawQuery);
-        return {
-          ok: scraped.ok,
-          term: scraped.term,
-          raw: scraped.raw,
-          error: scraped.error,
-          items: scraped.items,
-        };
-      }
-    },
+    queryFn: () => fetchSearch(rawQuery),
   });
 }
 
