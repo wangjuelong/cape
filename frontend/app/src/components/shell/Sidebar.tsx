@@ -2,6 +2,7 @@ import { NavLink } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
 
 import { Icon } from "./icons";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { isFlagEnabled, useFeatureFlags } from "@/hooks/useFeatureFlags";
 
 interface NavItem {
@@ -11,6 +12,10 @@ interface NavItem {
   badge?: string;
   /** api.conf flag that gates this nav item; missing = always shown */
   flag?: string;
+  /** When true, render as a normal anchor (browser navigation, leaves SPA). */
+  external?: boolean;
+  /** When true, render only when useCurrentUser().is_staff is true. */
+  staffOnly?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -28,23 +33,42 @@ const NAV_ITEMS: NavItem[] = [
 
 const ADMIN_ITEMS: NavItem[] = [
   { to: "/machines", label: "Machines", icon: Icon.cog, flag: "machinelist" },
-  { to: "/audit", label: "Audit", icon: Icon.doc },
+  { to: "/audit", label: "Audit", icon: Icon.doc, staffOnly: true },
+  {
+    to: "/admin/auth/user/",
+    label: "Users",
+    icon: Icon.users,
+    external: true,
+    staffOnly: true,
+  },
   { to: "/docs", label: "API Docs", icon: Icon.doc },
 ];
 
 function NavRow({ item }: { item: NavItem }) {
   const IconCmp = item.icon;
+  const inner = (
+    <>
+      <span className="ico">
+        <IconCmp size={14} />
+      </span>
+      <span>{item.label}</span>
+      {item.badge && <span className="badge">{item.badge}</span>}
+    </>
+  );
+  if (item.external) {
+    return (
+      <a href={item.to} className="nav-item">
+        {inner}
+      </a>
+    );
+  }
   return (
     <NavLink
       to={item.to}
       end={item.to === "/"}
       className={({ isActive }) => "nav-item" + (isActive ? " active" : "")}
     >
-      <span className="ico">
-        <IconCmp size={14} />
-      </span>
-      <span>{item.label}</span>
-      {item.badge && <span className="badge">{item.badge}</span>}
+      {inner}
     </NavLink>
   );
 }
@@ -52,7 +76,13 @@ function NavRow({ item }: { item: NavItem }) {
 export function Sidebar() {
   const flagsQuery = useFeatureFlags();
   const flags = flagsQuery.data;
-  const visible = (item: NavItem) => !item.flag || isFlagEnabled(flags, item.flag);
+  const meQuery = useCurrentUser();
+  const isStaff = meQuery.data?.is_staff ?? false;
+  const visible = (item: NavItem) => {
+    if (item.flag && !isFlagEnabled(flags, item.flag)) return false;
+    if (item.staffOnly && !isStaff) return false;
+    return true;
+  };
 
   return (
     <aside className="sidebar">
