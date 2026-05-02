@@ -13,6 +13,10 @@ export interface SearchResponse {
   raw: string;
   error: string | null;
   items: TaskSummary[];
+  // apiv3 echoes back the raw `value` query-param (the parsed search value).
+  // The SPA does not currently consume it, but acknowledging it here keeps
+  // TypeScript happy with the wire payload.
+  value?: unknown;
 }
 
 export async function fetchSearchPrefixes(): Promise<SearchPrefix[]> {
