@@ -23,14 +23,8 @@ if settings.TWOFA:
 admin.site.site_header = "CAPE Administration"
 admin.site.site_title = "CAPE Administration"
 
-from analysis import urls as analysis
 from apiv2 import urls as apiv2
 from apiv3 import urls as apiv3
-from audit import urls as audit
-from compare import urls as compare
-from compare import views as compare_views
-from submission import urls as submission
-from submission import views as submission_views
 
 from web import spa_view
 
@@ -45,21 +39,10 @@ urlpatterns = [
     re_path(r"^apiv2/", include(apiv2)),
     re_path(r"^api/v3/", include(apiv3)),
     path("robots.txt", TemplateView.as_view(template_name="robots.txt", content_type="text/plain")),
-    # ---- Bootstrap upstream HTML routes — kept so the SPA's scrape
-    # fallback + Behavior tab's lazy `/analysis/load_files/<id>/<cat>/`
-    # lazy-load AJAX continue to work. ALSO kept so the URL-name registry
-    # (`{% url 'submission' %}`, `{% url 'compare_left' %}`, …) resolves —
-    # upstream's own templates and signals reference these by name. The
-    # SPA catchall patterns further down win for browser GETs because they
-    # appear *before* these includes in the dispatch order — except they
-    # don't (Django takes the first match), so the includes are listed
-    # AFTER the SPA catchalls below. ----
-    re_path(r"^analysis/", include(analysis)),
     # SPA owns `/audit` (audit log browser); legacy upstream `audit/` test
     # suite include is shadowed for browser GETs but kept further down so
     # url-name reverses (`reverse('audit_index')`, etc.) still work.
     re_path(r"^audit(?:/.*)?$", spa_view.spa_index, name="spa-audit"),
-    re_path(r"^audit/", include(audit), name="audit"),
     # NB: `/dashboard/` Django Bootstrap include intentionally NOT mounted
     # at the top — anonymous redirects (allauth `next=/dashboard/`,
     # Django APPEND_SLASH on /dashboard) would otherwise land on the legacy
@@ -105,11 +88,4 @@ urlpatterns = [
     # /dashboard. SPA's React route does Navigate(to="/") and renders the
     # dashboard component there.
     re_path(r"^dashboard(?:/.*)?$", spa_view.spa_index, name="spa-dashboard"),
-    # ---- Upstream Bootstrap routes that the SPA shadows above. Re-mount
-    # them at the end so `reverse('submission')`, `reverse('compare_left')`,
-    # `reverse('compare_both')` and friends used by upstream templates and
-    # signal handlers continue to resolve. They never receive browser GETs
-    # because the SPA patterns above match first. ----
-    re_path(r"^submit/", include(submission)),
-    re_path(r"^compare/", include(compare)),
 ]
