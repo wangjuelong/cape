@@ -15,8 +15,7 @@ import { useSearch, useSearchPrefixes } from "@/hooks/useSearch";
  *   - Collapsible help block listing every supported prefix, grouped
  *     into 4 categories (matches upstream's `<table>` taxonomy)
  *   - On submit, runs the same `perform_search()` flow via /api/v3/search/
- *     (with /_upstream/analysis/search/ HTML scrape fallback) and renders
- *     the hits as a TaskTable mirroring upstream's columns.
+ *     and renders the hits as a TaskTable mirroring upstream's columns.
  */
 export default function SearchRoute() {
   const [params, setParams] = useSearchParams();

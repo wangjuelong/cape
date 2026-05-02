@@ -15,9 +15,8 @@ import type { TaskListFilters } from "@/types/api";
  * `templates/analysis/pending.html`. Single card showing only tasks in
  * status=PENDING; columns ID/Timestamp/Category/Target/Hashes/Action.
  *
- * v3 backend serves `/api/v3/tasks/?status=pending`; on failure (vanilla
- * upstream Django without our v3 app) `useTaskList` falls back to
- * scraping `/_upstream/analysis/pending/` HTML.
+ * v3 backend serves `/api/v3/tasks/?status=pending`; the SPA reads that
+ * endpoint exclusively via `useTaskList`.
  */
 export default function PendingRoute() {
   const filters = useMemo<TaskListFilters>(() => ({ status: ["pending"], limit: 200 }), []);
