@@ -52,48 +52,17 @@ class TestSubmissionViews(SimpleTestCase):
         found = self.find_in_list(regex, list_of_strings)
         self.assertFalse(found, f"One or more strings matched <{regex}>")
 
-    def test_submission_page(self):
-        """The submission page should have a package selection form.
-
-        The form should have a list of at least 10 options.
-        """
-        submission_page = self.client.get("/submit/#file")
-        self.assertIsNotNone(submission_page.content)
-        self.assertIn("Analysis Package", submission_page.content.decode())
-        pattern = re.compile(
-            r'<select(?=[^>]*\bid="form_package")(?=[^>]*\bname="package")(?=[^>]*\bclass="[^"]*form-select)[^>]*>(.*?)</select>',
-            flags=re.DOTALL | re.IGNORECASE,
-        )
-        matches = re.findall(pattern, submission_page.content.decode())
-        self.assertEqual(len(matches), 1)
-        group0 = matches[0].strip()
-        self.assertTrue(group0.startswith("<option value"))
-        self.assertTrue(group0.endswith("</option>"))
-        option_pattern = re.compile(r"<option (.*?)</option>", flags=re.DOTALL)
-        options = re.findall(option_pattern, group0)
-        self.assertEqual('value="" title="">Detect Automatically', options[0])
-
-        self.one_should_match('value="exe" title=".*">exe - .*', options)
-        self.one_should_match(".*ichitaro.*", options)
-        self.one_should_match(".*chromium.*", options)
-        self.assertGreater(len(options), 10)
-        for opt in options:
-            self.assertTrue(opt.startswith("value="))
-
-    def test_package_exclusion(self):
-        """Pick a couple of packages to exclude, to test exclusion"""
-        web_conf.package_exclusion.packages = "chromium,chromium_ext,ichitaro,shellcode"
-        submission_page = self.client.get("/submit/#file")
-        self.assertIsNotNone(submission_page.content)
-        self.assertIn("Analysis Package", submission_page.content.decode())
-        option_pattern = re.compile(r"<option (.*?)</option>", flags=re.DOTALL)
-        options = re.findall(option_pattern, submission_page.content.decode())
-        self.assertGreater(len(options), 10)
-        # excluded packages should not be listed
-        self.none_should_match(".*ichitaro.*", options)
-        self.none_should_match(".*chromium.*", options)
-        # Package 'shellcode' was excluded.
-        self.none_should_match('.*"shellcode".*', options)
+    # NOTE: test_submission_page and test_package_exclusion were removed
+    # 2026-05-02 by the FE/BE separation cleanup. They GET-fetched
+    # `/submit/` and parsed the upstream Bootstrap HTML for an
+    # `<select id="form_package">` element with embedded option list.
+    # Phase B of the cleanup deleted `include(submission)` from
+    # web/web/urls.py, so `/submit/` now serves the SPA shell (a JS
+    # bundle, not server-rendered package options). Equivalent coverage
+    # for the SPA is provided by the apiv3 endpoint
+    # `/api/v3/system/submission-form/` and its DRF serializer tests;
+    # the upstream HTML form is dead code awaiting Phase D template
+    # deletion.
 
     def test_get_package_exe_info(self):
         """Get the package info from exe.py."""
