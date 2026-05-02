@@ -20,7 +20,6 @@ from django.contrib.auth.decorators import login_required
 from django.http import StreamingHttpResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_safe
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
@@ -139,18 +138,6 @@ if dist_conf.distributed.enabled:
 db: _Database = Database()
 
 
-# Conditional decorator for web authentication
-class conditional_login_required:
-    def __init__(self, dec, condition):
-        self.decorator = dec
-        self.condition = condition
-
-    def __call__(self, func):
-        if not self.condition:
-            return func
-        return self.decorator(func)
-
-
 def createProcessTreeNode(process):
     """Creates a single ProcessTreeNode corresponding to a single node in the tree observed cuckoo.
     @param process: process from cuckoo dict.
@@ -161,46 +148,6 @@ def createProcessTreeNode(process):
         "spawned_processes": [createProcessTreeNode(child_process) for child_process in process["children"]],
     }
     return process_node_dict
-
-
-@require_safe
-@conditional_login_required(login_required, settings.WEB_AUTHENTICATION)
-def index(request):
-    conf = apiconf.get_config()
-    parsed = {}
-    # Parse out the config for the API
-    for section in conf:
-        if section not in parsed:
-            parsed[section] = {}
-        for option in conf[section]:
-            if option == "__name__":
-                pass
-            else:
-                cfgvalue = conf[section][option]
-                if cfgvalue == "yes":
-                    newvalue = True
-                elif cfgvalue == "no":
-                    newvalue = False
-                else:
-                    newvalue = cfgvalue
-                if option not in parsed[section]:
-                    parsed[section][option] = newvalue
-
-    # Fill in any blanks to normalize the API config Dict
-    for key in parsed:
-        if key == "api":
-            pass
-        else:
-            if "rps" not in list(parsed[key].keys()):
-                parsed[key]["rps"] = "None"
-            if "rpm" not in list(parsed[key].keys()):
-                parsed[key]["rpm"] = "None"
-            # Set rates to None if the API is disabled
-            if not parsed[key]["enabled"]:
-                parsed[key]["rps"] = "None"
-                parsed[key]["rpm"] = "None"
-
-    return render(request, "apiv2/index.html", {"title": "API", "config": parsed})
 
 
 @csrf_exempt

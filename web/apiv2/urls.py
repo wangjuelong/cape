@@ -9,7 +9,6 @@ from rest_framework.authtoken.views import obtain_auth_token
 from apiv2 import views
 
 urlpatterns = [
-    re_path(r"^$", views.index, name="apiv2"),
     # disabled due to token auth
     # re_path(r'^api-auth/', include('rest_framework.urls', namespace='rest_framework')),
     path("api-token-auth/", obtain_auth_token, name="api_token_auth"),
