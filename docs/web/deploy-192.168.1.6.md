@@ -235,3 +235,40 @@ Results: 354 passed / 5 failed (4 apiv2 reprocess pre-existing token issue, 1 mi
 ```
 
 凭证不变（admin / cape123!）。
+
+## 2026-05-02 (later) — User management self-service
+
+按 `docs/superpowers/specs/2026-05-02-user-management-design.md` + `docs/superpowers/plans/2026-05-02-user-management.md` 部署。
+
+### 后端
+- 新 apiv3 endpoint：`PATCH /api/v3/me/`、`POST /api/v3/me/password/`
+- `MeUpdateSerializer` 显式拒绝 `username/is_staff/is_superuser/is_active/password` 等非自助字段
+- `ChangePasswordSerializer` 三重校验：current 哈希 + new == confirm + Django `AUTH_PASSWORD_VALIDATORS`
+- 新 audit ACTION：`profile_update`（auth 类目）—— PATCH /me/ 内显式 `audit.log()` 调用
+- 已知 deviation：`AUTH_PASSWORD_VALIDATORS` 在 prod settings 是空的（生产建议跟进）；A5 view 内手动 `password_changed.send()` 因为 allauth 的 signal 只在它自己的 HTML flow 里 fire
+
+### 前端
+- 新 `Dialog` primitive (radix wrapper, 115 LOC) + 新 `Toast` system (107 LOC, 自实现无依赖)
+- 新 `me.ts` API client (updateMe + changePassword)
+- Topbar 头像下拉：`<a href="/accounts/password/change/">` → 两个 modal-driven menuitem (`Edit profile` + `Change password`)
+- Sidebar Admin 区加 `Users` 链接（外链到 `/admin/auth/user/`，is_staff 可见）；Audit 也加上 `staffOnly` gate
+- `useCurrentUser` cache 在 profile 改完后通过 `qc.setQueryData` 立即刷新 → topbar 头像/姓名同步更新
+- UX fix：菜单项 `onSelect` 去掉 `e.preventDefault()` 让 radix 自动关闭 dropdown（避免 modal 关后下拉卡 open 状态）
+
+### 实测
+```
+Pytest (远端 cape venv): 26/26 passed (5 新文件，audit_log + apiv3 me/password)
+
+Playwright (192.168.1.6):
+  audit-log.spec.mjs            3/3 PASS
+  phase-a-network-probe.spec.mjs 1/1 PASS
+  recent-detail-display.spec.mjs 2/2 PASS
+  docs-page.spec.mjs             1/1 PASS
+  account-self-service.spec.mjs  4/4 PASS  (含完整改密 round-trip)
+  smoke.spec.mjs                 7/7 PASS  (单独跑避免 pool 耗尽)
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Total                         18/18 PASS
+```
+
+### 影响
+凭证不变 (admin / cape123!)；apiv2 token API 不变；Django admin /admin/auth/user/ 入口现在从 SPA 侧栏可达；个人 profile / 密码修改完全在 SPA 内闭环，不再跳出到 allauth 页面。
