@@ -23,7 +23,7 @@ Scrape: `asReportSummary(UpstreamReportScrape)` (`upstream-report-scrape.ts:282-
 |---|---|---|---|---|
 | `task` | yes (full TaskSummary from `task_service.view_task`) | yes (synthesized from card scrape; many fields zeroed/null) | TYPE | apiv3 canonical — scrape's TaskSummary has score=0/severity="clean"/verdict="clean" placeholders. No action — apiv3 already richer. |
 | `available_sections` | yes (`_SECTION_DETECTORS`) | yes (parsed from tab strip) | | no action — both populate the same union of tab keys |
-| `tab_counts` | yes (numeric or humanized strings) | yes (mostly `"—"` placeholders for non-summary tabs) | TYPE | no action — apiv3 numeric is canonical, scrape's `"—"` was a placeholder |
+| `tab_counts` | yes (numeric or humanized strings) | yes (mostly `"—"` placeholders for non-summary tabs) | TYPE | apiv3 numeric is canonical, scrape's `"—"` was a placeholder. **A1 must `grep -rn "\"—\"\\|tab_counts\\." frontend/app/src/components/` to find any SPA renderer that uses `"—"` as a sentinel for "tab available, count unknown". apiv3 emits `0` or a humanized string for that case, never `"—"`. If a sentinel check exists, replace it with `=== 0` or remove the special-case.** |
 | `signatures` | yes (full `SignatureLite[]` with name/description/severity/ttp) | yes (best-effort; description always `""`, severity always `3`, ttp always `[]`) | | no action — scrape lossy by design, apiv3 has full data |
 | `score` | yes (float or null) | no (always `null`) | | no action — apiv3 only |
 | `severity` | yes | no (hard-coded `"clean"`) | | no action — apiv3 only |
@@ -33,7 +33,7 @@ Scrape: `asReportSummary(UpstreamReportScrape)` (`upstream-report-scrape.ts:282-
 | `analysis_info` | yes | yes | | no action |
 | `machine_info` | yes | yes | | no action |
 | `file_info` | yes | yes | | no action |
-| `pe_info` | yes (full PeInfo: versioninfo/sections/imports/exports/resources/overlay/misc/digital_signers/peid_signatures) | yes (versioninfo/sections/imports/exports/resources/misc; overlay/digital_signers/peid_signatures absent) | | no action — apiv3 superset |
+| `pe_info` | yes (verified via `_build_pe_info` at `web/services/report_service.py:285-409`; populates versioninfo / sections / imports / exports / resources / overlay / misc / digital_signers / peid_signatures when source `target.file.pe` dict has them) | yes (versioninfo/sections/imports/exports/resources/misc; overlay/digital_signers/peid_signatures absent) | | no action — apiv3 superset |
 | `statistics_processing` | yes (processing/signatures/reporting buckets) | yes (same shape) | | no action |
 | `subfiles` | yes (from `target.file.selfextract`) | yes (best-effort from "Subfile Information" card; `path` always `""`, `method` always `""`) | | no action — apiv3 canonical |
 | `yara_matches` | yes (combined yara/cape_yara/clamav) | no (omitted by `asReportSummary`) | | no action — apiv3 only |
@@ -305,7 +305,7 @@ Across all 8 hooks, every place where the SPA's `try { fetchApiv3() } catch { ad
 
 ### FE-only follow-ups (out of scope here)
 
-- `SearchResponse` does not declare `value` even though apiv3 returns it. Optional: add `value?: unknown` to `frontend/app/src/lib/api/search.ts:SearchResponse` if downstream code starts using it. Not blocking the fallback removal.
+- `SearchResponse` does not declare `value` even though apiv3 returns it. **Address concurrent with Task A6**: add `value?: unknown` to the `SearchResponse` TS interface in `frontend/app/src/lib/api/search.ts` so TypeScript acknowledges the apiv3-emitted field. Not blocking the fallback removal, but doing it together prevents drift.
 - `CompareCandidatesResponse` does not declare `error_code`/`error_value`/`empty_message`. The `useCompare.ts` adapter already drops them. Not blocking.
 
 ### Uncertainties flagged with `?` 
