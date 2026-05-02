@@ -4,6 +4,7 @@ Field names mirror frontend/web-design/data.js (PRD D-14). Keep the contract
 flat (e.g. signatures_count, yara_matches) rather than nested.
 """
 
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
 
@@ -49,6 +50,42 @@ class MeUpdateSerializer(serializers.Serializer):
                  for key in unknown}
             )
         return super().to_internal_value(data)
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    """Self-service password change for /api/v3/me/password/ POST.
+
+    Validates: (1) current_password matches the stored hash; (2) new ==
+    confirm; (3) Django AUTH_PASSWORD_VALIDATORS pass on new. Caller is
+    responsible for invoking user.set_password() + user.save() after
+    is_valid() — this class only validates."""
+
+    current_password = serializers.CharField(write_only=True)
+    new_password = serializers.CharField(write_only=True)
+    confirm_password = serializers.CharField(write_only=True)
+
+    def validate_current_password(self, value):
+        user = self.context["user"]
+        if not user.check_password(value):
+            raise serializers.ValidationError("Current password is incorrect.")
+        return value
+
+    def validate_new_password(self, value):
+        from django.contrib.auth.password_validation import validate_password
+
+        user = self.context["user"]
+        try:
+            validate_password(value, user=user)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(list(exc.messages))
+        return value
+
+    def validate(self, attrs):
+        if attrs.get("new_password") != attrs.get("confirm_password"):
+            raise serializers.ValidationError(
+                {"confirm_password": ["New password and confirmation do not match."]}
+            )
+        return attrs
 
 
 class CsrfTokenSerializer(serializers.Serializer):
