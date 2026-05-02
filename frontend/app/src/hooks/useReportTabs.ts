@@ -16,114 +16,104 @@ import {
   type ScreenshotsReport,
   type StaticReport,
 } from "@/lib/api/reports";
-import {
-  asAttackReport,
-  asConfigReport,
-  asDroppedReport,
-  asNetworkReport,
-  asPayloadsReport,
-  asScreenshotsReport,
-  asStaticReport,
-  fetchUpstreamReport,
-} from "@/lib/api/upstream-report-scrape";
 import { queryKeys } from "@/lib/query-keys";
 
 const PASSTHROUGH_OPTS = { staleTime: 60_000, retry: false } as const;
 
+/**
+ * Fetch the static-analysis tab of a task report via apiv3.
+ *
+ * The previous "scrape upstream HTML on apiv3 failure" fallback has been
+ * removed — apiv3 is now authoritative.
+ */
 export function useReportStatic(taskId: number): UseQueryResult<StaticReport, Error> {
   return useQuery({
     queryKey: queryKeys.reports.static(taskId),
-    queryFn: async () => {
-      try {
-        return await fetchReportStatic(taskId);
-      } catch {
-        return asStaticReport(await fetchUpstreamReport(taskId));
-      }
-    },
+    queryFn: () => fetchReportStatic(taskId),
     ...PASSTHROUGH_OPTS,
   });
 }
 
+/**
+ * Fetch the MITRE ATT&CK tab of a task report via apiv3.
+ *
+ * The previous "scrape upstream HTML on apiv3 failure" fallback has been
+ * removed — apiv3 is now authoritative.
+ */
 export function useReportAttack(taskId: number): UseQueryResult<AttackReport, Error> {
   return useQuery({
     queryKey: queryKeys.reports.attack(taskId),
-    queryFn: async () => {
-      try {
-        return await fetchReportAttack(taskId);
-      } catch {
-        return asAttackReport(await fetchUpstreamReport(taskId));
-      }
-    },
+    queryFn: () => fetchReportAttack(taskId),
     ...PASSTHROUGH_OPTS,
   });
 }
 
+/**
+ * Fetch the extracted-config tab of a task report via apiv3.
+ *
+ * The previous "scrape upstream HTML on apiv3 failure" fallback has been
+ * removed — apiv3 is now authoritative.
+ */
 export function useReportConfig(taskId: number): UseQueryResult<ConfigReport, Error> {
   return useQuery({
     queryKey: queryKeys.reports.config(taskId),
-    queryFn: async () => {
-      try {
-        return await fetchReportConfig(taskId);
-      } catch {
-        return asConfigReport(await fetchUpstreamReport(taskId));
-      }
-    },
+    queryFn: () => fetchReportConfig(taskId),
     ...PASSTHROUGH_OPTS,
   });
 }
 
+/**
+ * Fetch the network tab of a task report via apiv3.
+ *
+ * The previous "scrape upstream HTML on apiv3 failure" fallback has been
+ * removed — apiv3 is now authoritative.
+ */
 export function useReportNetwork(taskId: number): UseQueryResult<NetworkReport, Error> {
   return useQuery({
     queryKey: queryKeys.reports.network(taskId),
-    queryFn: async () => {
-      try {
-        return await fetchReportNetwork(taskId);
-      } catch {
-        return asNetworkReport(await fetchUpstreamReport(taskId));
-      }
-    },
+    queryFn: () => fetchReportNetwork(taskId),
     ...PASSTHROUGH_OPTS,
   });
 }
 
+/**
+ * Fetch the dropped-files tab of a task report via apiv3.
+ *
+ * The previous "scrape upstream HTML on apiv3 failure" fallback has been
+ * removed — apiv3 is now authoritative.
+ */
 export function useReportDropped(taskId: number): UseQueryResult<DroppedReport, Error> {
   return useQuery({
     queryKey: queryKeys.reports.dropped(taskId),
-    queryFn: async () => {
-      try {
-        return await fetchReportDropped(taskId);
-      } catch {
-        return asDroppedReport(await fetchUpstreamReport(taskId));
-      }
-    },
+    queryFn: () => fetchReportDropped(taskId),
     ...PASSTHROUGH_OPTS,
   });
 }
 
+/**
+ * Fetch the payloads tab of a task report via apiv3.
+ *
+ * The previous "scrape upstream HTML on apiv3 failure" fallback has been
+ * removed — apiv3 is now authoritative.
+ */
 export function useReportPayloads(taskId: number): UseQueryResult<PayloadsReport, Error> {
   return useQuery({
     queryKey: queryKeys.reports.payloads(taskId),
-    queryFn: async () => {
-      try {
-        return await fetchReportPayloads(taskId);
-      } catch {
-        return asPayloadsReport(await fetchUpstreamReport(taskId));
-      }
-    },
+    queryFn: () => fetchReportPayloads(taskId),
     ...PASSTHROUGH_OPTS,
   });
 }
 
+/**
+ * Fetch the screenshots tab of a task report via apiv3.
+ *
+ * The previous "scrape upstream HTML on apiv3 failure" fallback has been
+ * removed — apiv3 is now authoritative.
+ */
 export function useReportScreenshots(taskId: number): UseQueryResult<ScreenshotsReport, Error> {
   return useQuery({
     queryKey: queryKeys.reports.screenshots(taskId),
-    queryFn: async () => {
-      try {
-        return await fetchReportScreenshots(taskId);
-      } catch {
-        return asScreenshotsReport(await fetchUpstreamReport(taskId));
-      }
-    },
+    queryFn: () => fetchReportScreenshots(taskId),
     ...PASSTHROUGH_OPTS,
   });
 }
