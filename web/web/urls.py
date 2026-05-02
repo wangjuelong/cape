@@ -24,7 +24,6 @@ admin.site.site_header = "CAPE Administration"
 admin.site.site_title = "CAPE Administration"
 
 from analysis import urls as analysis
-from analysis import views as analysis_views_module  # for /_upstream rewrites
 from apiv2 import urls as apiv2
 from apiv3 import urls as apiv3
 from audit import urls as audit
@@ -113,41 +112,4 @@ urlpatterns = [
     # because the SPA patterns above match first. ----
     re_path(r"^submit/", include(submission)),
     re_path(r"^compare/", include(compare)),
-    # ---- /_upstream/<path> shim — in dev the Vite proxy maps these to
-    # `/<path>` on Django; in prod (Django serves the SPA directly) we
-    # need explicit Django routes so the SPA's HTML scrape fallback path
-    # has somewhere to go. Each entry forwards to the same view the
-    # corresponding upstream URL would. ----
-    re_path(r"^_upstream/submit/?$", submission_views.index, name="upstream-submit"),
-    re_path(r"^_upstream/analysis/?$", analysis_views_module.index, name="upstream-analysis-index"),
-    re_path(
-        r"^_upstream/analysis/pending/?$",
-        analysis_views_module.pending,
-        name="upstream-analysis-pending",
-    ),
-    re_path(
-        r"^_upstream/analysis/search/?$",
-        analysis_views_module.search,
-        name="upstream-analysis-search",
-    ),
-    re_path(
-        r"^_upstream/analysis/(?P<task_id>\d+)/?$",
-        analysis_views_module.report,
-        name="upstream-analysis-report",
-    ),
-    re_path(
-        r"^_upstream/statistics/(?P<days>\d+)/?$",
-        analysis_views.statistics_data,
-        name="upstream-statistics",
-    ),
-    re_path(
-        r"^_upstream/compare/(?P<left_id>\d+)/?$",
-        compare_views.left,
-        name="upstream-compare-left",
-    ),
-    re_path(
-        r"^_upstream/compare/(?P<left_id>\d+)/(?P<right_id>\d+)/?$",
-        compare_views.both,
-        name="upstream-compare-both",
-    ),
 ]
