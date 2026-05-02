@@ -18,6 +18,7 @@ import {
   Search,
   Tag,
   Upload,
+  Users,
 } from "lucide-react";
 
 export const Icon = {
@@ -35,6 +36,7 @@ export const Icon = {
   exit: LogOut,
   download: Download,
   refresh: RefreshCw,
+  users: Users,
 } as const;
 
 export type IconName = keyof typeof Icon;
