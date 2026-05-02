@@ -14,6 +14,7 @@ ACTIONS: tuple[tuple[str, str, str], ...] = (
     ("login_failed", "Login Failed", "auth"),
     ("logout", "Logout", "auth"),
     ("password_change", "Password Change", "auth"),
+    ("profile_update", "Profile Update", "auth"),
     ("password_reset_request", "Password Reset Request", "auth"),
     ("signup", "Sign Up", "auth"),
     ("ban_user", "Ban User", "user_mgmt"),
