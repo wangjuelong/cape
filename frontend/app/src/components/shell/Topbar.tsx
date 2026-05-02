@@ -123,21 +123,11 @@ export function Topbar() {
               )}
             </div>
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onSelect={(e) => {
-                e.preventDefault();
-                setEditOpen(true);
-              }}
-            >
+            <DropdownMenuItem onSelect={() => setEditOpen(true)}>
               <Pencil size={12} />
               <span>Edit profile</span>
             </DropdownMenuItem>
-            <DropdownMenuItem
-              onSelect={(e) => {
-                e.preventDefault();
-                setPwdOpen(true);
-              }}
-            >
+            <DropdownMenuItem onSelect={() => setPwdOpen(true)}>
               <KeyRound size={12} />
               <span>Change password</span>
             </DropdownMenuItem>
