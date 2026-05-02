@@ -43,6 +43,7 @@ from apiv3.serializers import (
     DroppedReportSerializer,
     FeatureFlagsSerializer,
     MachineSerializer,
+    MeUpdateSerializer,
     NetworkReportSerializer,
     PayloadsReportSerializer,
     ReportSummarySerializer,
@@ -109,21 +110,51 @@ def csrf(request: Request) -> Response:
 
 
 @extend_schema(
-    tags=["auth"],
-    summary="Return the authenticated user.",
+    tags=["users"],
+    summary="The current authenticated user.",
     description=(
-        "Returns 401 when the session is missing/invalid; the SPA then "
-        "redirects through /login-bridge → /accounts/login/."
+        "GET returns the user representation. PATCH updates the user's "
+        "first_name / last_name / email (self-service profile edit). "
+        "Other User fields cannot be changed via this endpoint — "
+        "username is the identifier, and is_staff/is_superuser/password "
+        "require admin or the dedicated /me/password/ endpoint."
     ),
     responses={
         200: CurrentUserSerializer,
+        400: OpenApiResponse(description="Validation error"),
         401: OpenApiResponse(description="Not authenticated"),
     },
 )
-@api_view(["GET"])
+@api_view(["GET", "PATCH"])
 @permission_classes([IsAuthenticated])
 def me(request: Request) -> Response:
     user = request.user
+
+    if request.method == "PATCH":
+        serializer = MeUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        changed_fields: list[str] = []
+        for field, value in serializer.validated_data.items():
+            if getattr(user, field) != value:
+                setattr(user, field, value)
+                changed_fields.append(field)
+        if changed_fields:
+            user.save(update_fields=changed_fields)
+            try:
+                from audit_log import helpers as audit
+                audit.log(
+                    "profile_update",
+                    request=request,
+                    actor=user,
+                    target_type="user",
+                    target_id=user.id,
+                    target_label=f"user:{user.username}",
+                    fields=changed_fields,
+                )
+            except Exception:  # noqa: BLE001
+                # Audit failure must not break the API call.
+                pass
+
     profile = getattr(user, "userprofile", None)
     payload = {
         "username": user.get_username(),
