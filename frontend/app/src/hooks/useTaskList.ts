@@ -1,71 +1,25 @@
-import { useInfiniteQuery, type UseInfiniteQueryResult } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 
-import { fetchTaskList, type TaskListPage } from "@/lib/api/tasks";
-import {
-  fetchUpstreamAnalysisScrape,
-  type AnalysisCategory,
-} from "@/lib/api/upstream-analysis-scrape";
-import { fetchUpstreamPendingScrape } from "@/lib/api/upstream-pending-scrape";
+import { fetchTaskList } from "@/lib/api/tasks";
 import { queryKeys } from "@/lib/query-keys";
 import type { TaskListFilters, TaskSummary } from "@/types/api";
 
-type InfiniteResult = UseInfiniteQueryResult<
-  { pages: TaskListPage[]; pageParams: unknown[] },
-  Error
->;
-
-export type UseTaskListResult = InfiniteResult & {
-  /** Flattened convenience: every task across loaded pages, in order. */
-  tasks: TaskSummary[];
-};
-
 /**
- * Fetch tasks from the v3 endpoint; on 404 / error fall back to scraping
- * upstream's `/analysis/` HTML so the SPA still renders a Recent listing
- * even when running against a vanilla CAPEv2 deploy.
- *
- * The fallback is single-page only — upstream's pagination is server-side
- * with `/analysis/page/<n>/` URLs which we don't replicate yet.
+ * Fetch tasks from /api/v3/tasks/. The previous "scrape upstream
+ * /analysis/ or /analysis/pending/ HTML on apiv3 failure" fallback has
+ * been removed — apiv3 is now authoritative.
  */
-export function useTaskList(filters: TaskListFilters = {}): UseTaskListResult {
-  const query = useInfiniteQuery<TaskListPage, Error>({
+export function useTaskList(filters: TaskListFilters = {}) {
+  const query = useInfiniteQuery({
     queryKey: queryKeys.tasks.list(filters),
-    queryFn: async ({ pageParam }) => {
-      try {
-        return await fetchTaskList({
-          ...filters,
-          cursor: (pageParam as string | undefined) ?? undefined,
-        });
-      } catch (err) {
-        // v3 missing — fall back to scraping upstream HTML. Only first
-        // page is populated; cursor pagination doesn't apply to the scrape.
-        if (pageParam as string | undefined) {
-          return { data: [], next_cursor: null };
-        }
-        // status=["pending"] → /analysis/pending/ (excluded from /analysis/)
-        const statuses = Array.isArray(filters.status)
-          ? filters.status
-          : filters.status
-            ? [filters.status]
-            : [];
-        if (statuses.length === 1 && statuses[0] === "pending") {
-          const pending = await fetchUpstreamPendingScrape();
-          return { data: pending.tasks, next_cursor: null };
-        }
-        const scraped = await fetchUpstreamAnalysisScrape();
-        const cat = (filters.category as AnalysisCategory | undefined) ?? "file";
-        return {
-          data: scraped.rows[cat] ?? [],
-          next_cursor: null,
-        };
-      }
-    },
-    initialPageParam: undefined,
+    queryFn: ({ pageParam }) =>
+      fetchTaskList({ ...filters, cursor: pageParam ?? undefined }),
+    initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.next_cursor ?? undefined,
     staleTime: 15_000,
     retry: 0,
   });
 
-  const tasks = query.data?.pages.flatMap((p) => p.data) ?? [];
-  return Object.assign(query, { tasks }) as unknown as UseTaskListResult;
+  const tasks: TaskSummary[] = query.data?.pages.flatMap((p) => p.data) ?? [];
+  return Object.assign(query, { tasks });
 }
