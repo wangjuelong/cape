@@ -1,5 +1,7 @@
 import { Outlet } from "react-router-dom";
 
+import { ToastProvider } from "@/components/shared/Toast";
+
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 
@@ -10,14 +12,16 @@ import { Topbar } from "./Topbar";
  */
 export function Shell() {
   return (
-    <div className="cape-frame">
-      <div className="app" data-nav="side">
-        <Topbar />
-        <Sidebar />
-        <main className="main">
-          <Outlet />
-        </main>
+    <ToastProvider>
+      <div className="cape-frame">
+        <div className="app" data-nav="side">
+          <Topbar />
+          <Sidebar />
+          <main className="main">
+            <Outlet />
+          </main>
+        </div>
       </div>
-    </div>
+    </ToastProvider>
   );
 }
