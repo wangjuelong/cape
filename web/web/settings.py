@@ -219,6 +219,7 @@ MIDDLEWARE = [
     # "web.middleware.CustomAuth",
     "web.middleware.DBTransactionMiddleware",
     "allauth.account.middleware.AccountMiddleware",
+    "web.middleware.smart_404.Smart404Middleware",
 ]
 
 OTP_TOTP_ISSUER = "CAPE Sandbox"

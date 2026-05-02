@@ -16,6 +16,7 @@ const AuditRoute = lazy(() => import("@/routes/audit"));
 const DocsRoute = lazy(() => import("@/routes/docs"));
 const TaskDetailRoute = lazy(() => import("@/routes/task-detail"));
 const LoginBridgeRoute = lazy(() => import("@/routes/login-bridge"));
+const NotFoundRoute = lazy(() => import("@/routes/not-found"));
 
 function withSuspense(node: ReactNode): ReactNode {
   return (
@@ -70,6 +71,7 @@ export const router = createBrowserRouter([
       { path: "audit", element: withSuspense(<AuditRoute />) },
       { path: "docs", element: withSuspense(<DocsRoute />) },
       { path: "tasks/:id", element: withSuspense(<TaskDetailRoute />) },
+      { path: "*", element: withSuspense(<NotFoundRoute />) },
     ],
   },
   { path: "/login-bridge", element: withSuspense(<LoginBridgeRoute />) },

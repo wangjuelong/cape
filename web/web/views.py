@@ -1,5 +1,5 @@
 from django.conf import settings
-from django.shortcuts import redirect, render
+from django.shortcuts import render
 
 try:
     from django_ratelimit.exceptions import Ratelimited
@@ -17,4 +17,18 @@ def handler403(request, exception=None):
 
 
 def handler404(request, exception=None):
-    return redirect("/")
+    from django.http import HttpResponse, JsonResponse
+
+    from web.middleware.smart_404 import _is_api_path, _is_static_path
+
+    path = request.path
+    if _is_api_path(path):
+        return JsonResponse(
+            {"error": True, "error_value": "Not Found", "data": None},
+            status=404,
+        )
+    if _is_static_path(path):
+        return HttpResponse("Not Found", status=404, content_type="text/plain")
+    from web import spa_view
+
+    return spa_view.spa_index(request)
