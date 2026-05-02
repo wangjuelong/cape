@@ -27,11 +27,12 @@ from analysis import urls as analysis
 from analysis import views as analysis_views_module  # for /_upstream rewrites
 from apiv2 import urls as apiv2
 from apiv3 import urls as apiv3
+from audit import urls as audit
 from compare import urls as compare
 from compare import views as compare_views
 from submission import urls as submission
 from submission import views as submission_views
-from audit import urls as audit
+
 from web import spa_view
 
 handler403 = "web.views.handler403"
@@ -45,7 +46,6 @@ urlpatterns = [
     re_path(r"^apiv2/", include(apiv2)),
     re_path(r"^api/v3/", include(apiv3)),
     path("robots.txt", TemplateView.as_view(template_name="robots.txt", content_type="text/plain")),
-
     # ---- Bootstrap upstream HTML routes — kept so the SPA's scrape
     # fallback + Behavior tab's lazy `/analysis/load_files/<id>/<cat>/`
     # lazy-load AJAX continue to work. ALSO kept so the URL-name registry
@@ -68,7 +68,6 @@ urlpatterns = [
     # `/dashboard*` exclusively and renders the SPA shell; the URL is just
     # an alias for `/` (router does Navigate(to="/")).
     re_path(r"statistics/(?P<days>\d+)/$", analysis_views.statistics_data, name="statistics_data"),
-
     # ---- Global file/report download endpoints (binary) ----
     re_path(r"^file/(?P<category>\w+)/(?P<task_id>\d+)/(?P<dlfile>\w+)/$", analysis_views.file, name="file"),
     re_path(
@@ -79,7 +78,6 @@ urlpatterns = [
     re_path(
         r"^full_memory_strings/(?P<analysis_number>\w+)/$", analysis_views.full_memory_dump_strings, name="full_memory_dump_strings"
     ),
-
     # ---- SPA catchall (must be last). Owns /, /recent, /pending, /search,
     # /stats/*, /tasks/*, /machines, /configs, /audit-spa, /login, /submit/*,
     # /compare/*, /dashboard/* — i.e. everything the React app routes
@@ -108,7 +106,6 @@ urlpatterns = [
     # /dashboard. SPA's React route does Navigate(to="/") and renders the
     # dashboard component there.
     re_path(r"^dashboard(?:/.*)?$", spa_view.spa_index, name="spa-dashboard"),
-
     # ---- Upstream Bootstrap routes that the SPA shadows above. Re-mount
     # them at the end so `reverse('submission')`, `reverse('compare_left')`,
     # `reverse('compare_both')` and friends used by upstream templates and
@@ -116,7 +113,6 @@ urlpatterns = [
     # because the SPA patterns above match first. ----
     re_path(r"^submit/", include(submission)),
     re_path(r"^compare/", include(compare)),
-
     # ---- /_upstream/<path> shim — in dev the Vite proxy maps these to
     # `/<path>` on Django; in prod (Django serves the SPA directly) we
     # need explicit Django routes so the SPA's HTML scrape fallback path

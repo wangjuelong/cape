@@ -15,6 +15,7 @@ tests/test_objects/
 log/
 storage/
 conf/*.conf
+conf/*.conf.default
 
 web/web/secret_key.py
 tests/test_bson.bson.compressed
@@ -25,6 +26,11 @@ installer/kvm-config.sh
 
 docs/book/src/_build
 /.vs
+
+# Playwright artifacts
+test-results/
+frontend/app/test-results/
+frontend/app/playwright-report/
 
 # Claude Code harness state (per-developer)
 .claude/

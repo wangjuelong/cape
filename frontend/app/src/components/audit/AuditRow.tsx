@@ -28,11 +28,7 @@ export function AuditRow({ event, catalog }: AuditRowProps) {
         </td>
         <td className="mono">{event.actor.username ?? <span className="dim">—</span>}</td>
         <td>
-          <ActionBadge
-            action={event.action}
-            success={event.success}
-            catalog={catalog}
-          />
+          <ActionBadge action={event.action} success={event.success} catalog={catalog} />
         </td>
         <td className="mono dim" style={{ fontSize: 10.5 }}>
           {event.target.label ?? "—"}

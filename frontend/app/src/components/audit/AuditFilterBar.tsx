@@ -11,7 +11,7 @@ interface AuditFilterBarProps {
 export function AuditFilterBar({ initial, catalog, onApply }: AuditFilterBarProps) {
   const [actor, setActor] = useState(initial.actor ?? "");
   const [action, setAction] = useState(
-    Array.isArray(initial.action) ? initial.action.join(",") : initial.action ?? "",
+    Array.isArray(initial.action) ? initial.action.join(",") : (initial.action ?? ""),
   );
   const [targetUser, setTargetUser] = useState(initial.target_user ?? "");
   const [since, setSince] = useState(initial.since?.slice(0, 10) ?? "");
@@ -76,7 +76,9 @@ export function AuditFilterBar({ initial, catalog, onApply }: AuditFilterBarProp
         onChange={(e) => setSince(e.target.value)}
         title="Since (UTC)"
       />
-      <span className="dim" style={{ fontSize: 11 }}>→</span>
+      <span className="dim" style={{ fontSize: 11 }}>
+        →
+      </span>
       <input
         style={{ ...inputStyle, width: 120 }}
         type="date"
@@ -120,12 +122,7 @@ export function AuditFilterBar({ initial, catalog, onApply }: AuditFilterBarProp
       <button type="submit" className="btn primary" style={{ height: 28, fontSize: 11.5 }}>
         Apply
       </button>
-      <button
-        type="button"
-        className="btn"
-        onClick={clear}
-        style={{ height: 28, fontSize: 11.5 }}
-      >
+      <button type="button" className="btn" onClick={clear} style={{ height: 28, fontSize: 11.5 }}>
         Clear
       </button>
     </form>

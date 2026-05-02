@@ -1,10 +1,6 @@
 import { useInfiniteQuery, type UseInfiniteQueryResult } from "@tanstack/react-query";
 
-import {
-  fetchAuditEvents,
-  type AuditFilters,
-  type AuditListResponse,
-} from "@/lib/api/audits";
+import { fetchAuditEvents, type AuditFilters, type AuditListResponse } from "@/lib/api/audits";
 import { queryKeys } from "@/lib/query-keys";
 
 /**

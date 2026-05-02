@@ -78,9 +78,7 @@ function serializeFilters(filters: AuditFilters): Record<string, string> {
   return out;
 }
 
-export async function fetchAuditEvents(
-  filters: AuditFilters = {},
-): Promise<AuditListResponse> {
+export async function fetchAuditEvents(filters: AuditFilters = {}): Promise<AuditListResponse> {
   const { data } = await apiClient.get<AuditListResponse>("/audits/", {
     params: serializeFilters(filters),
   });
