@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { LogOut, KeyRound } from "lucide-react";
+import { LogOut, KeyRound, Pencil } from "lucide-react";
 
 import { Icon } from "./icons";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -12,6 +13,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ProfileEditModal } from "@/components/account/ProfileEditModal";
+import { PasswordChangeModal } from "@/components/account/PasswordChangeModal";
 
 export function Topbar() {
   const navigate = useNavigate();
@@ -21,8 +24,11 @@ export function Topbar() {
   const isStaff = meQuery.data?.is_staff ?? false;
   const initials = (meQuery.data?.username ?? "??").slice(0, 2).toUpperCase();
   const { mutate: signOut, isPending: isSigningOut } = useLogout();
+  const [editOpen, setEditOpen] = useState(false);
+  const [pwdOpen, setPwdOpen] = useState(false);
 
   return (
+    <>
     <div className="topbar">
       <button type="button" className="brand" onClick={() => navigate("/")}>
         <span className="brand-mark" aria-hidden />
@@ -117,11 +123,23 @@ export function Topbar() {
               )}
             </div>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <a href="/accounts/password/change/">
-                <KeyRound size={12} />
-                <span>Change password</span>
-              </a>
+            <DropdownMenuItem
+              onSelect={(e) => {
+                e.preventDefault();
+                setEditOpen(true);
+              }}
+            >
+              <Pencil size={12} />
+              <span>Edit profile</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={(e) => {
+                e.preventDefault();
+                setPwdOpen(true);
+              }}
+            >
+              <KeyRound size={12} />
+              <span>Change password</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
@@ -139,5 +157,8 @@ export function Topbar() {
         </DropdownMenu>
       </div>
     </div>
+    <ProfileEditModal open={editOpen} onOpenChange={setEditOpen} />
+    <PasswordChangeModal open={pwdOpen} onOpenChange={setPwdOpen} />
+    </>
   );
 }
