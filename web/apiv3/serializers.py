@@ -21,6 +21,36 @@ class CurrentUserSerializer(serializers.Serializer):
     reports_dl_allowed = serializers.BooleanField()
 
 
+class MeUpdateSerializer(serializers.Serializer):
+    """Self-service profile update for /api/v3/me/ PATCH.
+
+    Accepts only first_name / last_name / email. Any other field
+    (username / is_staff / is_superuser / is_active / password / etc.)
+    raises a validation error so the endpoint cannot be tricked into
+    privilege escalation or password rotation.
+    """
+
+    first_name = serializers.CharField(
+        required=False, max_length=150, allow_blank=True,
+    )
+    last_name = serializers.CharField(
+        required=False, max_length=150, allow_blank=True,
+    )
+    email = serializers.EmailField(required=False)
+
+    # Reject any unknown keys — DRF's default behaviour silently drops
+    # them, which would let `{is_staff: true}` slip through unnoticed.
+    def to_internal_value(self, data):
+        allowed = {"first_name", "last_name", "email"}
+        unknown = set(data.keys()) - allowed
+        if unknown:
+            raise serializers.ValidationError(
+                {key: ["Unknown field; only first_name/last_name/email are allowed."]
+                 for key in unknown}
+            )
+        return super().to_internal_value(data)
+
+
 class CsrfTokenSerializer(serializers.Serializer):
     csrf_token = serializers.CharField()
 
