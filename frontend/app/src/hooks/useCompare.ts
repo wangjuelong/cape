@@ -6,56 +6,35 @@ import {
   type CompareCandidatesResponse,
   type CompareDiffResponse,
 } from "@/lib/api/compare";
-import {
-  fetchUpstreamCompareCandidates,
-  fetchUpstreamCompareDiff,
-} from "@/lib/api/upstream-compare-scrape";
 
+/**
+ * Fetch comparison candidates for a left-side task via apiv3.
+ *
+ * The previous "scrape upstream HTML on apiv3 failure" fallback has been
+ * removed — apiv3 is now authoritative.
+ */
 export function useCompareCandidates(leftId: number | null) {
   return useQuery<CompareCandidatesResponse>({
     queryKey: ["compare", "candidates", leftId],
     enabled: leftId !== null && Number.isFinite(leftId),
-    queryFn: async () => {
-      const id = leftId as number;
-      try {
-        return await fetchCompareCandidates(id);
-      } catch {
-        const scraped = await fetchUpstreamCompareCandidates(id);
-        return {
-          ok: scraped.ok,
-          left: scraped.left,
-          records: scraped.records,
-          md5: scraped.md5,
-        };
-      }
-    },
+    queryFn: () => fetchCompareCandidates(leftId as number),
     staleTime: 60_000,
     retry: 0,
   });
 }
 
+/**
+ * Fetch a left-vs-right comparison diff via apiv3.
+ *
+ * The previous "scrape upstream HTML on apiv3 failure" fallback has been
+ * removed — apiv3 is now authoritative.
+ */
 export function useCompareDiff(leftId: number | null, rightId: number | null) {
   return useQuery<CompareDiffResponse>({
     queryKey: ["compare", "diff", leftId, rightId],
     enabled:
       leftId !== null && rightId !== null && Number.isFinite(leftId) && Number.isFinite(rightId),
-    queryFn: async () => {
-      const left = leftId as number;
-      const right = rightId as number;
-      try {
-        return await fetchCompareDiff(left, right);
-      } catch {
-        const scraped = await fetchUpstreamCompareDiff(left, right);
-        return {
-          ok: scraped.ok,
-          left: scraped.left,
-          right: scraped.right,
-          left_counts: scraped.left_counts,
-          right_counts: scraped.right_counts,
-          summary: scraped.summary,
-        };
-      }
-    },
+    queryFn: () => fetchCompareDiff(leftId as number, rightId as number),
     staleTime: 60_000,
     retry: 0,
   });
