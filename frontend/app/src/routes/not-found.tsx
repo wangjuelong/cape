@@ -30,11 +30,7 @@ export default function NotFoundRoute() {
       <div className="dim" style={{ fontSize: 14 }}>
         The page you requested does not exist.
       </div>
-      <Link
-        to="/"
-        className="btn primary"
-        style={{ height: 30, padding: "0 16px", fontSize: 12 }}
-      >
+      <Link to="/" className="btn primary" style={{ height: 30, padding: "0 16px", fontSize: 12 }}>
         Go to dashboard
       </Link>
     </div>

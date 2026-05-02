@@ -28,11 +28,7 @@ export default function DocsRoute() {
           <main style={{ minWidth: 0 }}>
             <Intro />
             <QuickStart />
-            <Section
-              id="auth"
-              title="1. 鉴权 — 获取 Token"
-              endpoints={[ENDPOINTS.tokenAuth]}
-            />
+            <Section id="auth" title="1. 鉴权 — 获取 Token" endpoints={[ENDPOINTS.tokenAuth]} />
             <Section
               id="submit"
               title="2. 提交样本"
@@ -116,14 +112,14 @@ function Intro() {
       <div className="panel-h">API Docs · apiv2 Token API</div>
       <div style={{ padding: 14, fontSize: 12, lineHeight: 1.65, color: "var(--color-fg-1)" }}>
         <p style={{ margin: 0, marginBottom: 10 }}>
-          本页是 <strong>apiv2 通过 API Token 调用沙箱检测的接口文档</strong>。覆盖样本提交、任务查询、IOC / 配置 /
-          报告 / 工件下载、系统状态 6 大类，共 62 个端点。前端 SPA 使用的内部 apiv3
-          不在此页范围内（用于 SPA 自身渲染，不建议第三方集成）。
+          本页是 <strong>apiv2 通过 API Token 调用沙箱检测的接口文档</strong>
+          。覆盖样本提交、任务查询、IOC / 配置 / 报告 / 工件下载、系统状态 6 大类，共 62
+          个端点。前端 SPA 使用的内部 apiv3 不在此页范围内（用于 SPA 自身渲染，不建议第三方集成）。
         </p>
         <p style={{ margin: 0 }}>
           所有端点都需要 <code className="mono">Authorization: Token &lt;key&gt;</code>{" "}
-          请求头。Token 通过 <code className="mono">/apiv2/api-token-auth/</code>{" "}
-          POST 用户名 + 密码获取（见 §1）。
+          请求头。Token 通过 <code className="mono">/apiv2/api-token-auth/</code> POST 用户名 +
+          密码获取（见 §1）。
         </p>
       </div>
     </div>
@@ -366,16 +362,17 @@ function Notes() {
           </li>
           <li>
             写入类（任务提交、删除）走 <code className="mono">POST</code> 或{" "}
-            <code className="mono">DELETE</code>，需要 <code className="mono">api.conf</code>{" "}
-            对应 endpoint <code className="mono">enabled = yes</code>。
+            <code className="mono">DELETE</code>，需要 <code className="mono">api.conf</code> 对应
+            endpoint <code className="mono">enabled = yes</code>。
           </li>
           <li>
-            报告 endpoint <code className="mono">/tasks/get/report/&lt;id&gt;/</code> 默认返回 JSON；
-            支持 <code className="mono">/json/</code> <code className="mono">/html/</code>{" "}
+            报告 endpoint <code className="mono">/tasks/get/report/&lt;id&gt;/</code> 默认返回
+            JSON； 支持 <code className="mono">/json/</code> <code className="mono">/html/</code>{" "}
             <code className="mono">/all/</code> <code className="mono">/lite/</code> 等格式。
           </li>
           <li>
-            apiv2 端点在本仓库 <strong>冻结</strong>，所有未来扩展都进 apiv3。apiv2 仅修复 bug 和兼容性问题。
+            apiv2 端点在本仓库 <strong>冻结</strong>，所有未来扩展都进 apiv3。apiv2 仅修复 bug
+            和兼容性问题。
           </li>
           <li>
             本页内容映射自 <code className="mono">web/apiv2/urls.py</code> +{" "}
@@ -468,9 +465,7 @@ const ENDPOINTS: Record<string, EndpointDef> = {
     path: "/apiv2/tasks/create/dlnexec/",
     name: "URL 下载 → 执行（VM 内）",
     desc: "宿主先把 URL 下载下来，然后作为样本在 VM 内执行。比 create/url/ 信号强，适合 dropper 链。",
-    params: [
-      { name: "dlnexec", where: "form", desc: "样本下载 URL" },
-    ],
+    params: [{ name: "dlnexec", where: "form", desc: "样本下载 URL" }],
     example: `curl -F "dlnexec=https://malware.host/payload.bin" \\
      -H "Authorization: Token <key>" \\
      http://192.168.1.6:8000/apiv2/tasks/create/dlnexec/`,
