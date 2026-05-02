@@ -9,23 +9,18 @@ import {
   type BehaviorSearchResponse,
   type BehaviorSummary,
 } from "@/lib/api/reports";
-import { asBehaviorReport, fetchUpstreamReport } from "@/lib/api/upstream-report-scrape";
 import { queryKeys } from "@/lib/query-keys";
 
+/**
+ * Fetch the behavior-summary tab of a task report via apiv3.
+ *
+ * The previous "scrape upstream HTML on apiv3 failure" fallback has been
+ * removed — apiv3 is now authoritative.
+ */
 export function useReportBehavior(taskId: number): UseQueryResult<BehaviorSummary, Error> {
   return useQuery({
     queryKey: queryKeys.reports.behavior(taskId),
-    queryFn: async () => {
-      try {
-        return await fetchReportBehavior(taskId);
-      } catch {
-        // Upstream lazy-loads behavior via /analysis/load_files/<id>/behavior/
-        // which requires CSRF; our anonymous scrape can't reach it. Return
-        // an empty BehaviorSummary so the tab renders an empty state rather
-        // than crashing the whole page.
-        return asBehaviorReport(await fetchUpstreamReport(taskId));
-      }
-    },
+    queryFn: () => fetchReportBehavior(taskId),
     staleTime: 60_000,
     retry: false,
   });
