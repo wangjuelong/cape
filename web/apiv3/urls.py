@@ -18,6 +18,7 @@ urlpatterns = [
     # Auth
     path("auth/csrf/", views.csrf, name="csrf"),
     path("me/", views.me, name="me"),
+    path("me/password/", views.me_password_change, name="me-password-change"),
 
     # System
     path("system/info/", views.system_info, name="system-info"),

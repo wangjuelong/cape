@@ -35,6 +35,7 @@ from apiv3.serializers import (
     AttackReportSerializer,
     BehaviorCallsResponseSerializer,
     BehaviorSummaryResponseSerializer,
+    ChangePasswordSerializer,
     CompareCandidatesResponseSerializer,
     CompareDiffResponseSerializer,
     ConfigReportSerializer,
@@ -169,6 +170,61 @@ def me(request: Request) -> Response:
         ),
     }
     return Response(CurrentUserSerializer(payload).data)
+
+
+@extend_schema(
+    tags=["users"],
+    summary="Change the current user's password.",
+    description=(
+        "Validates current_password, new == confirm, and the Django "
+        "AUTH_PASSWORD_VALIDATORS chain (length / common-password / "
+        "numeric-only / similarity-to-user-attributes). On success, "
+        "user.set_password() + save() are called and the allauth "
+        "password_changed signal fires — audit_log records a "
+        "`password_change` event with the actor and source IP."
+    ),
+    responses={
+        204: OpenApiResponse(description="Password changed."),
+        400: OpenApiResponse(description="Validation error."),
+        401: OpenApiResponse(description="Not authenticated."),
+    },
+)
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def me_password_change(request: Request) -> Response:
+    serializer = ChangePasswordSerializer(
+        data=request.data, context={"user": request.user}
+    )
+    serializer.is_valid(raise_exception=True)
+    user = request.user
+    user.set_password(serializer.validated_data["new_password"])
+    user.save(update_fields=["password"])
+    # We bypass allauth's HTML password-change flow, so manually emit
+    # allauth's password_changed signal — audit_log.signals listens for
+    # it and writes the password_change row. Wrapped in try/except since
+    # allauth may be absent in stripped-down deployments.
+    try:
+        from allauth.account.signals import password_changed
+
+        password_changed.send(
+            sender=user.__class__, request=request, user=user
+        )
+    except ImportError:  # pragma: no cover
+        # allauth not installed — fall back to direct audit log call.
+        try:
+            from audit_log import helpers as audit
+
+            audit.log(
+                "password_change",
+                request=request,
+                actor=user,
+                target_type="user",
+                target_id=user.id,
+                target_label=f"user:{user.username}",
+            )
+        except Exception:  # noqa: BLE001
+            pass
+    return Response(status=http_status.HTTP_204_NO_CONTENT)
 
 
 # ---------------------------------------------------------------------------
