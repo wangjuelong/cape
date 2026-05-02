@@ -18,8 +18,12 @@ from dataclasses import dataclass
 from typing import Any
 
 from django.conf import settings
+from lib.cuckoo.common.config import Config
 
 log = logging.getLogger(__name__)
+
+# Module-level config for tests (mirrors web/submission/views.py:49)
+web_conf = Config("web")
 
 
 # ---------------------------------------------------------------------------
@@ -416,6 +420,37 @@ def get_form_data() -> dict[str, Any]:
         "default_route": getattr(routing.routing, "route", "none"),
         "config": config_flags,
     }
+
+
+# ---------------------------------------------------------------------------
+# Public wrappers (for tests after web/submission/ deletion)
+# ---------------------------------------------------------------------------
+
+def parse_ast(items, context=None):
+    """Public wrapper for tests."""
+    return _parse_ast(items, context)
+
+
+def get_lib_common_constants(platform):
+    """Public wrapper for tests."""
+    return _get_lib_common_constants(platform)
+
+
+def get_package_info(dir_name, filename, platform, common_context):
+    """Public wrapper for tests."""
+    return _get_package_info(dir_name, filename, platform, common_context)
+
+
+def correlate_platform_packages(platform_package_dict):
+    """Public wrapper for tests.
+
+    Mirrors web/submission/views.py:correlate_platform_packages() — uses
+    the module-level web_conf config state.
+    """
+    from lib.cuckoo.common.config import Config
+
+    web_conf = Config("web")
+    return _correlate_platform_packages(platform_package_dict, web_conf)
 
 
 # ---------------------------------------------------------------------------

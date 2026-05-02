@@ -5,7 +5,7 @@ import textwrap
 
 import pytest
 from django.test import SimpleTestCase
-from submission.views import (
+from web.services.submission_service import (
     correlate_platform_packages,
     get_form_data,
     get_lib_common_constants,
