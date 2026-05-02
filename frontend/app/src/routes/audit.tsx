@@ -38,7 +38,12 @@ export default function AuditRoute() {
 
   // -- Auth gate --
   if (me.isLoading) {
-    return <Centered><Spinner size={14} /><span style={{ marginLeft: 8 }}>Loading…</span></Centered>;
+    return (
+      <Centered>
+        <Spinner size={14} />
+        <span style={{ marginLeft: 8 }}>Loading…</span>
+      </Centered>
+    );
   }
   if (!me.data?.is_staff) {
     return (
@@ -48,9 +53,9 @@ export default function AuditRoute() {
           <Alert variant="destructive">
             <AlertTitle>Admin privileges required</AlertTitle>
             <AlertDescription>
-              The audit log contains sensitive identity / access data and is restricted to
-              accounts with <code className="mono">is_staff = true</code>. Sign in with an
-              admin account to continue.
+              The audit log contains sensitive identity / access data and is restricted to accounts
+              with <code className="mono">is_staff = true</code>. Sign in with an admin account to
+              continue.
             </AlertDescription>
           </Alert>
         </div>

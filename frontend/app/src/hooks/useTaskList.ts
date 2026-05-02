@@ -12,8 +12,7 @@ import type { TaskListFilters, TaskSummary } from "@/types/api";
 export function useTaskList(filters: TaskListFilters = {}) {
   const query = useInfiniteQuery({
     queryKey: queryKeys.tasks.list(filters),
-    queryFn: ({ pageParam }) =>
-      fetchTaskList({ ...filters, cursor: pageParam ?? undefined }),
+    queryFn: ({ pageParam }) => fetchTaskList({ ...filters, cursor: pageParam ?? undefined }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.next_cursor ?? undefined,
     staleTime: 15_000,

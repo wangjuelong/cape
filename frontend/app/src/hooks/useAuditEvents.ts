@@ -11,8 +11,7 @@ export function useAuditEvents(filters: AuditFilters) {
   return useInfiniteQuery({
     queryKey: queryKeys.audits.list(filters),
     initialPageParam: undefined as string | undefined,
-    queryFn: ({ pageParam }) =>
-      fetchAuditEvents({ ...filters, cursor: pageParam }),
+    queryFn: ({ pageParam }) => fetchAuditEvents({ ...filters, cursor: pageParam }),
     getNextPageParam: (last) => last.next_cursor ?? undefined,
     staleTime: 30_000,
   });
