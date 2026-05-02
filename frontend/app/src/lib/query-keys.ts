@@ -1,4 +1,5 @@
-import type { TaskListFilters, AuditFilters } from "@/types/api";
+import type { AuditFilters } from "@/lib/api/audits";
+import type { TaskListFilters } from "@/types/api";
 
 export const queryKeys = {
   me: ["me"] as const,

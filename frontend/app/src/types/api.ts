@@ -57,14 +57,6 @@ export interface TaskListFilters {
   sort?: string;
 }
 
-export interface AuditFilters {
-  user?: string;
-  action?: string;
-  target?: string;
-  cursor?: string;
-  limit?: number;
-}
-
 export interface SignatureMark {
   type: "call" | "file" | "registry" | "network" | "mutex" | "process" | "generic";
   pid?: number;
