@@ -198,9 +198,66 @@
 |---|---|---|---|
 | GET | `/api/v3/auth/csrf/` | 种 `csrftoken` cookie，并把值回写到 body | AllowAny |
 | GET | `/api/v3/me/` | 当前用户 + 报告下载权限 | IsAuthenticated |
+| PATCH | `/api/v3/me/` | 自助资料编辑（first_name / last_name / email） | IsAuthenticated |
+| POST | `/api/v3/me/password/` | 自助修改密码 | IsAuthenticated |
 | GET | `/api/v3/system/info/` | sandbox 版本 / commit / 构建标识 | IsAuthenticated |
 | GET | `/api/v3/system/feature-flags/` | `api.conf [<endpoint>].enabled` 镜像，给 SPA 用 | IsAuthenticated |
 | GET | `/api/v3/system/submission-form/` | 提交表单选项（packages / machines / routes / tags / 配置门控） | IsAuthenticated |
+
+#### `PATCH /api/v3/me/`
+
+Self-service profile edit. Authenticated users update their own
+`first_name` / `last_name` / `email`. Other User fields (username,
+is_staff, password, etc.) cannot be changed via this endpoint.
+
+**Request** (any field optional):
+
+````json
+{ "first_name": "Alice", "last_name": "Liddell", "email": "alice@example.com" }
+````
+
+**Response** — 200 with the same shape as `GET /api/v3/me/`:
+
+````json
+{ "username": "alice", "email": "alice@example.com", "is_staff": false, "...": "..." }
+````
+
+**Errors** — 400 with field-level errors on validation failure:
+
+````json
+{ "email": ["Enter a valid email address."] }
+````
+
+**Side effects** — emits a `profile_update` audit_log row with
+`metadata.fields=[<changed>]`. No old or new values stored.
+
+#### `POST /api/v3/me/password/`
+
+Self-service password change.
+
+**Request** — all three fields required:
+
+````json
+{
+  "current_password": "...",
+  "new_password": "...",
+  "confirm_password": "..."
+}
+````
+
+**Validation**:
+- `current_password` must match the stored hash
+- `new_password == confirm_password`
+- `new_password` passes Django's `AUTH_PASSWORD_VALIDATORS` chain
+  (length ≥ 8, not common, not numeric-only, not similar to user
+  attributes)
+
+**Response** — 204 No Content on success, 400 with field-level errors
+on failure.
+
+**Side effects** — `user.set_password()` triggers allauth's
+`password_changed` signal, which `audit_log.signals` records as a
+`password_change` event. Session remains valid (Django default).
 
 ### 2.2 搜索 / 统计 / 对比
 
