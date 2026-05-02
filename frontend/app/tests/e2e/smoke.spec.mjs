@@ -1,18 +1,24 @@
 /**
- * Smoke test for the SPA running against the test box at 192.168.2.240
- * (tunnelled through 127.0.0.1:8000) with vite dev at 5173.
+ * Smoke test for the SPA running against a live deployment.
+ *
+ * Defaults to 192.168.1.6:8000 (the project test box). Override via env:
+ *   PARITY_SPA_URL    — base URL (default http://192.168.1.6:8000)
+ *   SPA_LOGIN_USER    — username (default admin)
+ *   SPA_LOGIN_PASS    — password (default cape123!)
+ *
+ * Same env-var convention as audit-log.spec.mjs / phase-a-network-probe.spec.mjs.
  */
 
 import { expect, test } from "@playwright/test";
 
-const BASE = "http://localhost:5173";
-const USER = "admin";
-const PASS = "admin";
+const SPA = process.env.PARITY_SPA_URL ?? "http://192.168.1.6:8000";
+const USER = process.env.SPA_LOGIN_USER ?? "admin";
+const PASS = process.env.SPA_LOGIN_PASS ?? "cape123!";
 
 test.describe.configure({ mode: "serial" });
 
 async function login(page) {
-  await page.goto(BASE + "/");
+  await page.goto(`${SPA}/`);
   await page.waitForURL(/\/accounts\/login\//, { timeout: 15000 });
   await page.locator('input[name="login"]').fill(USER);
   await page.locator('input[name="password"]').fill(PASS);
@@ -26,7 +32,7 @@ async function login(page) {
 }
 
 test("00 login page uses new SPA-skinned theme", async ({ page }) => {
-  await page.goto(BASE + "/accounts/login/");
+  await page.goto(`${SPA}/accounts/login/`);
   await page.waitForLoadState("domcontentloaded", { timeout: 10000 });
   await page.screenshot({ path: "test-results/00-login-page.png", fullPage: true });
   // Must use the new auth layout
@@ -54,7 +60,7 @@ test("01 login → SPA renders shell with real username", async ({ page }) => {
   // Topbar should render the SPA Shell. Check for "CAPE" brand text first
   // (deterministic), then the real username.
   await expect(page.locator("text=CAPE").first()).toBeVisible({ timeout: 10000 });
-  await expect(page.locator("text=admin").first()).toBeVisible({ timeout: 10000 });
+  await expect(page.locator(`text=${USER}`).first()).toBeVisible({ timeout: 10000 });
 
   if (events.length) {
     console.log("=== events ===");
@@ -64,7 +70,7 @@ test("01 login → SPA renders shell with real username", async ({ page }) => {
 
 test("02 /recent renders TaskTable with seeded tasks", async ({ page }) => {
   await login(page);
-  await page.goto(BASE + "/recent");
+  await page.goto(`${SPA}/recent`);
   // SSE keeps the network active; can't rely on networkidle. domcontentloaded is enough.
   await page.waitForLoadState("domcontentloaded", { timeout: 10000 });
   await page.screenshot({ path: "test-results/02-recent.png", fullPage: true });
@@ -77,12 +83,10 @@ test("02 /recent renders TaskTable with seeded tasks", async ({ page }) => {
 
 test("03 task detail renders verdict banner + tabs", async ({ page }) => {
   await login(page);
-  await page.goto(BASE + "/recent");
-  // SSE keeps the network active; can't rely on networkidle. domcontentloaded is enough.
+  await page.goto(`${SPA}/recent`);
   await page.waitForLoadState("domcontentloaded", { timeout: 10000 });
   await page.locator('a[href^="/tasks/"]').first().click();
   await page.waitForURL(/\/tasks\/\d+/, { timeout: 10000 });
-  // SSE keeps the network active; can't rely on networkidle. domcontentloaded is enough.
   await page.waitForLoadState("domcontentloaded", { timeout: 10000 });
   await page.screenshot({ path: "test-results/03-task-detail.png", fullPage: true });
   // Verdict banner shows verdict pill (CLEAN for our test tasks)
@@ -92,23 +96,38 @@ test("03 task detail renders verdict banner + tabs", async ({ page }) => {
   await expect(page.locator('[role="tab"]').first()).toBeVisible();
 });
 
-test("04 /submit renders 6 mode tabs + Advanced + Extended capabilities", async ({ page }) => {
+test("04 /submit renders default tabs + Advanced + Extended capabilities", async ({ page }) => {
   await login(page);
-  await page.goto(BASE + "/submit");
+  await page.goto(`${SPA}/submit`);
   // Wait for the lazy chunk to settle and the form to mount.
   await page.waitForSelector("text=Advanced options", { timeout: 15000 });
   await page.screenshot({ path: "test-results/04-submit.png", fullPage: true });
 
-  for (const tabLabel of ["File(s)", "URL", "PCAP", "Static"]) {
+  // Tabs File(s) / PCAP / Static are gated behind `filecreate` and
+  // `staticextraction` feature flags which are enabled on every CAPE
+  // deployment. Download / DL & Exec are conditional on additional
+  // flags (`downloading_services`, `dlnexeccreate`) and may be absent —
+  // do NOT assert them in a smoke check.
+  for (const tabLabel of ["File(s)", "PCAP", "Static"]) {
     // exact match avoids "Static" matching the sidebar's "Statistics" link
     await expect(page.getByRole("button", { name: tabLabel, exact: true })).toBeVisible();
   }
 
   await expect(page.getByText("Advanced options")).toBeVisible();
-  await expect(page.getByText("Extended capabilities")).toBeVisible();
+  // Two matches: the heading (exact "Extended capabilities") and the
+  // toggle button "Toggle Extended Capabilities (N)". Match exactly to
+  // disambiguate.
+  await expect(page.getByText("Extended capabilities", { exact: true })).toBeVisible();
+});
 
-  await page.getByRole("button", { name: /DL & Exec/ }).click();
-  await expect(page.getByText("URL pointing at the binary")).toBeVisible();
+test("05 /pending renders LiveIndicator", async ({ page }) => {
+  await login(page);
+  await page.goto(`${SPA}/pending`);
+  await page.waitForLoadState("domcontentloaded", { timeout: 10000 });
+  await page.screenshot({ path: "test-results/05-pending.png", fullPage: true });
+  await expect(page.locator("text=/Live|Connecting/").first()).toBeVisible({
+    timeout: 8000,
+  });
 });
 
 test("06 sign-out flow: dropdown → POST /accounts/logout/ → /accounts/login/", async ({
@@ -137,15 +156,4 @@ test("06 sign-out flow: dropdown → POST /accounts/logout/ → /accounts/login/
   // After logout the SPA should land on /accounts/login/ (allauth)
   await page.waitForURL(/\/accounts\/login\//, { timeout: 10000 });
   await expect(page.locator(".cape-auth__brand")).toBeVisible();
-});
-
-test("05 /pending renders LiveIndicator", async ({ page }) => {
-  await login(page);
-  await page.goto(BASE + "/pending");
-  // SSE keeps the network active; can't rely on networkidle. domcontentloaded is enough.
-  await page.waitForLoadState("domcontentloaded", { timeout: 10000 });
-  await page.screenshot({ path: "test-results/05-pending.png", fullPage: true });
-  await expect(page.locator("text=/Live|Connecting/").first()).toBeVisible({
-    timeout: 8000,
-  });
 });
