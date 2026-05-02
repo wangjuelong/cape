@@ -180,3 +180,58 @@ Playwright e2e (tests/e2e/audit-log.spec.mjs):
   3/3 PASS.
 
 凭证不变, /audit 页面只对 is_staff 可见.
+
+## 2026-05-02 增量：FE/BE 完全分离清理 (Phase A → D)
+
+按 `docs/superpowers/specs/2026-05-02-fe-be-separation-cleanup-design.md` + `docs/superpowers/plans/2026-05-02-fe-be-separation-cleanup.md` 落地。
+
+**整体效果**：30 commits / 227 files / **-23,464 lines** 净删除。SPA 现在仅通过 `/api/v3/*` 与后端通信，零 HTML scrape fallback。Token 鉴权流程不变（apiv2 + apiv3 共享 DRF Token / API key）。
+
+### Phase A — Frontend scrape fallback 移除
+- 8 个 hook + 7 个 `upstream-*-scrape.ts` 模块 + `useAnalysisScrape.ts` 整体删除
+- A0 形状审计 (`docs/superpowers/audits/2026-05-02-apiv3-shape-diff.md`) 验证 0 BE gap
+- 一并修复 plan 漏掉的 `useFeatureFlags.ts` + `useTaskList.ts`，以及 `AuditFilters` 类型 drift
+- 新增 `phase-a-network-probe.spec.mjs` Playwright 测试，永久 lock-in 0 `/_upstream/*` 调用
+
+### Phase B — Django URL 收口
+- 删除 `web/web/urls.py` 中 8 个 `_upstream/*` shim
+- 删除 `include(analysis|submission|compare|audit)` 4 行
+- 修复 2 个测试（`/submit/` 不再 render Bootstrap HTML）
+
+### Phase C — Templates + static cleanup
+- 删除 6 个上游 template dirs（analysis/submission/compare/audit/dashboard/auth）+ 7 个 standalone partials
+- 删除 `frontend/web-design/`（前端设计稿已废弃）
+- web/static/ 从 48 文件精简到 3（仅保留 admin/account 实际引用的 `img/cape.png`、`css/cape-auth.css`、`css/fontawesome-all.css`）
+- base.html 内联 header/footer 后删除 partial（option 2 strategy）
+
+### Phase D — Python views 外科手术
+- D1 audit 发现 `web/services/submission_service.py` 的 lazy `from submission.views import get_form_data` 在 D3 删 web/submission/ 后会让 SPA submit 表单的 PACKAGE/MACHINE 下拉静默变空。
+- **Pre-D3 fix（commit `b7eb648e`）**：把 `parse_expr/parse_ast/get_lib_common_constants/get_package_info/get_enabled_platforms/correlate_platform_packages/get_form_data` 全部 port 进 `submission_service.py` 作为 `_load_packages_and_machines(web_conf, db)`。submission_service 现在 self-contained。同时清掉 `analysis/forms.py` 死 import（已埋伏的 bug）。
+- D2: `web/analysis/views.py` 从 3236 行精简到 520 行，仅保留 6 个 binary entry (`file/vtupload/filereport/full_memory_dump_file/full_memory_dump_strings/statistics_data`) + transitive helpers + module globals（`integrations_cfg/web_cfg/reporting_cfg/USE_SEVENZIP/SEVENZIP_PATH/enabledconf/anon_not_viewable_func_list/zip_categories/category_map`）+ `conditional_login_required` decorator 类。
+- D3-D6: 整删 4 个 legacy Django apps (`web/{submission,compare,audit,dashboard}/`)。注意 `web/audit/` ≠ `web/audit_log/` —— 后者保留。
+- D7: `INSTALLED_APPS` 仅删 `compare`（其余 3 个本就没注册）。
+- D8: 删 apiv2 docs landing page（view + URL + template 原子提交），不动 token API endpoints。
+
+### 实测验证 (D9)
+```
+admin/login/, accounts/login/, robots.txt          → 200
+api/v3/me/, api/v3/system/info/                    → 401 (alive)
+apiv2/                                              → 404 (docs 落地页已删)
+apiv2/cuckoo/status/, tasks/list/, machines/list/  → 200 with valid JSON (token API alive)
+file/, full_memory/, statistics/                   → 302 (login 重定向，binary endpoints alive)
+_upstream/submit/, /analysis/                      → 404 (Phase B 删除)
+SPA catchall (/, /audit, /submit, /recent)          → 302 (login 重定向)
+```
+
+Playwright e2e:
+```
+audit-log.spec.mjs               3/3 PASS (32 audit events)
+phase-a-network-probe.spec.mjs   1/1 PASS (0 _upstream hits across 9 routes)
+```
+
+remote pytest (`/opt/CAPEv2/.venv/bin/python -m pytest`):
+```
+Results: 354 passed / 5 failed (4 apiv2 reprocess pre-existing token issue, 1 mitre 网络依赖) / 36 skipped
+```
+
+凭证不变（admin / cape123!）。
