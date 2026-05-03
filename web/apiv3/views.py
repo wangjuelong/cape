@@ -17,8 +17,9 @@ from drf_spectacular.utils import (
     OpenApiResponse,
     OpenApiTypes,
     extend_schema,
+    inline_serializer,
 )
-from rest_framework import status as http_status
+from rest_framework import serializers, status as http_status
 from rest_framework.decorators import (
     api_view,
     authentication_classes,
@@ -43,10 +44,12 @@ from apiv3.serializers import (
     CurrentUserSerializer,
     DroppedReportSerializer,
     FeatureFlagsSerializer,
+    GroupSerializer,
     MachineSerializer,
     MeUpdateSerializer,
     NetworkReportSerializer,
     PayloadsReportSerializer,
+    PermissionSerializer,
     ReportSummarySerializer,
     ScreenshotsReportSerializer,
     SearchPrefixesResponseSerializer,
@@ -615,6 +618,165 @@ def users_bulk_action(request: Request) -> Response:
             success.append(uid)
 
     return Response({"success": success, "failed": failed})
+
+
+# ---------------------------------------------------------------------------
+# Groups + Permissions list + per-user m2m PATCH
+# ---------------------------------------------------------------------------
+
+
+@extend_schema(
+    tags=["users"],
+    summary="List all auth groups.",
+    description="Returns every Django auth Group with a permission_count annotation.",
+    responses={200: GroupSerializer(many=True)},
+)
+@api_view(["GET"])
+@permission_classes([IsAdminUser])
+def groups_list(_request: Request) -> Response:
+    from django.contrib.auth.models import Group
+    from django.db.models import Count
+
+    rows = Group.objects.annotate(permission_count=Count("permissions")).order_by("name")
+    data = [
+        {"id": g.id, "name": g.name, "permission_count": g.permission_count}
+        for g in rows
+    ]
+    return Response({"data": data})
+
+
+@extend_schema(
+    tags=["users"],
+    summary="List Django auth permissions, optionally filtered by content type.",
+    description=(
+        "Optional ``?content_type=app_label.model`` filter narrows to the "
+        "permissions of a single Django model (e.g. ``auth.user``)."
+    ),
+    responses={200: PermissionSerializer(many=True)},
+)
+@api_view(["GET"])
+@permission_classes([IsAdminUser])
+def permissions_list(request: Request) -> Response:
+    from django.contrib.auth.models import Permission
+
+    qs = Permission.objects.select_related("content_type").order_by(
+        "content_type__app_label", "content_type__model", "codename"
+    )
+    ctf = request.query_params.get("content_type")
+    if ctf and "." in ctf:
+        app, model = ctf.split(".", 1)
+        qs = qs.filter(content_type__app_label=app, content_type__model=model)
+    data = [
+        {
+            "id": p.id,
+            "name": p.name,
+            "codename": p.codename,
+            "content_type": {
+                "app_label": p.content_type.app_label,
+                "model": p.content_type.model,
+            },
+        }
+        for p in qs
+    ]
+    return Response({"data": data})
+
+
+@extend_schema(
+    tags=["users"],
+    summary="Replace a user's group membership.",
+    description=(
+        "PATCH with ``{group_ids: [int, ...]}`` replaces the user.groups "
+        "m2m. Unknown ids are silently dropped — the response reflects "
+        "the persisted state."
+    ),
+    request=inline_serializer(
+        name="UserSetGroupsRequest",
+        fields={"group_ids": serializers.ListField(child=serializers.IntegerField())},
+    ),
+    responses={200: UserSerializer},
+)
+@api_view(["PATCH"])
+@permission_classes([IsAdminUser])
+def users_set_groups(request: Request, user_id: int) -> Response:
+    from django.contrib.auth.models import Group, User
+    from django.shortcuts import get_object_or_404
+
+    user = get_object_or_404(User, pk=user_id)
+    ids = request.data.get("group_ids")
+    if ids is None:
+        ids = []
+    if not isinstance(ids, list):
+        return _error(
+            "group_ids_required",
+            "group_ids must be a list",
+            http_code=http_status.HTTP_400_BAD_REQUEST,
+        )
+    valid_ids = list(Group.objects.filter(id__in=ids).values_list("id", flat=True))
+    user.groups.set(valid_ids)
+    try:
+        from audit_log import helpers as audit
+        audit.log(
+            "user_update",
+            request=request,
+            actor=request.user,
+            target_type="user",
+            target_id=str(user.id),
+            target_label=user.username,
+            groups_changed=True,
+        )
+    except Exception:
+        pass
+    user.refresh_from_db()
+    return Response(UserSerializer(user).data)
+
+
+@extend_schema(
+    tags=["users"],
+    summary="Replace a user's direct permissions.",
+    description=(
+        "PATCH with ``{permission_ids: [int, ...]}`` replaces the "
+        "user.user_permissions m2m. Group-inherited permissions are not "
+        "affected. Unknown ids are silently dropped."
+    ),
+    request=inline_serializer(
+        name="UserSetPermissionsRequest",
+        fields={"permission_ids": serializers.ListField(child=serializers.IntegerField())},
+    ),
+    responses={200: UserSerializer},
+)
+@api_view(["PATCH"])
+@permission_classes([IsAdminUser])
+def users_set_permissions(request: Request, user_id: int) -> Response:
+    from django.contrib.auth.models import Permission, User
+    from django.shortcuts import get_object_or_404
+
+    user = get_object_or_404(User, pk=user_id)
+    ids = request.data.get("permission_ids")
+    if ids is None:
+        ids = []
+    if not isinstance(ids, list):
+        return _error(
+            "permission_ids_required",
+            "permission_ids must be a list",
+            http_code=http_status.HTTP_400_BAD_REQUEST,
+        )
+    valid_ids = list(Permission.objects.filter(id__in=ids).values_list("id", flat=True))
+    user.user_permissions.set(valid_ids)
+    try:
+        from audit_log import helpers as audit
+        audit.log(
+            "user_update",
+            request=request,
+            actor=request.user,
+            target_type="user",
+            target_id=str(user.id),
+            target_label=user.username,
+            permissions_changed=True,
+        )
+    except Exception:
+        pass
+    user.refresh_from_db()
+    return Response(UserSerializer(user).data)
 
 
 # ---------------------------------------------------------------------------

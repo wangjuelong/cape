@@ -27,6 +27,12 @@ urlpatterns = [
     path("users/<int:user_id>/set-password/", views.users_set_password, name="users-set-password"),
     path("users/<int:user_id>/activate/", views.users_activate, name="users-activate"),
     path("users/<int:user_id>/deactivate/", views.users_deactivate, name="users-deactivate"),
+    path("users/<int:user_id>/groups/", views.users_set_groups, name="users-set-groups"),
+    path("users/<int:user_id>/permissions/", views.users_set_permissions, name="users-set-permissions"),
+
+    # Groups + Permissions
+    path("groups/", views.groups_list, name="groups-list"),
+    path("permissions/", views.permissions_list, name="permissions-list"),
 
     # System
     path("system/info/", views.system_info, name="system-info"),

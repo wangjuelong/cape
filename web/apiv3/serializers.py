@@ -266,6 +266,32 @@ class UserSetPasswordSerializer(serializers.Serializer):
         return value
 
 
+# ---------------------------------------------------------------------------
+# Groups + Permissions — /api/v3/groups/ + /api/v3/permissions/
+# ---------------------------------------------------------------------------
+
+
+class GroupSerializer(serializers.Serializer):
+    """Minimal group row for /api/v3/groups/. ``permission_count`` comes
+    from a queryset annotation in the view (avoids per-row count())."""
+
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    permission_count = serializers.IntegerField()
+
+
+class PermissionContentTypeSerializer(serializers.Serializer):
+    app_label = serializers.CharField()
+    model = serializers.CharField()
+
+
+class PermissionSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    codename = serializers.CharField()
+    content_type = PermissionContentTypeSerializer()
+
+
 class SystemInfoSerializer(serializers.Serializer):
     cape_version = serializers.CharField()
     api_version = serializers.CharField()
