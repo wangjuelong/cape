@@ -1,5 +1,6 @@
 import type { AuditFilters } from "@/lib/api/audits";
 import type { GroupListFilters } from "@/lib/api/groups";
+import type { AdminTokensListFilters } from "@/lib/api/tokens";
 import type { UserListFilters } from "@/lib/api/users";
 import type { TaskListFilters } from "@/types/api";
 
@@ -61,5 +62,8 @@ export const queryKeys = {
   tokens: {
     me: ["tokens", "me"] as const,
     user: (id: number) => ["tokens", "user", id] as const,
+    adminAll: ["tokens", "adminAll"] as const,
+    adminList: (filters: AdminTokensListFilters) =>
+      ["tokens", "adminList", filters] as const,
   },
 } as const;

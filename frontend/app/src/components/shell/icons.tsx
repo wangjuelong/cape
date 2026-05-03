@@ -12,6 +12,7 @@ import {
   FileText,
   GitCompare,
   Grid2x2,
+  KeyRound,
   List,
   LogOut,
   RefreshCw,
@@ -39,6 +40,7 @@ export const Icon = {
   refresh: RefreshCw,
   users: Users,
   groupsRound: UsersRound,
+  keyRound: KeyRound,
 } as const;
 
 export type IconName = keyof typeof Icon;
