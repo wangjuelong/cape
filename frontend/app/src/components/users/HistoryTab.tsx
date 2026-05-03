@@ -13,10 +13,7 @@ interface Props {
 }
 
 export function HistoryTab({ user }: Props) {
-  const filters: AuditFilters = useMemo(
-    () => ({ target_user: String(user.id) }),
-    [user.id],
-  );
+  const filters: AuditFilters = useMemo(() => ({ target_user: String(user.id) }), [user.id]);
 
   const eventsQuery = useAuditEvents(filters);
   const actionsQuery = useAuditActions();
