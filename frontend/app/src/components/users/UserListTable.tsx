@@ -34,11 +34,7 @@ export function UserListTable({ rows, selected, onToggle, onToggleAll }: Props) 
         {rows.map((r) => (
           <tr key={r.id}>
             <td>
-              <input
-                type="checkbox"
-                checked={selected.has(r.id)}
-                onChange={() => onToggle(r.id)}
-              />
+              <input type="checkbox" checked={selected.has(r.id)} onChange={() => onToggle(r.id)} />
             </td>
             <td className="mono">
               <Link to={`/users/${r.id}`}>{r.username}</Link>

@@ -13,7 +13,11 @@ interface Props {
 export function GroupsPicker({ user }: Props) {
   const qc = useQueryClient();
   const { showToast } = useToast();
-  const groupsQ = useQuery({ queryKey: queryKeys.groups.list, queryFn: listGroups, staleTime: 60_000 });
+  const groupsQ = useQuery({
+    queryKey: queryKeys.groups.list,
+    queryFn: listGroups,
+    staleTime: 60_000,
+  });
   const [selected, setSelected] = useState<Set<number>>(new Set(user.group_ids));
 
   useEffect(() => {

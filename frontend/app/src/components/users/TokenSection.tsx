@@ -83,11 +83,7 @@ export function TokenSection({ userId, username }: Props) {
             >
               {reveal ? tok.key : "●".repeat(40)}
             </code>
-            <button
-              type="button"
-              className="btn ghost"
-              onClick={() => setReveal((r) => !r)}
-            >
+            <button type="button" className="btn ghost" onClick={() => setReveal((r) => !r)}>
               {reveal ? "Hide" : "Reveal"}
             </button>
             {reveal && tok.key && (

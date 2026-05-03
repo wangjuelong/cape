@@ -67,9 +67,7 @@ export default function UsersDetailRoute() {
                   background: "transparent",
                   border: 0,
                   borderBottom:
-                    tab === t
-                      ? "2px solid var(--color-accent-strong)"
-                      : "2px solid transparent",
+                    tab === t ? "2px solid var(--color-accent-strong)" : "2px solid transparent",
                   padding: "10px 12px",
                   fontSize: 12,
                   color: tab === t ? "var(--color-fg-0)" : "var(--color-fg-2)",
@@ -174,22 +172,14 @@ function BasicTab({ user }: { user: UserDetail }) {
       {meIsSuper && <Toggle label="Superuser" checked={isSuper} onChange={setIsSuper} />}
 
       <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-        <button
-          className="btn primary"
-          onClick={() => update.mutate()}
-          disabled={update.isPending}
-        >
+        <button className="btn primary" onClick={() => update.mutate()} disabled={update.isPending}>
           {update.isPending ? "Saving…" : "Save"}
         </button>
         <button className="btn" onClick={() => setPwOpen(true)}>
           Set password
         </button>
         <div style={{ flex: 1 }} />
-        <button
-          className="btn danger"
-          onClick={confirmDelete}
-          disabled={isSelf || del.isPending}
-        >
+        <button className="btn danger" onClick={confirmDelete} disabled={isSelf || del.isPending}>
           {del.isPending ? "Deleting…" : "Delete user"}
         </button>
       </div>

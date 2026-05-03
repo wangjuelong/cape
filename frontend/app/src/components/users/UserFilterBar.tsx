@@ -50,7 +50,10 @@ export function UserFilterBar({ initial, onApply }: Props) {
   }
 
   return (
-    <form onSubmit={submit} style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+    <form
+      onSubmit={submit}
+      style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}
+    >
       <input
         style={{ ...inputStyle, minWidth: 200 }}
         placeholder="Search username/email/name…"

@@ -84,10 +84,7 @@ export default function UsersNewRoute() {
       <div className="scroll" style={{ padding: 14 }}>
         <div className="panel" style={{ maxWidth: 520 }}>
           <div className="panel-h">Add user</div>
-          <form
-            onSubmit={submit}
-            style={{ padding: 14, display: "grid", gap: 10, fontSize: 12 }}
-          >
+          <form onSubmit={submit} style={{ padding: 14, display: "grid", gap: 10, fontSize: 12 }}>
             <Field label="Username *">
               <input
                 value={username}
@@ -180,11 +177,7 @@ function Toggle({
 }) {
   return (
     <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-      />
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
       <span>{label}</span>
     </label>
   );

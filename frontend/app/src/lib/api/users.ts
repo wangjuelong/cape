@@ -123,7 +123,12 @@ export async function setUserGroups(id: number, group_ids: number[]): Promise<Us
   return data;
 }
 
-export async function setUserPermissions(id: number, permission_ids: number[]): Promise<UserDetail> {
-  const { data } = await apiClient.patch<UserDetail>(`/users/${id}/permissions/`, { permission_ids });
+export async function setUserPermissions(
+  id: number,
+  permission_ids: number[],
+): Promise<UserDetail> {
+  const { data } = await apiClient.patch<UserDetail>(`/users/${id}/permissions/`, {
+    permission_ids,
+  });
   return data;
 }

@@ -19,10 +19,7 @@ export function BulkActionBar({ selected, usernames, onClear }: Props) {
       qc.invalidateQueries({ queryKey: queryKeys.users.all });
       const ok = r.success.length;
       const fail = r.failed.length;
-      showToast(
-        `${ok} succeeded${fail ? `, ${fail} failed` : ""}.`,
-        fail ? "info" : "success",
-      );
+      showToast(`${ok} succeeded${fail ? `, ${fail} failed` : ""}.`, fail ? "info" : "success");
       onClear();
     },
     onError: () => showToast("Bulk action failed.", "error"),
@@ -57,12 +54,7 @@ export function BulkActionBar({ selected, usernames, onClear }: Props) {
         {selected.size} selected
       </span>
       <div style={{ flex: 1 }} />
-      <button
-        type="button"
-        className="btn"
-        onClick={() => run("activate")}
-        disabled={m.isPending}
-      >
+      <button type="button" className="btn" onClick={() => run("activate")} disabled={m.isPending}>
         Activate
       </button>
       <button

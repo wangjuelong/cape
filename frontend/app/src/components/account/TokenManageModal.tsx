@@ -22,9 +22,8 @@ export function TokenManageModal({ open, onOpenChange }: Props) {
         </DialogHeader>
         <DialogBody>
           <p className="dim" style={{ margin: 0, marginBottom: 4, fontSize: 11.5 }}>
-            Use this key with{" "}
-            <code className="mono">Authorization: Token &lt;key&gt;</code> header for
-            programmatic access to <code className="mono">/apiv2/*</code> endpoints. See{" "}
+            Use this key with <code className="mono">Authorization: Token &lt;key&gt;</code> header
+            for programmatic access to <code className="mono">/apiv2/*</code> endpoints. See{" "}
             <a href="/docs">/docs</a>.
           </p>
           <TokenSection />
