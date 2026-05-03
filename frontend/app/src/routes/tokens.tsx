@@ -131,7 +131,7 @@ export default function TokensRoute() {
       <div className="scroll" style={{ padding: 14 }}>
         <div className="panel">
           <h2 className="panel-h" style={{ margin: 0 }}>
-            Users <span className="dim" style={{ fontSize: 11 }}>({total})</span>
+            Tokens <span className="dim" style={{ fontSize: 11 }}>({total})</span>
           </h2>
           <div style={{ padding: 12, display: "grid", gap: 12 }}>
             <TokenFilterBar
