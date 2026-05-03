@@ -61,9 +61,10 @@ test("Edit profile modal pre-fills + closes on cancel", async ({ page }) => {
 test("Sidebar Admin > Users link is visible for staff", async ({ page }) => {
   await login(page, USER, PASS);
   await expect(page.getByRole("link", { name: /^Users/ })).toBeVisible();
-  // It should be an external link to /admin/auth/user/
+  // After 2026-05-03 SPA user-management landing, link points to internal
+  // /users (was /admin/auth/user/ external).
   const link = page.getByRole("link", { name: /^Users/ });
-  await expect(link).toHaveAttribute("href", "/admin/auth/user/");
+  await expect(link).toHaveAttribute("href", "/users");
 });
 
 test("Change password full round-trip", async ({ page, browser }) => {
