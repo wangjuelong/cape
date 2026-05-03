@@ -85,9 +85,9 @@ export default function GroupsRoute() {
       />
       <div className="scroll" style={{ padding: 14 }}>
         <div className="panel">
-          <div className="panel-h">
+          <h2 className="panel-h" style={{ margin: 0 }}>
             Groups <span className="count">· {rows.length} loaded / {total} total</span>
-          </div>
+          </h2>
           <div style={{ padding: 14, display: "grid", gap: 12 }}>
             <GroupFilterBar
               initial={filters}

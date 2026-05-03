@@ -499,6 +499,27 @@ SPA `/users` 页面 + 头像下拉 "API token" 项的后端面。共 **19 个新
 
 审计：`user_create / user_update / user_delete / user_activate / user_deactivate / user_set_password` 归入 `user_mgmt` 类目；`token_create / token_rotate / token_revoke` 归入 `auth` 类目。失败的 audit 写入会被吞掉，不阻塞主请求。
 
+### 2.Z Groups (admin) — `/api/v3/groups/`
+
+SPA `/groups` 管理页的后端面。共 **8 个 endpoint**：列表 + 详情 + CRUD + 批量删除 + 成员 m2m。所有路由强制 `IsAdminUser`（`is_staff=True`）；普通用户 403。`GET /api/v3/groups/` 复用上面 §2.Y 引用数据中给 SPA 多选下拉用的同一 URL，但 admin 走带 `cursor` / `search` / `member_count` 扩展信封；下拉用例只读 `data[].id` + `data[].name`，向后兼容。
+
+完整请求 / 响应 JSON 形状以 `docs/superpowers/specs/2026-05-03-groups-design.md` §4 为准。
+
+| Method | Path | 描述 | 审计 ACTION |
+|---|---|---|---|
+| GET | `/api/v3/groups/?cursor=&limit=&search=` | 列表 + cursor 分页 + 名称搜索（响应含 `data / next_cursor / total / has_more`，每行带 `member_count` + `permission_count`） | — |
+| GET | `/api/v3/groups/<id>/` | 单组详情 + permissions（id + codename + name + content_type） + member_count | — |
+| POST | `/api/v3/groups/` | 创建组（`{name, permission_ids?}`） | `group_create` |
+| PATCH | `/api/v3/groups/<id>/` | 编辑（`{name?, permission_ids?}`） | `group_update`（`metadata.fields=[<changed>]`、`permissions_changed: bool`） |
+| DELETE | `/api/v3/groups/<id>/` | 删除组（解除所有 user-group + permission 关联） | `group_delete` |
+| POST | `/api/v3/groups/bulk-delete/` | 批量删除（`{ids: [...]}`） | 每条 `group_delete`（成功才记） |
+| GET | `/api/v3/groups/<id>/members/` | 成员列表（id + username + email + is_active + is_staff） | — |
+| PATCH | `/api/v3/groups/<id>/members/` | 替换成员（`{user_ids: [...]}`，整集替换不增量） | `group_update`（`metadata.members_changed=true`） |
+
+权限：所有路径强制 `IsAdminUser`。
+
+审计：`group_create / group_update / group_delete` 归入 `user_mgmt` 类目（与 user CRUD 同类目）。失败的 audit 写入会被吞掉，不阻塞主请求。
+
 ---
 
 ## 4. 鉴权 / 节流 / CSRF / CORS 速览

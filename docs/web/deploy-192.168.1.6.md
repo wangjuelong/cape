@@ -330,3 +330,54 @@ token_create / token_rotate / token_revoke (auth 类目)
   - `/apiv2/cuckoo/status/` + Token → 200, `/api/v3/users/?limit=1` + Token → 200
 
 凭证不变 (admin / cape123!)。下一步：sub-spec #2 (/groups SPA + apiv3 group CRUD).
+
+## 2026-05-03 — Sub-spec #2: /groups SPA + apiv3 group CRUD
+
+按 `docs/superpowers/specs/2026-05-03-groups-design.md` +
+`docs/superpowers/plans/2026-05-03-groups.md` 部署（13 个 commit + 本 J1 收尾）：
+
+```
+8407b820 docs: spec for sub-spec #2 /groups SPA + apiv3 Group CRUD
+323e06f9 docs(plan): /groups SPA + apiv3 group CRUD — 11 tasks across 10 phases
+04458c76 feat(apiv3): GroupListSerializer + GroupDetailSerializer + 3 audit ACTIONS
+80ae0667 feat(apiv3): extend GET /groups/ + add GET /groups/<id>/
+593d4276 feat(apiv3): POST /groups/ + PATCH /groups/<id>/
+32abc220 feat(apiv3): DELETE /groups/<id>/ + POST /groups/bulk-delete/
+4b099ff4 feat(apiv3): GET + PATCH /groups/<id>/members/
+3e97d2af feat(spa): groups API client + useGroups hook + sidebar entry
+c04494de refactor(spa): PermissionsPicker → controlled component (DRY for /groups)
+4b01ba58 feat(spa): /groups list page + filter bar + bulk delete
+9ae96b54 feat(spa): /groups/new — admin create group form
+17f3fad3 feat(spa): /groups/<id> detail page (Basic tab + Members stub)
+2107c89d feat(spa): Members tab in GroupDetailPage — UsersInGroupPicker
+<J1>     test(e2e) + docs: groups-management spec + api-reference + deploy record
+```
+
+### 后端 (apiv3, 8 个新 endpoint)
+- 列表/详情：GET /groups/ (扩展 envelope + search + cursor 分页 + member_count)；GET /groups/<id>/
+- CRUD: POST /groups/, PATCH /groups/<id>/, DELETE /groups/<id>/
+- 批量: POST /groups/bulk-delete/
+- 成员: GET /groups/<id>/members/, PATCH /groups/<id>/members/
+- 序列化：GroupListSerializer (extended)、新增 GroupDetailSerializer / GroupCreateSerializer / GroupUpdateSerializer
+
+### 审计 (3 个新 ACTION)
+group_create / group_update / group_delete (user_mgmt 类目)
+
+### 前端 (3 个新路由 + 1 个组件重构)
+- /groups       列表 + filter + bulk delete
+- /groups/new   create form (复用受控 PermissionsPicker)
+- /groups/<id>  2-tab detail (Basic 改名+permissions / Members 双列 m2m picker)
+- PermissionsPicker 由"自管 mutation" → "受控组件"，/users/<id>/Permissions tab 同 commit 迁移到接管 mutation
+- Sidebar Admin: 新增 Groups 项 (Audit · Users · Groups · API Docs)
+- list page panel 头改为 `<h2>` 语义 heading（让 e2e Playwright 的 getByRole("heading") 能命中）
+
+### 实测
+- pytest backend: 36 case 全绿（serializers 2 + list 6 + detail 3 + create 5 + update 5 + delete 5 + members 4 + permissions 6） + audit_log group_action audit 全量绿（既有 27 case auth-strip + 55 user/token + 5 audit_log 也无 NEW regression）
+- Playwright: groups-management.spec.mjs **4/4 PASS**（Sidebar link / list renders / filter bar search→Apply / create+edit+delete 圆环）
+- 手动 smoke (anon)：
+  - `/groups` → 302（redirect to login，符合 IsAdminUser-only 限制）
+  - `/groups/new` → 302
+  - `/groups/1` → 302
+- authed 后 SPA 渲染列表 + 表单 + 详情 tab 正常；详情 Members tab 双列 picker 增删 user 与 GET /groups/<id>/members/ + PATCH 成员 round-trip 一致
+
+凭证不变 (admin / cape123!)。下一步 sub-spec #3 (/tokens 顶级 admin 列表).
