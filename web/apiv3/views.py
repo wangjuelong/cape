@@ -69,6 +69,7 @@ from apiv3.serializers import (
     TaskResubmitSerializer,
     TaskSummarySerializer,
     TaskUrlSubmitSerializer,
+    TokenAdminListItemSerializer,
     TokenSerializer,
     UserCreateSerializer,
     UserListSerializer,
@@ -710,6 +711,77 @@ def users_bulk_action(request: Request) -> Response:
             success.append(uid)
 
     return Response({"success": success, "failed": failed})
+
+
+# ---------------------------------------------------------------------------
+# Admin token aggregation — /api/v3/tokens/
+# ---------------------------------------------------------------------------
+
+
+@extend_schema(
+    tags=["users"],
+    summary="List every user with their API token status (admin only).",
+    description=(
+        "Aggregated view: each row is one user with `has_token` + "
+        "`token_created`. Token write operations (Generate / Rotate / "
+        "Revoke) live on POST/DELETE /api/v3/users/<id>/token/. Supports "
+        "?search= (username/email icontains) + ?has_token= (all/yes/no) + "
+        "cursor pagination on user.id."
+    ),
+    parameters=[
+        OpenApiParameter(name="search", type=OpenApiTypes.STR, required=False),
+        OpenApiParameter(
+            name="has_token", type=OpenApiTypes.STR, required=False,
+            enum=["all", "yes", "no"],
+        ),
+        OpenApiParameter(name="cursor", type=OpenApiTypes.INT, required=False),
+        OpenApiParameter(name="limit", type=OpenApiTypes.INT, required=False),
+    ],
+)
+@api_view(["GET"])
+@permission_classes([IsAdminUser])
+def tokens_list(request: Request) -> Response:
+    from django.contrib.auth.models import User
+    from django.db.models import Q
+
+    qs = User.objects.select_related("auth_token").order_by("id")
+
+    search = request.query_params.get("search")
+    if search:
+        qs = qs.filter(
+            Q(username__icontains=search) | Q(email__icontains=search)
+        )
+
+    has_token = (request.query_params.get("has_token") or "all").lower()
+    if has_token == "yes":
+        qs = qs.filter(auth_token__isnull=False)
+    elif has_token == "no":
+        qs = qs.filter(auth_token__isnull=True)
+    # "all" or any unrecognised value → no extra filter.
+
+    total = qs.count()
+
+    cursor = request.query_params.get("cursor")
+    if cursor and cursor.isdigit():
+        qs = qs.filter(id__gt=int(cursor))
+
+    try:
+        limit = int(request.query_params.get("limit") or 50)
+    except ValueError:
+        limit = 50
+    limit = max(1, min(limit, 100))
+
+    rows = list(qs[: limit + 1])
+    next_cursor = rows[limit].id if len(rows) > limit else None
+    rows = rows[:limit]
+
+    return Response(
+        {
+            "data": TokenAdminListItemSerializer(rows, many=True).data,
+            "next_cursor": next_cursor,
+            "total": total,
+        }
+    )
 
 
 # ---------------------------------------------------------------------------

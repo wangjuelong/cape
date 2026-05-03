@@ -879,3 +879,42 @@ class AuditActionDescriptorSerializer(serializers.Serializer):
 
 class AuditActionListResponseSerializer(serializers.Serializer):
     data = AuditActionDescriptorSerializer(many=True)
+
+
+# ---------------------------------------------------------------------------
+# Admin tokens list — flat row for /api/v3/tokens/
+# ---------------------------------------------------------------------------
+
+
+class TokenAdminListItemSerializer(serializers.Serializer):
+    """One row of the admin /tokens/ aggregate list.
+
+    Compatible with both annotated querysets (no `auth_token` relation
+    materialised) and bare User instances — uses ``getattr`` fallback so
+    the serializer stays usable from view + tests + future contexts.
+    """
+
+    user_id = serializers.IntegerField(source="id")
+    username = serializers.CharField()
+    email = serializers.CharField()
+    is_staff = serializers.BooleanField()
+    is_active = serializers.BooleanField()
+    has_token = serializers.SerializerMethodField()
+    token_created = serializers.SerializerMethodField()
+
+    def _token(self, user):
+        # ``auth_token`` is the OneToOne reverse accessor declared on
+        # rest_framework.authtoken.models.Token. May raise
+        # User.auth_token.RelatedObjectDoesNotExist if no token exists,
+        # so guard with try/except — getattr alone won't catch it.
+        try:
+            return user.auth_token
+        except Exception:
+            return None
+
+    def get_has_token(self, user) -> bool:
+        return self._token(user) is not None
+
+    def get_token_created(self, user):
+        tok = self._token(user)
+        return tok.created if tok else None

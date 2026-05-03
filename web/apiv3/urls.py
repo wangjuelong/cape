@@ -38,6 +38,7 @@ urlpatterns = [
     path("groups/<int:group_id>/", views.groups_detail, name="groups-detail"),
     path("groups/<int:group_id>/members/", views.groups_members, name="groups-members"),
     path("permissions/", views.permissions_list, name="permissions-list"),
+    path("tokens/", views.tokens_list, name="tokens-list"),
 
     # System
     path("system/info/", views.system_info, name="system-info"),
