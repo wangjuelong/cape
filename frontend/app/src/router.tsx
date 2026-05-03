@@ -16,6 +16,8 @@ const AuditRoute = lazy(() => import("@/routes/audit"));
 const UsersRoute = lazy(() => import("@/routes/users"));
 const UsersNewRoute = lazy(() => import("@/routes/users-new"));
 const UsersDetailRoute = lazy(() => import("@/routes/users-detail"));
+const GroupsRoute = lazy(() => import("@/routes/groups"));
+const GroupsNewRoute = lazy(() => import("@/routes/groups-new"));
 const DocsRoute = lazy(() => import("@/routes/docs"));
 const TaskDetailRoute = lazy(() => import("@/routes/task-detail"));
 const LoginBridgeRoute = lazy(() => import("@/routes/login-bridge"));
@@ -75,6 +77,8 @@ export const router = createBrowserRouter([
       { path: "users", element: withSuspense(<UsersRoute />) },
       { path: "users/new", element: withSuspense(<UsersNewRoute />) },
       { path: "users/:id", element: withSuspense(<UsersDetailRoute />) },
+      { path: "groups", element: withSuspense(<GroupsRoute />) },
+      { path: "groups/new", element: withSuspense(<GroupsNewRoute />) },
       { path: "docs", element: withSuspense(<DocsRoute />) },
       { path: "tasks/:id", element: withSuspense(<TaskDetailRoute />) },
       { path: "*", element: withSuspense(<NotFoundRoute />) },
