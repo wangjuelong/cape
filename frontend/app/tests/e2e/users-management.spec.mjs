@@ -73,3 +73,40 @@ test("avatar dropdown API token modal works", async ({ page }) => {
   // Two "Close" buttons exist (dialog X icon + footer button); click the footer text button.
   await page.getByRole("button", { name: "Close", exact: true }).last().click();
 });
+
+test("/users/<id> History tab loads audit events for admin", async ({ page }) => {
+  await login(page);
+  // Navigate to admin's own detail page through the list (more robust than
+  // hard-coding /users/1).
+  await page.goto(`${SPA}/users?search=${encodeURIComponent(USER)}`);
+  await page.waitForTimeout(1500);
+  await page.getByRole("link", { name: USER }).first().click();
+  await page.waitForURL(/\/users\/\d+/, { timeout: 10000 });
+
+  // Click the History tab.
+  await page.getByRole("button", { name: "History" }).click();
+
+  // Wait for either an AuditTable row OR the empty-state copy. Admin
+  // has had several audit events generated during sub-spec #1/#2/#3
+  // implementation, so the table path is the realistic one — but we
+  // accept either to keep the test robust against fresh deployments.
+  await page.waitForFunction(
+    () => {
+      const rows = document.querySelectorAll("table.data tbody tr");
+      const empty = Array.from(document.querySelectorAll("div"))
+        .some((d) => /No audit events recorded/i.test(d.textContent ?? ""));
+      return rows.length > 0 || empty;
+    },
+    { timeout: 8000 },
+  );
+
+  // Either branch is acceptable; assert at least one is true.
+  const rows = await page.locator("table.data tbody tr").count();
+  if (rows === 0) {
+    await expect(
+      page.getByText(/No audit events recorded for this user yet/),
+    ).toBeVisible();
+  } else {
+    expect(rows).toBeGreaterThan(0);
+  }
+});
