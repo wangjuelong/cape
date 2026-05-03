@@ -19,6 +19,7 @@ urlpatterns = [
     path("auth/csrf/", views.csrf, name="csrf"),
     path("me/", views.me, name="me"),
     path("me/password/", views.me_password_change, name="me-password-change"),
+    path("me/token/", views.me_token, name="me-token"),
 
     # Admin user management
     path("users/", views.users_list, name="users-list"),
@@ -29,6 +30,7 @@ urlpatterns = [
     path("users/<int:user_id>/deactivate/", views.users_deactivate, name="users-deactivate"),
     path("users/<int:user_id>/groups/", views.users_set_groups, name="users-set-groups"),
     path("users/<int:user_id>/permissions/", views.users_set_permissions, name="users-set-permissions"),
+    path("users/<int:user_id>/token/", views.users_token, name="users-token"),
 
     # Groups + Permissions
     path("groups/", views.groups_list, name="groups-list"),

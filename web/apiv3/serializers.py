@@ -292,6 +292,18 @@ class PermissionSerializer(serializers.Serializer):
     content_type = PermissionContentTypeSerializer()
 
 
+# ---------------------------------------------------------------------------
+# API tokens — /api/v3/me/token/ + /api/v3/users/<id>/token/
+# ---------------------------------------------------------------------------
+
+
+class TokenSerializer(serializers.Serializer):
+    """DRF authtoken payload returned by /me/token/ + /users/<id>/token/."""
+
+    key = serializers.CharField(allow_null=True)
+    created = serializers.DateTimeField(allow_null=True)
+
+
 class SystemInfoSerializer(serializers.Serializer):
     cape_version = serializers.CharField()
     api_version = serializers.CharField()

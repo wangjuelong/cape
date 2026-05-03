@@ -65,6 +65,7 @@ from apiv3.serializers import (
     TaskResubmitSerializer,
     TaskSummarySerializer,
     TaskUrlSubmitSerializer,
+    TokenSerializer,
     UserCreateSerializer,
     UserListSerializer,
     UserSerializer,
@@ -233,6 +234,93 @@ def me_password_change(request: Request) -> Response:
         except Exception:  # noqa: BLE001
             pass
     return Response(status=http_status.HTTP_204_NO_CONTENT)
+
+
+# ---------------------------------------------------------------------------
+# API token — /me/token/ + /users/<id>/token/ share this dispatcher.
+# Both endpoints expose GET (read), POST (create-or-rotate), DELETE (revoke).
+# DRF's authtoken model is one-token-per-user, so POST atomically deletes
+# any existing token then creates a new one.
+# ---------------------------------------------------------------------------
+
+
+def _token_payload(token):
+    """Serialize a Token (or None) for the response body."""
+    if token is None:
+        return {"key": None, "created": None}
+    return {"key": token.key, "created": token.created}
+
+
+def _handle_token(request: Request, target_user) -> Response:
+    """Dispatch GET/POST/DELETE for a given target user.
+
+    Audit emits ``token_create`` on first creation, ``token_rotate`` on
+    replacement, ``token_revoke`` on delete. Failures are swallowed so
+    audit outages never break the API contract.
+    """
+    from rest_framework.authtoken.models import Token
+
+    if request.method == "GET":
+        try:
+            tok = Token.objects.get(user=target_user)
+        except Token.DoesNotExist:
+            tok = None
+        return Response(_token_payload(tok))
+
+    if request.method == "POST":
+        existing = Token.objects.filter(user=target_user).first()
+        rotated = existing is not None
+        if existing is not None:
+            existing.delete()
+        new_tok = Token.objects.create(user=target_user)
+        try:
+            from audit_log import helpers as audit
+
+            audit.log(
+                "token_rotate" if rotated else "token_create",
+                request=request,
+                actor=request.user,
+                target_type="user",
+                target_id=str(target_user.id),
+                target_label=target_user.username,
+            )
+        except Exception:
+            pass
+        return Response(_token_payload(new_tok))
+
+    # DELETE
+    deleted, _ = Token.objects.filter(user=target_user).delete()
+    if deleted:
+        try:
+            from audit_log import helpers as audit
+
+            audit.log(
+                "token_revoke",
+                request=request,
+                actor=request.user,
+                target_type="user",
+                target_id=str(target_user.id),
+                target_label=target_user.username,
+            )
+        except Exception:
+            pass
+    return Response(status=http_status.HTTP_204_NO_CONTENT)
+
+
+@extend_schema(
+    tags=["users"],
+    summary="Read / create-or-rotate / revoke the current user's API token.",
+    description=(
+        "GET returns ``{key, created}`` (key=null when no token exists). "
+        "POST creates a new token, atomically replacing any existing one "
+        "(rotate semantics — only one token per user). DELETE revokes."
+    ),
+    responses={200: TokenSerializer, 204: None},
+)
+@api_view(["GET", "POST", "DELETE"])
+@permission_classes([IsAuthenticated])
+def me_token(request: Request) -> Response:
+    return _handle_token(request, request.user)
 
 
 # ---------------------------------------------------------------------------
@@ -777,6 +865,25 @@ def users_set_permissions(request: Request, user_id: int) -> Response:
         pass
     user.refresh_from_db()
     return Response(UserSerializer(user).data)
+
+
+@extend_schema(
+    tags=["users"],
+    summary="Read / create-or-rotate / revoke another user's API token (admin only).",
+    description=(
+        "Same dispatcher as /me/token/, but operates on the user "
+        "identified by ``user_id``. Requires staff privileges."
+    ),
+    responses={200: TokenSerializer, 204: None},
+)
+@api_view(["GET", "POST", "DELETE"])
+@permission_classes([IsAdminUser])
+def users_token(request: Request, user_id: int) -> Response:
+    from django.contrib.auth.models import User
+    from django.shortcuts import get_object_or_404
+
+    target = get_object_or_404(User, pk=user_id)
+    return _handle_token(request, target)
 
 
 # ---------------------------------------------------------------------------
