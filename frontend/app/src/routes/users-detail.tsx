@@ -8,6 +8,7 @@ import { useToast } from "@/components/shared/Toast";
 import { GroupsPicker } from "@/components/users/GroupsPicker";
 import { PermissionsPicker } from "@/components/users/PermissionsPicker";
 import { SetPasswordModal } from "@/components/users/SetPasswordModal";
+import { TokenSection } from "@/components/users/TokenSection";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useUserDetail } from "@/hooks/useUsers";
 import { deleteUser, updateUser, type UserDetail } from "@/lib/api/users";
@@ -83,17 +84,13 @@ export default function UsersDetailRoute() {
             {tab === "Basic" && <BasicTab user={user} />}
             {tab === "Groups" && <GroupsPicker user={user} />}
             {tab === "Permissions" && <PermissionsPicker user={user} />}
-            {tab === "API Token" && <Placeholder name="API Token" />}
+            {tab === "API Token" && <TokenSection userId={user.id} username={user.username} />}
             {tab === "Profile" && <ProfileTab user={user} />}
           </div>
         </div>
       </div>
     </>
   );
-}
-
-function Placeholder({ name }: { name: string }) {
-  return <div className="dim mono">[{name} tab — implemented in subsequent task]</div>;
 }
 
 function BasicTab({ user }: { user: UserDetail }) {
