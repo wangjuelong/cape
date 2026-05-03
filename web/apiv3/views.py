@@ -44,6 +44,8 @@ from apiv3.serializers import (
     CurrentUserSerializer,
     DroppedReportSerializer,
     FeatureFlagsSerializer,
+    GroupDetailSerializer,
+    GroupListSerializer,
     GroupSerializer,
     MachineSerializer,
     MeUpdateSerializer,
@@ -715,22 +717,79 @@ def users_bulk_action(request: Request) -> Response:
 
 @extend_schema(
     tags=["users"],
-    summary="List all auth groups.",
-    description="Returns every Django auth Group with a permission_count annotation.",
-    responses={200: GroupSerializer(many=True)},
+    summary="List auth groups (admin only).",
+    description=(
+        "Paginated list of Django auth Groups with permission_count and "
+        "member_count annotations. Supports ?search= (icontains by name) "
+        "and ?cursor=&limit= cursor pagination."
+    ),
+    parameters=[
+        OpenApiParameter(name="search", type=OpenApiTypes.STR, required=False),
+        OpenApiParameter(name="cursor", type=OpenApiTypes.INT, required=False),
+        OpenApiParameter(name="limit", type=OpenApiTypes.INT, required=False),
+    ],
 )
 @api_view(["GET"])
 @permission_classes([IsAdminUser])
-def groups_list(_request: Request) -> Response:
+def groups_list(request: Request) -> Response:
     from django.contrib.auth.models import Group
     from django.db.models import Count
 
-    rows = Group.objects.annotate(permission_count=Count("permissions")).order_by("name")
+    qs = Group.objects.annotate(
+        permission_count=Count("permissions", distinct=True),
+        member_count=Count("user", distinct=True),
+    ).order_by("name", "id")
+
+    search = request.query_params.get("search")
+    if search:
+        qs = qs.filter(name__icontains=search)
+
+    total = qs.count()
+
+    cursor = request.query_params.get("cursor")
+    if cursor and cursor.isdigit():
+        # Cursor on group id (stable since list is ordered by name+id).
+        qs = qs.filter(id__gt=int(cursor))
+
+    try:
+        limit = int(request.query_params.get("limit") or 20)
+    except ValueError:
+        limit = 20
+    limit = max(1, min(limit, 100))
+
+    rows = list(qs[: limit + 1])
+    next_cursor = rows[limit].id if len(rows) > limit else None
+    rows = rows[:limit]
+
     data = [
-        {"id": g.id, "name": g.name, "permission_count": g.permission_count}
+        {
+            "id": g.id,
+            "name": g.name,
+            "permission_count": g.permission_count,
+            "member_count": g.member_count,
+        }
         for g in rows
     ]
-    return Response({"data": data})
+    return Response({"data": data, "next_cursor": next_cursor, "total": total})
+
+
+@extend_schema(
+    tags=["users"],
+    summary="Group detail (admin only).",
+    description="Full Group representation — id, name, permission_ids list, member_count.",
+    responses={200: GroupDetailSerializer},
+)
+@api_view(["GET"])
+@permission_classes([IsAdminUser])
+def groups_detail(_request: Request, group_id: int) -> Response:
+    from django.contrib.auth.models import Group
+    from django.shortcuts import get_object_or_404
+
+    group = get_object_or_404(
+        Group.objects.prefetch_related("permissions", "user_set"),
+        pk=group_id,
+    )
+    return Response(GroupDetailSerializer(group).data)
 
 
 @extend_schema(
