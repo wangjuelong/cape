@@ -10,15 +10,13 @@ interface Props {
   pendingUserId: number | null;
 }
 
-export function TokenListTable({
-  rows,
-  onGenerate,
-  onRotate,
-  onRevoke,
-  pendingUserId,
-}: Props) {
+export function TokenListTable({ rows, onGenerate, onRotate, onRevoke, pendingUserId }: Props) {
   if (rows.length === 0) {
-    return <div className="dim" style={{ padding: 16 }}>No users match.</div>;
+    return (
+      <div className="dim" style={{ padding: 16 }}>
+        No users match.
+      </div>
+    );
   }
   return (
     <table className="table" style={{ width: "100%", fontSize: 12 }}>

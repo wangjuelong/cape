@@ -1,14 +1,9 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 
-import {
-  listAdminTokens,
-  type AdminTokensListFilters,
-} from "@/lib/api/tokens";
+import { listAdminTokens, type AdminTokensListFilters } from "@/lib/api/tokens";
 import { queryKeys } from "@/lib/query-keys";
 
-export function useAdminTokensInfinite(
-  filters: Omit<AdminTokensListFilters, "cursor">,
-) {
+export function useAdminTokensInfinite(filters: Omit<AdminTokensListFilters, "cursor">) {
   return useInfiniteQuery({
     queryKey: queryKeys.tokens.adminList(filters),
     queryFn: ({ pageParam }) =>

@@ -11,11 +11,7 @@ import { TokenListTable } from "@/components/tokens/TokenListTable";
 import { TokenRevealDialog } from "@/components/tokens/TokenRevealDialog";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useAdminTokensInfinite } from "@/hooks/useTokensAdmin";
-import {
-  rotateUserToken,
-  revokeUserToken,
-  type AdminTokenRow,
-} from "@/lib/api/tokens";
+import { rotateUserToken, revokeUserToken, type AdminTokenRow } from "@/lib/api/tokens";
 import { queryKeys } from "@/lib/query-keys";
 
 interface RevealState {
@@ -30,10 +26,7 @@ export default function TokensRoute() {
   const { showToast } = useToast();
 
   const search = searchParams.get("search") ?? "";
-  const hasTokenParam = (searchParams.get("has_token") ?? "all") as
-    | "all"
-    | "yes"
-    | "no";
+  const hasTokenParam = (searchParams.get("has_token") ?? "all") as "all" | "yes" | "no";
 
   const filters = useMemo(
     () => ({ search, has_token: hasTokenParam, limit: 50 }),
@@ -42,10 +35,7 @@ export default function TokensRoute() {
 
   const q = useAdminTokensInfinite(filters);
 
-  const rows: AdminTokenRow[] = useMemo(
-    () => q.data?.pages.flatMap((p) => p.data) ?? [],
-    [q.data],
-  );
+  const rows: AdminTokenRow[] = useMemo(() => q.data?.pages.flatMap((p) => p.data) ?? [], [q.data]);
   const total = q.data?.pages[0]?.total ?? 0;
 
   const [reveal, setReveal] = useState<RevealState | null>(null);
@@ -55,8 +45,7 @@ export default function TokensRoute() {
     mutationFn: (userId: number) => rotateUserToken(userId),
     onMutate: (userId) => setPendingUserId(userId),
     onSuccess: (data, userId) => {
-      const username =
-        rows.find((r) => r.user_id === userId)?.username ?? `user #${userId}`;
+      const username = rows.find((r) => r.user_id === userId)?.username ?? `user #${userId}`;
       if (data.key) {
         setReveal({ username, tokenKey: data.key });
       }
@@ -85,9 +74,7 @@ export default function TokensRoute() {
       <div style={{ padding: 24, maxWidth: 480, margin: "40px auto" }}>
         <Alert variant="destructive">
           <AlertTitle>Forbidden</AlertTitle>
-          <AlertDescription>
-            Token administration is restricted to staff users.
-          </AlertDescription>
+          <AlertDescription>Token administration is restricted to staff users.</AlertDescription>
         </Alert>
       </div>
     );
@@ -119,12 +106,7 @@ export default function TokensRoute() {
 
   function onRevoke(row: AdminTokenRow) {
     if (pendingUserId !== null) return;
-    if (
-      !window.confirm(
-        `Revoke ${row.username}'s token? This cannot be undone.`,
-      )
-    )
-      return;
+    if (!window.confirm(`Revoke ${row.username}'s token? This cannot be undone.`)) return;
     revokeM.mutate(row.user_id);
   }
 
@@ -134,7 +116,10 @@ export default function TokensRoute() {
       <div className="scroll" style={{ padding: 14 }}>
         <div className="panel">
           <h2 className="panel-h" style={{ margin: 0 }}>
-            Tokens <span className="dim" style={{ fontSize: 11 }}>({total})</span>
+            Tokens{" "}
+            <span className="dim" style={{ fontSize: 11 }}>
+              ({total})
+            </span>
           </h2>
           <div style={{ padding: 12, display: "grid", gap: 12 }}>
             <TokenFilterBar

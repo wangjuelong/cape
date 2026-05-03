@@ -1,11 +1,6 @@
 import { useState } from "react";
 
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogHeader,
-} from "@/components/ui/dialog";
+import { Dialog, DialogClose, DialogContent, DialogHeader } from "@/components/ui/dialog";
 import { useToast } from "@/components/shared/Toast";
 
 interface Props {
@@ -20,15 +15,20 @@ export function TokenRevealDialog({ username, tokenKey, onClose }: Props) {
   const [copied, setCopied] = useState(false);
 
   return (
-    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
       <DialogContent width={520}>
         <DialogHeader>
           <strong>Token generated for {username}</strong>
         </DialogHeader>
         <div style={{ padding: 14, display: "grid", gap: 10, fontSize: 12 }}>
           <div className="dim">
-            This is the only time the full key will be shown. Copy it now —
-            it will be masked next time the page loads.
+            This is the only time the full key will be shown. Copy it now — it will be masked next
+            time the page loads.
           </div>
           <code
             className="mono"
@@ -56,7 +56,9 @@ export function TokenRevealDialog({ username, tokenKey, onClose }: Props) {
               {copied ? "Copied" : "Copy"}
             </button>
             <DialogClose asChild>
-              <button type="button" className="btn primary">Close</button>
+              <button type="button" className="btn primary">
+                Close
+              </button>
             </DialogClose>
           </div>
         </div>

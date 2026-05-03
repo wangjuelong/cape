@@ -36,7 +36,9 @@ export function TokenFilterBar({ initialSearch, initialHasToken, onApply }: Prop
           <option value="no">No token</option>
         </select>
       </label>
-      <button type="submit" className="btn primary">Apply</button>
+      <button type="submit" className="btn primary">
+        Apply
+      </button>
       <button
         type="button"
         className="btn ghost"
