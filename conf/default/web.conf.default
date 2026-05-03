@@ -5,7 +5,6 @@ enabled = no
 # poetry run python manage.py createsuperuser
 # ReCaptcha protected admin login
 captcha = no
-2fa = no
 # To enable Oauth check https://django-allauth.readthedocs.io and web/web/settings.py.
 # Allow only SSO for users with specific domain. Can be allow to all if empty.
 social_auth_email_domain = example.com
@@ -22,7 +21,6 @@ email_password =  ""
 email_port = 465
 use_ssl = 0
 use_tls = 0
-captcha_enabled = no
 
 # Do you want to ban temporal email services?
 disposable_email_disable = yes
