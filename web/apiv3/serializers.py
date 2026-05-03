@@ -169,6 +169,103 @@ class UserSerializer(serializers.ModelSerializer):
         return Token.objects.filter(user=obj).exists()
 
 
+class UserCreateSerializer(serializers.Serializer):
+    """Admin-side user creation. Username must be unique; password must
+    pass AUTH_PASSWORD_VALIDATORS. Non-superusers cannot create
+    superusers."""
+
+    username = serializers.CharField(max_length=150)
+    password = serializers.CharField(write_only=True)
+    email = serializers.EmailField(required=False, allow_blank=True)
+    first_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
+    last_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
+    is_staff = serializers.BooleanField(required=False, default=False)
+    is_superuser = serializers.BooleanField(required=False, default=False)
+    is_active = serializers.BooleanField(required=False, default=True)
+
+    def validate_username(self, value):
+        if _DjangoUser.objects.filter(username=value).exists():
+            raise serializers.ValidationError("Username already exists.")
+        return value
+
+    def validate_password(self, value):
+        from django.contrib.auth.password_validation import validate_password
+
+        try:
+            validate_password(value)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(list(exc.messages))
+        return value
+
+    def validate(self, attrs):
+        request = self.context.get("request")
+        if attrs.get("is_superuser") and request and not request.user.is_superuser:
+            raise serializers.ValidationError(
+                {"is_superuser": ["Only superuser can create superuser."]}
+            )
+        return attrs
+
+
+class UserUpdateSerializer(serializers.Serializer):
+    """Admin-side user update. Username NOT editable.
+    Excludes password (separate endpoint); excludes groups/permissions
+    (separate m2m endpoints)."""
+
+    email = serializers.EmailField(required=False, allow_blank=True)
+    first_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
+    last_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
+    is_staff = serializers.BooleanField(required=False)
+    is_superuser = serializers.BooleanField(required=False)
+    is_active = serializers.BooleanField(required=False)
+    userprofile = UserProfileNestedSerializer(required=False)
+
+    def to_internal_value(self, data):
+        allowed = {
+            "email", "first_name", "last_name",
+            "is_staff", "is_superuser", "is_active",
+            "userprofile",
+        }
+        unknown = set(data.keys()) - allowed
+        if unknown:
+            raise serializers.ValidationError(
+                {key: ["Field not editable; use dedicated endpoint or omit."]
+                 for key in unknown}
+            )
+        return super().to_internal_value(data)
+
+    def validate(self, attrs):
+        request = self.context.get("request")
+        target = self.context.get("target")
+        if attrs.get("is_superuser") and request and not request.user.is_superuser:
+            raise serializers.ValidationError(
+                {"is_superuser": ["Only superuser can promote."]}
+            )
+        if (
+            "is_active" in attrs and attrs["is_active"] is False
+            and request and target and request.user.id == target.id
+        ):
+            raise serializers.ValidationError(
+                {"is_active": ["Cannot deactivate yourself."]}
+            )
+        return attrs
+
+
+class UserSetPasswordSerializer(serializers.Serializer):
+    """Admin-side password reset. No current_password required (admin
+    override). Validates against AUTH_PASSWORD_VALIDATORS."""
+
+    password = serializers.CharField(write_only=True)
+
+    def validate_password(self, value):
+        from django.contrib.auth.password_validation import validate_password
+
+        try:
+            validate_password(value)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(list(exc.messages))
+        return value
+
+
 class SystemInfoSerializer(serializers.Serializer):
     cape_version = serializers.CharField()
     api_version = serializers.CharField()

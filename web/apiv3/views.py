@@ -62,8 +62,11 @@ from apiv3.serializers import (
     TaskResubmitSerializer,
     TaskSummarySerializer,
     TaskUrlSubmitSerializer,
+    UserCreateSerializer,
     UserListSerializer,
     UserSerializer,
+    UserSetPasswordSerializer,
+    UserUpdateSerializer,
 )
 from services import (
     compare_service,
@@ -268,10 +271,43 @@ def _parse_bool_param(value: str | None) -> bool | None:
         OpenApiParameter(name="ordering", type=OpenApiTypes.STR, required=False),
     ],
 )
-@api_view(["GET"])
+@api_view(["GET", "POST"])
 @permission_classes([IsAdminUser])
 def users_list(request: Request) -> Response:
     from django.contrib.auth.models import User
+
+    if request.method == "POST":
+        serializer = UserCreateSerializer(
+            data=request.data, context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        validated = serializer.validated_data
+        user = User.objects.create_user(
+            username=validated["username"],
+            email=validated.get("email") or "",
+            password=validated["password"],
+            first_name=validated.get("first_name") or "",
+            last_name=validated.get("last_name") or "",
+        )
+        user.is_staff = validated.get("is_staff", False)
+        user.is_superuser = validated.get("is_superuser", False)
+        user.is_active = validated.get("is_active", True)
+        user.save()
+        try:
+            from audit_log import helpers as audit
+            audit.log(
+                "user_create",
+                request=request,
+                actor=request.user,
+                target_type="user",
+                target_id=str(user.id),
+                target_label=user.username,
+            )
+        except Exception:
+            pass
+        return Response(
+            UserSerializer(user).data, status=http_status.HTTP_201_CREATED
+        )
 
     qs = User.objects.all().select_related("userprofile").prefetch_related("groups")
 
