@@ -23,4 +23,15 @@ ACTIONS: tuple[tuple[str, str, str], ...] = (
     ("admin_addition", "Admin: Created", "admin"),
     ("admin_change", "Admin: Changed", "admin"),
     ("admin_deletion", "Admin: Deleted", "admin"),
+    # User management (SPA admin user CRUD)
+    ("user_create", "User Created", "user_mgmt"),
+    ("user_update", "User Updated", "user_mgmt"),
+    ("user_delete", "User Deleted", "user_mgmt"),
+    ("user_activate", "User Activated", "user_mgmt"),
+    ("user_deactivate", "User Deactivated", "user_mgmt"),
+    ("user_set_password", "Admin Set Password", "user_mgmt"),
+    # API tokens
+    ("token_create", "API Token Created", "auth"),
+    ("token_rotate", "API Token Rotated", "auth"),
+    ("token_revoke", "API Token Revoked", "auth"),
 )
