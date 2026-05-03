@@ -36,6 +36,7 @@ urlpatterns = [
     path("groups/", views.groups_list, name="groups-list"),
     path("groups/bulk-delete/", views.groups_bulk_delete, name="groups-bulk-delete"),
     path("groups/<int:group_id>/", views.groups_detail, name="groups-detail"),
+    path("groups/<int:group_id>/members/", views.groups_members, name="groups-members"),
     path("permissions/", views.permissions_list, name="permissions-list"),
 
     # System

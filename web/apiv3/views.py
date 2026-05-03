@@ -933,6 +933,79 @@ def groups_bulk_delete(request: Request) -> Response:
 
 @extend_schema(
     tags=["users"],
+    summary="Group members (admin only).",
+    description=(
+        "GET returns paginated user list for the group. PATCH replaces "
+        "``group.user_set`` m2m with the given ``user_ids`` (invalid ids "
+        "silently dropped). Emits ``group_update`` audit row with "
+        "``metadata.members_changed=True``."
+    ),
+    parameters=[
+        OpenApiParameter(name="cursor", type=OpenApiTypes.INT, required=False),
+        OpenApiParameter(name="limit", type=OpenApiTypes.INT, required=False),
+    ],
+)
+@api_view(["GET", "PATCH"])
+@permission_classes([IsAdminUser])
+def groups_members(request: Request, group_id: int) -> Response:
+    from django.contrib.auth.models import Group, User
+    from django.shortcuts import get_object_or_404
+
+    group = get_object_or_404(Group, pk=group_id)
+
+    if request.method == "PATCH":
+        ids = request.data.get("user_ids") or []
+        if not isinstance(ids, list):
+            return _error(
+                "user_ids_required",
+                "user_ids must be a list",
+                http_code=http_status.HTTP_400_BAD_REQUEST,
+            )
+        valid_ids = list(
+            User.objects.filter(id__in=ids).values_list("id", flat=True)
+        )
+        group.user_set.set(valid_ids)
+        try:
+            from audit_log import helpers as audit
+
+            audit.log(
+                "group_update",
+                request=request,
+                actor=request.user,
+                target_type="group",
+                target_id=str(group.id),
+                target_label=group.name,
+                members_changed=True,
+            )
+        except Exception:
+            pass
+        # fall through to return current member list
+
+    qs = group.user_set.all().order_by("username")
+    total = qs.count()
+
+    cursor = request.query_params.get("cursor")
+    if cursor and cursor.isdigit():
+        qs = qs.filter(id__gt=int(cursor))
+
+    try:
+        limit = int(request.query_params.get("limit") or 20)
+    except ValueError:
+        limit = 20
+    limit = max(1, min(limit, 200))  # higher cap for member listing
+    rows = list(qs[: limit + 1])
+    next_cursor = rows[limit].id if len(rows) > limit else None
+    rows = rows[:limit]
+
+    return Response({
+        "data": UserListSerializer(rows, many=True).data,
+        "next_cursor": next_cursor,
+        "total": total,
+    })
+
+
+@extend_schema(
+    tags=["users"],
     summary="List Django auth permissions, optionally filtered by content type.",
     description=(
         "Optional ``?content_type=app_label.model`` filter narrows to the "
