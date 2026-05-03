@@ -520,6 +520,47 @@ SPA `/groups` 管理页的后端面。共 **8 个 endpoint**：列表 + 详情 +
 
 审计：`group_create / group_update / group_delete` 归入 `user_mgmt` 类目（与 user CRUD 同类目）。失败的 audit 写入会被吞掉，不阻塞主请求。
 
+### 2.AA Tokens (apiv3) — admin aggregate
+
+Sub-spec #3. Admin-only top-level view of every user's API token.
+Token write operations are documented in the Users section
+(`POST/DELETE /api/v3/users/<id>/token/`).
+
+#### `GET /api/v3/tokens/` — list users with token status
+
+Permission: `IsAdminUser`.
+
+Query parameters:
+
+| Param | Type | Default | Description |
+|---|---|---|---|
+| `search` | str | "" | Username/email icontains (OR). |
+| `has_token` | str | `all` | `all` / `yes` / `no`. |
+| `cursor` | int | — | `id__gt` cursor on `user.id`. |
+| `limit` | int | 50 | Max 100. |
+
+Response envelope:
+
+```json
+{
+  "data": [
+    {
+      "user_id": 12,
+      "username": "alice",
+      "email": "alice@example.com",
+      "is_staff": false,
+      "is_active": true,
+      "has_token": true,
+      "token_created": "2026-04-21T11:32:08Z"
+    }
+  ],
+  "next_cursor": 14,
+  "total": 87
+}
+```
+
+`token_created` is `null` whenever `has_token` is `false`.
+
 ---
 
 ## 4. 鉴权 / 节流 / CSRF / CORS 速览

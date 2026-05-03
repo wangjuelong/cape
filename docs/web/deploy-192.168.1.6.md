@@ -381,3 +381,19 @@ group_create / group_update / group_delete (user_mgmt 类目)
 - authed 后 SPA 渲染列表 + 表单 + 详情 tab 正常；详情 Members tab 双列 picker 增删 user 与 GET /groups/<id>/members/ + PATCH 成员 round-trip 一致
 
 凭证不变 (admin / cape123!)。下一步 sub-spec #3 (/tokens 顶级 admin 列表).
+
+## Sub-spec #3 — `/tokens` admin top-level page (2026-05-03)
+
+Spec: `docs/superpowers/specs/2026-05-03-tokens-design.md` (commit `f5e31dba`)
+Plan: `docs/superpowers/plans/2026-05-03-tokens.md`
+
+Commits (5):
+- A1 — `feat(apiv3): GET /tokens/ — admin aggregated user+token list`
+- B1 — `feat(spa): tokens admin API client + hook + sidebar entry`
+- C1 — `feat(spa): tokens admin — FilterBar + ListTable + RevealDialog components`
+- C2 — `feat(spa): /tokens admin top-level page (Generate/Rotate/Revoke + Reveal modal)`
+- D1 — `test(spa): /tokens Playwright e2e + api-reference + deploy log`
+
+Smoke: `/tokens → 302` (anon redirect to login); authed admin sees the SPA shell + page.
+
+Tests: 7 new pytest in `tests/web/test_apiv3_tokens_list.py` (all green); 4 Playwright in `frontend/app/tests/e2e/tokens-management.spec.mjs` (all green against 192.168.1.6).
