@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { PageHead } from "@/components/shared/PageHead";
+import { UsersInGroupPicker } from "@/components/groups/UsersInGroupPicker";
 import { PermissionsPicker } from "@/components/users/PermissionsPicker";
 import { Spinner } from "@/components/ui/spinner";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -82,7 +83,7 @@ export default function GroupsDetailRoute() {
           </div>
           <div style={{ padding: 14 }}>
             {tab === "Basic" && <BasicTab group={group} />}
-            {tab === "Members" && <MembersPlaceholder group={group} />}
+            {tab === "Members" && <UsersInGroupPicker groupId={group.id} groupName={group.name} />}
           </div>
         </div>
       </div>
@@ -200,10 +201,3 @@ function BasicTab({ group }: { group: GroupDetail }) {
   );
 }
 
-function MembersPlaceholder({ group: _group }: { group: GroupDetail }) {
-  return (
-    <div className="dim mono">
-      [Members tab — implemented in Phase I; UsersInGroupPicker coming]
-    </div>
-  );
-}
