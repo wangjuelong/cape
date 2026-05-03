@@ -110,9 +110,7 @@ export function ProfileEditModal({ open, onOpenChange }: Props) {
               />
               <FieldErr err={serverErr} field="email" />
             </Field>
-            {typeof serverErr === "string" && (
-              <div style={errStyle}>{serverErr}</div>
-            )}
+            {typeof serverErr === "string" && <div style={errStyle}>{serverErr}</div>}
           </DialogBody>
           <DialogFooter>
             <button
@@ -133,15 +131,7 @@ export function ProfileEditModal({ open, onOpenChange }: Props) {
   );
 }
 
-function Field({
-  label,
-  id,
-  children,
-}: {
-  label: string;
-  id: string;
-  children: React.ReactNode;
-}) {
+function Field({ label, id, children }: { label: string; id: string; children: React.ReactNode }) {
   return (
     <div style={{ display: "grid", gap: 4 }}>
       <label htmlFor={id} style={{ fontSize: 11, color: "var(--color-fg-1)" }}>

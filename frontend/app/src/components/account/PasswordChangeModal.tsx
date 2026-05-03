@@ -138,15 +138,7 @@ export function PasswordChangeModal({ open, onOpenChange }: Props) {
   );
 }
 
-function Field({
-  label,
-  id,
-  children,
-}: {
-  label: string;
-  id: string;
-  children: React.ReactNode;
-}) {
+function Field({ label, id, children }: { label: string; id: string; children: React.ReactNode }) {
   return (
     <div style={{ display: "grid", gap: 4 }}>
       <label htmlFor={id} style={{ fontSize: 11, color: "var(--color-fg-1)" }}>

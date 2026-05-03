@@ -90,9 +90,7 @@ export function DialogHeader({ children }: { children: ReactNode }) {
 }
 
 export function DialogBody({ children }: { children: ReactNode }) {
-  return (
-    <div style={{ padding: 14, overflow: "auto", display: "grid", gap: 10 }}>{children}</div>
-  );
+  return <div style={{ padding: 14, overflow: "auto", display: "grid", gap: 10 }}>{children}</div>;
 }
 
 export function DialogFooter({ children }: { children: ReactNode }) {
