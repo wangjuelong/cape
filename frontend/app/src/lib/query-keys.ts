@@ -1,4 +1,5 @@
 import type { AuditFilters } from "@/lib/api/audits";
+import type { UserListFilters } from "@/lib/api/users";
 import type { TaskListFilters } from "@/types/api";
 
 export const queryKeys = {
@@ -40,5 +41,22 @@ export const queryKeys = {
     info: ["system", "info"] as const,
     flags: ["system", "flags"] as const,
     submissionForm: ["system", "submission-form"] as const,
+  },
+  users: {
+    all: ["users"] as const,
+    list: (filters: UserListFilters) => ["users", "list", filters] as const,
+    detail: (id: number) => ["users", "detail", id] as const,
+  },
+  groups: {
+    all: ["groups"] as const,
+    list: ["groups", "list"] as const,
+  },
+  permissions: {
+    all: ["permissions"] as const,
+    list: (contentType?: string) => ["permissions", "list", contentType ?? null] as const,
+  },
+  tokens: {
+    me: ["tokens", "me"] as const,
+    user: (id: number) => ["tokens", "user", id] as const,
   },
 } as const;
