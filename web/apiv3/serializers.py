@@ -271,13 +271,96 @@ class UserSetPasswordSerializer(serializers.Serializer):
 # ---------------------------------------------------------------------------
 
 
-class GroupSerializer(serializers.Serializer):
-    """Minimal group row for /api/v3/groups/. ``permission_count`` comes
-    from a queryset annotation in the view (avoids per-row count())."""
+class GroupListSerializer(serializers.Serializer):
+    """Compact group row for /api/v3/groups/ list endpoint.
+
+    ``permission_count`` and ``member_count`` come from queryset annotations
+    in the view to avoid per-row count() round-trips. Falls back to live
+    counts when serialising a non-annotated instance (e.g. from tests)."""
 
     id = serializers.IntegerField()
     name = serializers.CharField()
-    permission_count = serializers.IntegerField()
+    permission_count = serializers.SerializerMethodField()
+    member_count = serializers.SerializerMethodField()
+
+    def get_permission_count(self, obj) -> int:
+        annotated = getattr(obj, "permission_count", None)
+        if isinstance(annotated, int):
+            return annotated
+        return obj.permissions.count()
+
+    def get_member_count(self, obj) -> int:
+        annotated = getattr(obj, "member_count", None)
+        if isinstance(annotated, int):
+            return annotated
+        return obj.user_set.count()
+
+
+class GroupDetailSerializer(serializers.Serializer):
+    """Full group representation for /api/v3/groups/<id>/."""
+
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    permission_ids = serializers.SerializerMethodField()
+    member_count = serializers.SerializerMethodField()
+
+    def get_permission_ids(self, obj) -> list[int]:
+        return list(obj.permissions.values_list("id", flat=True))
+
+    def get_member_count(self, obj) -> int:
+        return obj.user_set.count()
+
+
+class GroupCreateSerializer(serializers.Serializer):
+    """Validate POST /api/v3/groups/ payload — name uniqueness + optional permission_ids."""
+
+    name = serializers.CharField(max_length=150)
+    permission_ids = serializers.ListField(
+        child=serializers.IntegerField(), required=False, default=list
+    )
+
+    def validate_name(self, value: str) -> str:
+        from django.contrib.auth.models import Group
+        if Group.objects.filter(name=value).exists():
+            raise serializers.ValidationError("Group with this name already exists.")
+        return value
+
+
+class GroupUpdateSerializer(serializers.Serializer):
+    """Validate PATCH /api/v3/groups/<id>/ payload — allowed-fields whitelist + name uniqueness exclude self."""
+
+    name = serializers.CharField(max_length=150, required=False)
+    permission_ids = serializers.ListField(
+        child=serializers.IntegerField(), required=False
+    )
+
+    def to_internal_value(self, data):
+        allowed = {"name", "permission_ids"}
+        unknown = set(data.keys()) - allowed
+        if unknown:
+            raise serializers.ValidationError(
+                {key: ["Unknown field; only name and permission_ids are editable."]
+                 for key in unknown}
+            )
+        return super().to_internal_value(data)
+
+    def validate(self, attrs):
+        name = attrs.get("name")
+        target = self.context.get("target")
+        if name and target:
+            from django.contrib.auth.models import Group
+            qs = Group.objects.filter(name=name)
+            if target.id:
+                qs = qs.exclude(pk=target.id)
+            if qs.exists():
+                raise serializers.ValidationError(
+                    {"name": ["Group with this name already exists."]}
+                )
+        return attrs
+
+
+# Backward-compat alias for any caller that imported the old name.
+GroupSerializer = GroupListSerializer
 
 
 class PermissionContentTypeSerializer(serializers.Serializer):
