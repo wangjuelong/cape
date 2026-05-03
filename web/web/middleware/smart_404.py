@@ -20,6 +20,12 @@ from django.http import HttpResponse, JsonResponse
 
 _API_PREFIXES = ("/api/v3/", "/apiv2/")
 _STATIC_PREFIXES = ("/static/", "/favicon")
+# /accounts/* is the auth-strip allowlist surface (only /accounts/login/
+# and /accounts/logout/ are mounted). Unmounted paths must 404 verbatim
+# rather than fall through to the SPA shell — otherwise removed flows
+# (signup / password-reset / social) would silently render the React
+# router and confuse users.
+_AUTH_STRIP_PREFIXES = ("/accounts/",)
 
 
 def _is_api_path(path: str) -> bool:
@@ -28,6 +34,10 @@ def _is_api_path(path: str) -> bool:
 
 def _is_static_path(path: str) -> bool:
     return any(path.startswith(p) for p in _STATIC_PREFIXES)
+
+
+def _is_auth_strip_path(path: str) -> bool:
+    return any(path.startswith(p) for p in _AUTH_STRIP_PREFIXES)
 
 
 class Smart404Middleware:
@@ -49,7 +59,7 @@ class Smart404Middleware:
                 status=404,
             )
 
-        if _is_static_path(path):
+        if _is_static_path(path) or _is_auth_strip_path(path):
             return HttpResponse("Not Found", status=404, content_type="text/plain")
 
         # Browser route — serve SPA shell with status 200 so React router

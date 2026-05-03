@@ -46,10 +46,6 @@
   </form>
 {% endblock %}
 {% block footer %}
-  <div class="cape-auth__card-footer">
-    <a href="{% url 'account_reset_password' %}">{% trans "Forgot password?" %}</a>
-    {% if signup_url %}
-      <span>{% blocktrans %}No account? <a class="cape-auth__inline-link" href="{{ signup_url }}">Sign up</a>{% endblocktrans %}</span>
-    {% endif %}
-  </div>
+  {# Forgot-password / Sign-up links removed: signup is gone (auth-strip) #}
+  {# and password reset lives in the SPA at /users/<id>/Set-password.    #}
 {% endblock %}

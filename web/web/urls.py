@@ -2,6 +2,8 @@
 # This file is part of Cuckoo Sandbox - http://www.cuckoosandbox.org
 # See the file 'docs/LICENSE' for copying permission.
 
+from allauth.account.views import LoginView as _allauth_LoginView
+from allauth.account.views import LogoutView as _allauth_LogoutView
 from analysis import views as analysis_views
 from django.conf import settings
 from django.conf.urls import include
@@ -15,13 +17,44 @@ if settings.NOCAPTCHA:
 else:
     from django.contrib import admin
 
-if settings.TWOFA:
-    from django_otp.admin import OTPAdminSite
-
-    admin.site.__class__ = OTPAdminSite
-
 admin.site.site_header = "CAPE Administration"
 admin.site.site_title = "CAPE Administration"
+
+
+class _CapeLoginView(_allauth_LoginView):
+    """LoginView that tolerates a missing ``account_signup`` URL.
+
+    Upstream allauth unconditionally reverses ``account_signup`` in
+    ``get_context_data`` to populate the "Sign up" link. After the
+    auth-strip we expose only ``account_login`` / ``account_logout``,
+    so the reverse raises NoReverseMatch and breaks GET /accounts/login/.
+    Suppress that lookup — the SPA owns user creation, so the template
+    never renders a signup link anyway.
+    """
+
+    def get_context_data(self, **kwargs):
+        from django.urls import NoReverseMatch
+
+        try:
+            return super().get_context_data(**kwargs)
+        except NoReverseMatch:
+            from django.contrib.sites.shortcuts import get_current_site
+
+            ret = super(_allauth_LoginView, self).get_context_data(**kwargs)
+            ret["signup_url"] = None
+            ret["site"] = get_current_site(self.request)
+            ret["SOCIALACCOUNT_ENABLED"] = False
+            ret["SOCIALACCOUNT_ONLY"] = False
+            ret["LOGIN_BY_CODE_ENABLED"] = False
+            ret["PASSKEY_LOGIN_ENABLED"] = False
+            return ret
+
+
+# Module-level as_view() calls — allauth's LoginView/LogoutView are
+# stateless CBVs, so this is fine. Underscore prefix marks them as
+# private to this module.
+_allauth_login_view = _CapeLoginView.as_view()
+_allauth_logout_view = _allauth_LogoutView.as_view()
 
 from apiv2 import urls as apiv2
 from apiv3 import urls as apiv3
@@ -34,7 +67,12 @@ handler404 = "web.views.handler404"
 urlpatterns = [
     # ---- API + auth + admin: SPA must NOT shadow these ----
     re_path(r"^guac/", include("guac.urls")),
-    path("accounts/", include("allauth.urls")),
+    # accounts/ — username/password only (was include("allauth.urls"))
+    # Selective exposure: login + logout. signup / email / password reset
+    # / social / 2FA all 404. Admin creates users via SPA /users; forgotten
+    # passwords reset via SPA /users/<id>/Set-password.
+    path("accounts/login/", _allauth_login_view, name="account_login"),
+    path("accounts/logout/", _allauth_logout_view, name="account_logout"),
     re_path(r"^admin/", admin.site.urls),
     re_path(r"^apiv2/", include(apiv2)),
     re_path(r"^api/v3/", include(apiv3)),
