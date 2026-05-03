@@ -34,13 +34,7 @@ const NAV_ITEMS: NavItem[] = [
 const ADMIN_ITEMS: NavItem[] = [
   { to: "/machines", label: "Machines", icon: Icon.cog, flag: "machinelist" },
   { to: "/audit", label: "Audit", icon: Icon.doc, staffOnly: true },
-  {
-    to: "/admin/auth/user/",
-    label: "Users",
-    icon: Icon.users,
-    external: true,
-    staffOnly: true,
-  },
+  { to: "/users", label: "Users", icon: Icon.users, staffOnly: true },
   { to: "/docs", label: "API Docs", icon: Icon.doc },
 ];
 
