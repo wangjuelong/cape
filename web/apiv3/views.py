@@ -447,6 +447,78 @@ def users_detail(request: Request, user_id: int) -> Response:
     return Response(UserSerializer(user).data)
 
 
+@extend_schema(tags=["users"], summary="Reset user password (admin override).")
+@api_view(["POST"])
+@permission_classes([IsAdminUser])
+def users_set_password(request: Request, user_id: int) -> Response:
+    from django.contrib.auth.models import User
+    from django.shortcuts import get_object_or_404
+
+    user = get_object_or_404(User, pk=user_id)
+    serializer = UserSetPasswordSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    user.set_password(serializer.validated_data["password"])
+    user.save(update_fields=["password"])
+    try:
+        from audit_log import helpers as audit
+        audit.log(
+            "user_set_password",
+            request=request,
+            actor=request.user,
+            target_type="user",
+            target_id=str(user.id),
+            target_label=user.username,
+        )
+    except Exception:
+        pass
+    return Response(status=http_status.HTTP_204_NO_CONTENT)
+
+
+def _users_set_active(
+    request: Request, user_id: int, active: bool, action_key: str
+) -> Response:
+    from django.contrib.auth.models import User
+    from django.shortcuts import get_object_or_404
+
+    user = get_object_or_404(User, pk=user_id)
+    if not active and user.id == request.user.id:
+        return _error(
+            "self_deactivate_forbidden",
+            "Cannot deactivate yourself.",
+            http_code=http_status.HTTP_400_BAD_REQUEST,
+        )
+    if user.is_active != active:
+        user.is_active = active
+        user.save(update_fields=["is_active"])
+    try:
+        from audit_log import helpers as audit
+        audit.log(
+            action_key,
+            request=request,
+            actor=request.user,
+            target_type="user",
+            target_id=str(user.id),
+            target_label=user.username,
+        )
+    except Exception:
+        pass
+    return Response(UserSerializer(user).data)
+
+
+@extend_schema(tags=["users"], summary="Activate user.")
+@api_view(["POST"])
+@permission_classes([IsAdminUser])
+def users_activate(request: Request, user_id: int) -> Response:
+    return _users_set_active(request, user_id, True, "user_activate")
+
+
+@extend_schema(tags=["users"], summary="Deactivate user.")
+@api_view(["POST"])
+@permission_classes([IsAdminUser])
+def users_deactivate(request: Request, user_id: int) -> Response:
+    return _users_set_active(request, user_id, False, "user_deactivate")
+
+
 # ---------------------------------------------------------------------------
 # System
 # ---------------------------------------------------------------------------
