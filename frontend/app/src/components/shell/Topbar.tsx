@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { LogOut, KeyRound, Pencil } from "lucide-react";
+import { LogOut, KeyRound, Pencil, Key } from "lucide-react";
 
 import { Icon } from "./icons";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ProfileEditModal } from "@/components/account/ProfileEditModal";
 import { PasswordChangeModal } from "@/components/account/PasswordChangeModal";
+import { TokenManageModal } from "@/components/account/TokenManageModal";
 
 export function Topbar() {
   const navigate = useNavigate();
@@ -26,6 +27,7 @@ export function Topbar() {
   const { mutate: signOut, isPending: isSigningOut } = useLogout();
   const [editOpen, setEditOpen] = useState(false);
   const [pwdOpen, setPwdOpen] = useState(false);
+  const [tokenOpen, setTokenOpen] = useState(false);
 
   return (
     <>
@@ -131,6 +133,10 @@ export function Topbar() {
                 <KeyRound size={12} />
                 <span>Change password</span>
               </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setTokenOpen(true)}>
+                <Key size={12} />
+                <span>API token</span>
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 danger
@@ -149,6 +155,7 @@ export function Topbar() {
       </div>
       <ProfileEditModal open={editOpen} onOpenChange={setEditOpen} />
       <PasswordChangeModal open={pwdOpen} onOpenChange={setPwdOpen} />
+      <TokenManageModal open={tokenOpen} onOpenChange={setTokenOpen} />
     </>
   );
 }
