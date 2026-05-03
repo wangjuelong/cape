@@ -4,6 +4,7 @@ Field names mirror frontend/web-design/data.js (PRD D-14). Keep the contract
 flat (e.g. signatures_count, yara_matches) rather than nested.
 """
 
+from django.contrib.auth.models import User as _DjangoUser
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
@@ -90,6 +91,82 @@ class ChangePasswordSerializer(serializers.Serializer):
 
 class CsrfTokenSerializer(serializers.Serializer):
     csrf_token = serializers.CharField()
+
+
+# ---------------------------------------------------------------------------
+# Admin user management — /api/v3/users/ + /api/v3/users/<id>/
+# ---------------------------------------------------------------------------
+
+
+class UserListSerializer(serializers.ModelSerializer):
+    """Compact user row for /api/v3/users/ list endpoint."""
+
+    group_count = serializers.SerializerMethodField()
+    has_token = serializers.SerializerMethodField()
+    subscription = serializers.SerializerMethodField()
+
+    class Meta:
+        model = _DjangoUser
+        fields = (
+            "id", "username", "email", "first_name", "last_name",
+            "is_staff", "is_superuser", "is_active",
+            "last_login", "date_joined",
+            "group_count", "has_token", "subscription",
+        )
+
+    def get_group_count(self, obj) -> int:
+        return obj.groups.count()
+
+    def get_has_token(self, obj) -> bool:
+        from rest_framework.authtoken.models import Token
+        return Token.objects.filter(user=obj).exists()
+
+    def get_subscription(self, obj):
+        prof = getattr(obj, "userprofile", None)
+        return getattr(prof, "subscription", None) if prof else None
+
+
+class UserProfileNestedSerializer(serializers.Serializer):
+    """Inline UserProfile fields."""
+    subscription = serializers.CharField(allow_blank=True, required=False)
+    reports = serializers.BooleanField(required=False)
+
+
+class UserSerializer(serializers.ModelSerializer):
+    """Full user representation for /api/v3/users/<id>/ detail endpoint."""
+
+    group_ids = serializers.SerializerMethodField()
+    permission_ids = serializers.SerializerMethodField()
+    userprofile = serializers.SerializerMethodField()
+    has_token = serializers.SerializerMethodField()
+
+    class Meta:
+        model = _DjangoUser
+        fields = (
+            "id", "username", "email", "first_name", "last_name",
+            "is_staff", "is_superuser", "is_active",
+            "last_login", "date_joined",
+            "group_ids", "permission_ids", "userprofile", "has_token",
+        )
+
+    def get_group_ids(self, obj) -> list[int]:
+        return list(obj.groups.values_list("id", flat=True))
+
+    def get_permission_ids(self, obj) -> list[int]:
+        return list(obj.user_permissions.values_list("id", flat=True))
+
+    def get_userprofile(self, obj):
+        prof = getattr(obj, "userprofile", None)
+        if not prof:
+            return None
+        return {
+            "subscription": prof.subscription,
+            "reports": prof.reports,
+        }
+
+    def get_has_token(self, obj) -> bool:
+        from rest_framework.authtoken.models import Token
+        return Token.objects.filter(user=obj).exists()
 
 
 class SystemInfoSerializer(serializers.Serializer):
