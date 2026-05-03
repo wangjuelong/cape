@@ -445,6 +445,60 @@ type SSEEvent =
 
 详情：`docs/web/audit-log.md`。
 
+### 2.Y 用户管理 (`/api/v3/users/` — admin)
+
+SPA `/users` 页面 + 头像下拉 "API token" 项的后端面。共 **19 个新 endpoint**：11 个 user CRUD + 2 个引用数据 + 6 个 API Token。所有路由要求 `IsAdminUser`（`is_staff=True`）；普通用户 403。Token endpoints 中 `/me/token/` 例外，仅要求 `IsAuthenticated`（自助管理）。
+
+完整请求 / 响应 JSON 形状以 `docs/superpowers/specs/2026-05-03-spa-user-management-design.md` §4 为准。
+
+#### 用户 CRUD
+
+| Method | Path | 描述 | 审计 ACTION |
+|---|---|---|---|
+| GET | `/api/v3/users/?cursor=&limit=&q=&is_active=&is_staff=&group=&ordering=` | 列表 + cursor 分页 + 过滤 + 搜索 | — |
+| POST | `/api/v3/users/` | 创建用户（username/password/email/first_name/last_name/is_staff/is_superuser） | `user_create` |
+| GET | `/api/v3/users/<id>/` | 单用户详情 + groups + user_permissions + userprofile | — |
+| PATCH | `/api/v3/users/<id>/` | 编辑（email/first_name/last_name/is_staff/is_active/is_superuser/userprofile） | `user_update` |
+| DELETE | `/api/v3/users/<id>/` | 删除用户（拒绝自删 + 拒绝非超管删超管） | `user_delete` |
+
+#### 用户 mutation
+
+| Method | Path | 描述 | 审计 ACTION |
+|---|---|---|---|
+| POST | `/api/v3/users/<id>/set-password/` | 管理员强制改密（`{password, confirm_password}`） | `user_set_password` |
+| POST | `/api/v3/users/<id>/activate/` | 启用用户（`is_active=true`） | `user_activate` |
+| POST | `/api/v3/users/<id>/deactivate/` | 停用用户（拒绝自停） | `user_deactivate` |
+| POST | `/api/v3/users/bulk-action/` | 批量操作（`{ids: [...], action: "activate"\|"deactivate"\|"delete"}`） | 每条目 `user_activate` / `user_deactivate` / `user_delete` |
+
+#### 用户 m2m
+
+| Method | Path | 描述 | 审计 ACTION |
+|---|---|---|---|
+| PATCH | `/api/v3/users/<id>/groups/` | 替换用户 groups（`{group_ids: [...]}`） | `user_update`（`metadata.fields=["groups"]`） |
+| PATCH | `/api/v3/users/<id>/permissions/` | 替换用户直接权限（`{permission_ids: [...]}`） | `user_update`（`metadata.fields=["permissions"]`） |
+
+#### 引用数据
+
+| Method | Path | 描述 |
+|---|---|---|
+| GET | `/api/v3/groups/` | 全部 groups（id + name），用于 SPA Groups tab 多选下拉 |
+| GET | `/api/v3/permissions/?content_type=<app_label>.<model>` | 权限列表（按 content_type 折叠的树形数据），用于 Permissions tab |
+
+#### API Token（自助 + 管理员）
+
+| Method | Path | 描述 | 审计 ACTION |
+|---|---|---|---|
+| GET | `/api/v3/me/token/` | 当前用户 token（仅返回首次创建后的 key） | — |
+| POST | `/api/v3/me/token/` | 创建或轮换自身 token（key 仅本次响应可见） | `token_create` 首次 / `token_rotate` 轮换 |
+| DELETE | `/api/v3/me/token/` | 撤销自身 token | `token_revoke` |
+| GET | `/api/v3/users/<id>/token/` | 查询某用户 token 状态 | — |
+| POST | `/api/v3/users/<id>/token/` | 管理员代为创建 / 轮换某用户 token | `token_create` / `token_rotate` |
+| DELETE | `/api/v3/users/<id>/token/` | 管理员撤销某用户 token | `token_revoke` |
+
+权限：所有 `/api/v3/users/...` + `/api/v3/groups/` + `/api/v3/permissions/` 路径强制 `IsAdminUser`；`/api/v3/me/token/` 仅要求 `IsAuthenticated`，并固定操作请求者本人。
+
+审计：`user_create / user_update / user_delete / user_activate / user_deactivate / user_set_password` 归入 `user_mgmt` 类目；`token_create / token_rotate / token_revoke` 归入 `auth` 类目。失败的 audit 写入会被吞掉，不阻塞主请求。
+
 ---
 
 ## 4. 鉴权 / 节流 / CSRF / CORS 速览

@@ -272,3 +272,36 @@ Playwright (192.168.1.6):
 
 ### 影响
 凭证不变 (admin / cape123!)；apiv2 token API 不变；Django admin /admin/auth/user/ 入口现在从 SPA 侧栏可达；个人 profile / 密码修改完全在 SPA 内闭环，不再跳出到 allauth 页面。
+
+## 2026-05-03 — SPA-native user management + API token management
+
+按 `docs/superpowers/specs/2026-05-03-spa-user-management-design.md` +
+`docs/superpowers/plans/2026-05-03-spa-user-management.md` 部署。
+
+### 后端 (apiv3, 19 个新 endpoint)
+- 用户 CRUD: GET/POST /users/, GET/PATCH/DELETE /users/<id>/
+- 用户 mutation: set-password, activate, deactivate, bulk-action
+- 用户 m2m: PATCH /users/<id>/groups/, /users/<id>/permissions/
+- 引用数据: GET /groups/, GET /permissions/?content_type=
+- API Token: GET/POST/DELETE /me/token/, /users/<id>/token/
+
+### 审计 (9 个新 ACTION)
+user_create / user_update / user_delete / user_activate / user_deactivate /
+user_set_password (user_mgmt 类目) +
+token_create / token_rotate / token_revoke (auth 类目)
+
+### 前端 (3 个新路由)
+- /users — 列表 (search/filter/cursor 分页/bulk action)
+- /users/new — 创建表单
+- /users/<id> — 5-tab 详情 (Basic / Groups / Permissions / API Token / Profile)
+- 头像下拉新增 "API token" 项 → TokenManageModal (复用 TokenSection)
+
+### Sidebar
+- Users 链接从 external /admin/auth/user/ 切换到内部 SPA /users
+- /admin/auth/user/ 仍可直接 URL 访问
+
+### 实测
+- pytest backend: 11 测试模块全绿 (~55 个 test case)
+- Playwright: users-management.spec.mjs 3/3 PASS
+
+凭证不变 (admin / cape123!)。apiv2 token API 不变。
