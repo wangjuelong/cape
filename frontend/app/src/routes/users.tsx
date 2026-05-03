@@ -4,6 +4,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { PageHead } from "@/components/shared/PageHead";
 import { Spinner } from "@/components/ui/spinner";
+import { BulkActionBar } from "@/components/users/BulkActionBar";
 import { UserFilterBar } from "@/components/users/UserFilterBar";
 import { UserListTable } from "@/components/users/UserListTable";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -112,6 +113,11 @@ export default function UsersRoute() {
                 setSp(searchFromFilters(next));
                 setSelected(new Set());
               }}
+            />
+            <BulkActionBar
+              selected={selected}
+              usernames={new Map(rows.map((r) => [r.id, r.username]))}
+              onClear={() => setSelected(new Set())}
             />
             {q.isLoading ? (
               <Centered>
