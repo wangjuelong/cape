@@ -62,7 +62,7 @@ export const queryKeys = {
   tokens: {
     me: ["tokens", "me"] as const,
     user: (id: number) => ["tokens", "user", id] as const,
-    adminAll: ["tokens", "adminAll"] as const,
+    adminAll: ["tokens", "adminList"] as const,
     adminList: (filters: AdminTokensListFilters) =>
       ["tokens", "adminList", filters] as const,
   },

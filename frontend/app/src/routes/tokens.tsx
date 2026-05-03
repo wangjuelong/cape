@@ -62,7 +62,7 @@ export default function TokensRoute() {
       }
       qc.invalidateQueries({ queryKey: queryKeys.tokens.adminAll });
       qc.invalidateQueries({ queryKey: queryKeys.tokens.user(userId) });
-      showToast(`Token ${data.key ? "saved" : "rotated"} for ${username}.`, "success");
+      showToast(`Token rotated for ${username}.`, "success");
     },
     onError: () => showToast("Token operation failed.", "error"),
     onSettled: () => setPendingUserId(null),
@@ -101,11 +101,13 @@ export default function TokensRoute() {
   }
 
   function onGenerate(row: AdminTokenRow) {
+    if (pendingUserId !== null) return;
     if (!window.confirm(`Generate API token for ${row.username}?`)) return;
     rotateM.mutate(row.user_id);
   }
 
   function onRotate(row: AdminTokenRow) {
+    if (pendingUserId !== null) return;
     if (
       !window.confirm(
         `Rotate token for ${row.username}?\n\nExisting key will stop working immediately.`,
@@ -116,6 +118,7 @@ export default function TokensRoute() {
   }
 
   function onRevoke(row: AdminTokenRow) {
+    if (pendingUserId !== null) return;
     if (
       !window.confirm(
         `Revoke ${row.username}'s token? This cannot be undone.`,
