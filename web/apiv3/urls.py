@@ -20,6 +20,9 @@ urlpatterns = [
     path("me/", views.me, name="me"),
     path("me/password/", views.me_password_change, name="me-password-change"),
 
+    # Admin user management
+    path("users/", views.users_list, name="users-list"),
+
     # System
     path("system/info/", views.system_info, name="system-info"),
     path("system/feature-flags/", views.feature_flags, name="feature-flags"),

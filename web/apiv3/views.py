@@ -62,6 +62,7 @@ from apiv3.serializers import (
     TaskResubmitSerializer,
     TaskSummarySerializer,
     TaskUrlSubmitSerializer,
+    UserListSerializer,
 )
 from services import (
     compare_service,
@@ -225,6 +226,103 @@ def me_password_change(request: Request) -> Response:
         except Exception:  # noqa: BLE001
             pass
     return Response(status=http_status.HTTP_204_NO_CONTENT)
+
+
+# ---------------------------------------------------------------------------
+# Admin user management
+# ---------------------------------------------------------------------------
+
+
+_USERS_LIST_ALLOWED_ORDERING = frozenset(
+    {
+        "username",
+        "-username",
+        "date_joined",
+        "-date_joined",
+        "last_login",
+        "-last_login",
+    }
+)
+_USERS_LIST_DEFAULT_LIMIT = 20
+_USERS_LIST_MAX_LIMIT = 100
+
+
+def _parse_bool_param(value: str | None) -> bool | None:
+    if value is None:
+        return None
+    return value.lower() in ("1", "true", "yes")
+
+
+@extend_schema(
+    tags=["users"],
+    summary="List users (admin only).",
+    parameters=[
+        OpenApiParameter(name="search", type=OpenApiTypes.STR, required=False),
+        OpenApiParameter(name="is_staff", type=OpenApiTypes.BOOL, required=False),
+        OpenApiParameter(name="is_superuser", type=OpenApiTypes.BOOL, required=False),
+        OpenApiParameter(name="is_active", type=OpenApiTypes.BOOL, required=False),
+        OpenApiParameter(name="group", type=OpenApiTypes.STR, required=False),
+        OpenApiParameter(name="cursor", type=OpenApiTypes.INT, required=False),
+        OpenApiParameter(name="limit", type=OpenApiTypes.INT, required=False),
+        OpenApiParameter(name="ordering", type=OpenApiTypes.STR, required=False),
+    ],
+)
+@api_view(["GET"])
+@permission_classes([IsAdminUser])
+def users_list(request: Request) -> Response:
+    from django.contrib.auth.models import User
+
+    qs = User.objects.all().select_related("userprofile").prefetch_related("groups")
+
+    search = request.query_params.get("search")
+    if search:
+        qs = qs.filter(
+            Q(username__icontains=search)
+            | Q(email__icontains=search)
+            | Q(first_name__icontains=search)
+            | Q(last_name__icontains=search)
+        )
+
+    for fld in ("is_staff", "is_superuser", "is_active"):
+        parsed = _parse_bool_param(request.query_params.get(fld))
+        if parsed is not None:
+            qs = qs.filter(**{fld: parsed})
+
+    group = request.query_params.get("group")
+    if group:
+        if group.isdigit():
+            qs = qs.filter(groups__id=int(group))
+        else:
+            qs = qs.filter(groups__name=group)
+
+    ordering = request.query_params.get("ordering") or "-date_joined"
+    if ordering not in _USERS_LIST_ALLOWED_ORDERING:
+        ordering = "-date_joined"
+    qs = qs.order_by(ordering, "id")
+
+    total = qs.count()
+
+    cursor = request.query_params.get("cursor")
+    if cursor and cursor.isdigit():
+        qs = qs.filter(id__lt=int(cursor))
+
+    try:
+        limit = int(request.query_params.get("limit") or _USERS_LIST_DEFAULT_LIMIT)
+    except ValueError:
+        limit = _USERS_LIST_DEFAULT_LIMIT
+    limit = max(1, min(limit, _USERS_LIST_MAX_LIMIT))
+
+    rows = list(qs[: limit + 1])
+    next_cursor = rows[limit].id if len(rows) > limit else None
+    rows = rows[:limit]
+
+    return Response(
+        {
+            "data": UserListSerializer(rows, many=True).data,
+            "next_cursor": next_cursor,
+            "total": total,
+        }
+    )
 
 
 # ---------------------------------------------------------------------------
