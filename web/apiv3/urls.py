@@ -22,6 +22,7 @@ urlpatterns = [
 
     # Admin user management
     path("users/", views.users_list, name="users-list"),
+    path("users/<int:user_id>/", views.users_detail, name="users-detail"),
 
     # System
     path("system/info/", views.system_info, name="system-info"),

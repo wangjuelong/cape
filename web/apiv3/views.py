@@ -63,6 +63,7 @@ from apiv3.serializers import (
     TaskSummarySerializer,
     TaskUrlSubmitSerializer,
     UserListSerializer,
+    UserSerializer,
 )
 from services import (
     compare_service,
@@ -323,6 +324,22 @@ def users_list(request: Request) -> Response:
             "total": total,
         }
     )
+
+
+@extend_schema(tags=["users"], summary="User detail (admin only).")
+@api_view(["GET"])
+@permission_classes([IsAdminUser])
+def users_detail(_request: Request, user_id: int) -> Response:
+    from django.contrib.auth.models import User
+    from django.shortcuts import get_object_or_404
+
+    user = get_object_or_404(
+        User.objects.select_related("userprofile").prefetch_related(
+            "groups", "user_permissions"
+        ),
+        pk=user_id,
+    )
+    return Response(UserSerializer(user).data)
 
 
 # ---------------------------------------------------------------------------
