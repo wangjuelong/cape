@@ -22,6 +22,7 @@ urlpatterns = [
 
     # Admin user management
     path("users/", views.users_list, name="users-list"),
+    path("users/bulk-action/", views.users_bulk_action, name="users-bulk-action"),
     path("users/<int:user_id>/", views.users_detail, name="users-detail"),
     path("users/<int:user_id>/set-password/", views.users_set_password, name="users-set-password"),
     path("users/<int:user_id>/activate/", views.users_activate, name="users-activate"),

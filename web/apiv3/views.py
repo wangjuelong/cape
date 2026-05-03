@@ -519,6 +519,104 @@ def users_deactivate(request: Request, user_id: int) -> Response:
     return _users_set_active(request, user_id, False, "user_deactivate")
 
 
+@extend_schema(
+    tags=["users"],
+    summary="Bulk action over a set of user IDs (activate/deactivate/delete).",
+)
+@api_view(["POST"])
+@permission_classes([IsAdminUser])
+def users_bulk_action(request: Request) -> Response:
+    from django.contrib.auth.models import User
+
+    ids = request.data.get("ids") or []
+    action = request.data.get("action")
+    if action not in ("activate", "deactivate", "delete"):
+        return _error(
+            "unknown_action",
+            f"Unknown action: {action}",
+            http_code=http_status.HTTP_400_BAD_REQUEST,
+        )
+    if not isinstance(ids, list):
+        return _error(
+            "ids_required",
+            "ids must be a list",
+            http_code=http_status.HTTP_400_BAD_REQUEST,
+        )
+
+    success: list[int] = []
+    failed: list[dict] = []
+    for uid in ids:
+        try:
+            target = User.objects.get(pk=uid)
+        except User.DoesNotExist:
+            failed.append({"id": uid, "reason": "not found"})
+            continue
+
+        if action == "delete":
+            if target.id == request.user.id:
+                failed.append({"id": uid, "reason": "cannot delete yourself"})
+                continue
+            if target.is_superuser and not request.user.is_superuser:
+                failed.append(
+                    {"id": uid, "reason": "only superuser can delete superuser"}
+                )
+                continue
+            target_username = target.username
+            target.delete()
+            try:
+                from audit_log import helpers as audit
+                audit.log(
+                    "user_delete",
+                    request=request,
+                    actor=request.user,
+                    target_type="user",
+                    target_id=str(uid),
+                    target_label=target_username,
+                )
+            except Exception:
+                pass
+            success.append(uid)
+        elif action == "activate":
+            if not target.is_active:
+                target.is_active = True
+                target.save(update_fields=["is_active"])
+            try:
+                from audit_log import helpers as audit
+                audit.log(
+                    "user_activate",
+                    request=request,
+                    actor=request.user,
+                    target_type="user",
+                    target_id=str(uid),
+                    target_label=target.username,
+                )
+            except Exception:
+                pass
+            success.append(uid)
+        elif action == "deactivate":
+            if target.id == request.user.id:
+                failed.append({"id": uid, "reason": "cannot deactivate yourself"})
+                continue
+            if target.is_active:
+                target.is_active = False
+                target.save(update_fields=["is_active"])
+            try:
+                from audit_log import helpers as audit
+                audit.log(
+                    "user_deactivate",
+                    request=request,
+                    actor=request.user,
+                    target_type="user",
+                    target_id=str(uid),
+                    target_label=target.username,
+                )
+            except Exception:
+                pass
+            success.append(uid)
+
+    return Response({"success": success, "failed": failed})
+
+
 # ---------------------------------------------------------------------------
 # System
 # ---------------------------------------------------------------------------
