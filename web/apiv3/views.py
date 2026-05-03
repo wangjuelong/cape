@@ -810,7 +810,7 @@ def groups_list(request: Request) -> Response:
     description="Full Group representation — id, name, permission_ids list, member_count.",
     responses={200: GroupDetailSerializer},
 )
-@api_view(["GET", "PATCH"])
+@api_view(["GET", "PATCH", "DELETE"])
 @permission_classes([IsAdminUser])
 def groups_detail(request: Request, group_id: int) -> Response:
     from django.contrib.auth.models import Group, Permission
@@ -820,6 +820,25 @@ def groups_detail(request: Request, group_id: int) -> Response:
         Group.objects.prefetch_related("permissions", "user_set"),
         pk=group_id,
     )
+
+    if request.method == "DELETE":
+        group_id_copy = group.id
+        group_name = group.name
+        group.delete()
+        try:
+            from audit_log import helpers as audit
+
+            audit.log(
+                "group_delete",
+                request=request,
+                actor=request.user,
+                target_type="group",
+                target_id=str(group_id_copy),
+                target_label=group_name,
+            )
+        except Exception:
+            pass
+        return Response(status=http_status.HTTP_204_NO_CONTENT)
 
     if request.method == "PATCH":
         serializer = GroupUpdateSerializer(
@@ -861,6 +880,55 @@ def groups_detail(request: Request, group_id: int) -> Response:
         group.refresh_from_db()
 
     return Response(GroupDetailSerializer(group).data)
+
+
+@extend_schema(
+    tags=["users"],
+    summary="Bulk delete groups (admin only).",
+    description=(
+        "POST ``{ids: [int, ...]}`` deletes each group; partial success is "
+        "supported. Response is ``{success: [], failed: [{id, reason}]}``."
+    ),
+)
+@api_view(["POST"])
+@permission_classes([IsAdminUser])
+def groups_bulk_delete(request: Request) -> Response:
+    from django.contrib.auth.models import Group
+
+    ids = request.data.get("ids") or []
+    if not isinstance(ids, list):
+        return _error(
+            "ids_required",
+            "ids must be a list",
+            http_code=http_status.HTTP_400_BAD_REQUEST,
+        )
+
+    success: list[int] = []
+    failed: list[dict] = []
+    for gid in ids:
+        try:
+            group = Group.objects.get(pk=gid)
+        except Group.DoesNotExist:
+            failed.append({"id": gid, "reason": "not found"})
+            continue
+        group_name = group.name
+        group.delete()
+        try:
+            from audit_log import helpers as audit
+
+            audit.log(
+                "group_delete",
+                request=request,
+                actor=request.user,
+                target_type="group",
+                target_id=str(gid),
+                target_label=group_name,
+            )
+        except Exception:
+            pass
+        success.append(gid)
+
+    return Response({"success": success, "failed": failed})
 
 
 @extend_schema(
