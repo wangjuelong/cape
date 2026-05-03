@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -11,7 +11,7 @@ import { SetPasswordModal } from "@/components/users/SetPasswordModal";
 import { TokenSection } from "@/components/users/TokenSection";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useUserDetail } from "@/hooks/useUsers";
-import { deleteUser, updateUser, type UserDetail } from "@/lib/api/users";
+import { deleteUser, setUserPermissions, updateUser, type UserDetail } from "@/lib/api/users";
 import { queryKeys } from "@/lib/query-keys";
 
 const TABS = ["Basic", "Groups", "Permissions", "API Token", "Profile"] as const;
@@ -81,7 +81,7 @@ export default function UsersDetailRoute() {
           <div style={{ padding: 14 }}>
             {tab === "Basic" && <BasicTab user={user} />}
             {tab === "Groups" && <GroupsPicker user={user} />}
-            {tab === "Permissions" && <PermissionsPicker user={user} />}
+            {tab === "Permissions" && <PermissionsTab user={user} />}
             {tab === "API Token" && <TokenSection userId={user.id} username={user.username} />}
             {tab === "Profile" && <ProfileTab user={user} />}
           </div>
@@ -190,6 +190,50 @@ function BasicTab({ user }: { user: UserDetail }) {
         userId={user.id}
         username={user.username}
       />
+    </div>
+  );
+}
+
+function PermissionsTab({ user }: { user: UserDetail }) {
+  const [permissionIds, setPermissionIds] = useState<number[]>(user.permission_ids);
+  const qc = useQueryClient();
+  const { showToast } = useToast();
+
+  useEffect(() => {
+    setPermissionIds(user.permission_ids);
+  }, [user.permission_ids]);
+
+  const dirty = useMemo(() => {
+    const a = new Set(user.permission_ids);
+    if (a.size !== permissionIds.length) return true;
+    for (const id of permissionIds) if (!a.has(id)) return true;
+    return false;
+  }, [permissionIds, user.permission_ids]);
+
+  const mutation = useMutation({
+    mutationFn: () => setUserPermissions(user.id, permissionIds),
+    onSuccess: (data) => {
+      qc.setQueryData(queryKeys.users.detail(user.id), data);
+      showToast("Permissions saved.", "success");
+    },
+    onError: () => showToast("Save failed.", "error"),
+  });
+
+  return (
+    <div style={{ display: "grid", gap: 12, maxWidth: 600 }}>
+      <PermissionsPicker
+        value={permissionIds}
+        onChange={setPermissionIds}
+        disabled={mutation.isPending}
+      />
+      <button
+        className="btn primary"
+        disabled={!dirty || mutation.isPending}
+        onClick={() => mutation.mutate()}
+        style={{ alignSelf: "flex-start" }}
+      >
+        {mutation.isPending ? "Saving…" : "Save permissions"}
+      </button>
     </div>
   );
 }
