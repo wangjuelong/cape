@@ -21,11 +21,13 @@ from django.http import HttpResponse, JsonResponse
 _API_PREFIXES = ("/api/v3/", "/apiv2/")
 _STATIC_PREFIXES = ("/static/", "/favicon")
 # /accounts/* is the auth-strip allowlist surface (only /accounts/login/
-# and /accounts/logout/ are mounted). Unmounted paths must 404 verbatim
-# rather than fall through to the SPA shell — otherwise removed flows
-# (signup / password-reset / social) would silently render the React
+# and /accounts/logout/ are mounted). /admin/* is the Django admin surface
+# — auth-strip unregistered User/Group/Token/EmailAddress/Social* models
+# so paths like /admin/auth/user/ go through admin's catch_all_view and
+# raise Http404. Both must 404 verbatim rather than fall through to the
+# SPA shell — otherwise removed flows would silently render the React
 # router and confuse users.
-_AUTH_STRIP_PREFIXES = ("/accounts/",)
+_AUTH_STRIP_PREFIXES = ("/accounts/", "/admin/")
 
 
 def _is_api_path(path: str) -> bool:
