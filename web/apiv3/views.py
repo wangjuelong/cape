@@ -363,9 +363,9 @@ def users_list(request: Request) -> Response:
 
 
 @extend_schema(tags=["users"], summary="User detail (admin only).")
-@api_view(["GET"])
+@api_view(["GET", "PATCH", "DELETE"])
 @permission_classes([IsAdminUser])
-def users_detail(_request: Request, user_id: int) -> Response:
+def users_detail(request: Request, user_id: int) -> Response:
     from django.contrib.auth.models import User
     from django.shortcuts import get_object_or_404
 
@@ -375,6 +375,75 @@ def users_detail(_request: Request, user_id: int) -> Response:
         ),
         pk=user_id,
     )
+
+    if request.method == "PATCH":
+        serializer = UserUpdateSerializer(
+            data=request.data, context={"request": request, "target": user}
+        )
+        serializer.is_valid(raise_exception=True)
+        validated = dict(serializer.validated_data)
+        profile_data = validated.pop("userprofile", None)
+        changed: list[str] = []
+        for field, value in validated.items():
+            if getattr(user, field) != value:
+                setattr(user, field, value)
+                changed.append(field)
+        if changed:
+            user.save(update_fields=changed)
+        if profile_data is not None:
+            prof = user.userprofile  # auto-created via post_save signal
+            for k, v in profile_data.items():
+                if getattr(prof, k) != v:
+                    setattr(prof, k, v)
+                    changed.append(f"userprofile.{k}")
+            prof.save()
+        if changed:
+            try:
+                from audit_log import helpers as audit
+                audit.log(
+                    "user_update",
+                    request=request,
+                    actor=request.user,
+                    target_type="user",
+                    target_id=str(user.id),
+                    target_label=user.username,
+                    fields=changed,
+                )
+            except Exception:
+                pass
+        user.refresh_from_db()
+        return Response(UserSerializer(user).data)
+
+    if request.method == "DELETE":
+        if user.id == request.user.id:
+            return _error(
+                "self_delete_forbidden",
+                "Cannot delete yourself.",
+                http_code=http_status.HTTP_400_BAD_REQUEST,
+            )
+        if user.is_superuser and not request.user.is_superuser:
+            return _error(
+                "superuser_delete_forbidden",
+                "Only superuser can delete superuser.",
+                http_code=http_status.HTTP_400_BAD_REQUEST,
+            )
+        username = user.username
+        user_id_copy = user.id
+        user.delete()
+        try:
+            from audit_log import helpers as audit
+            audit.log(
+                "user_delete",
+                request=request,
+                actor=request.user,
+                target_type="user",
+                target_id=str(user_id_copy),
+                target_label=username,
+            )
+        except Exception:
+            pass
+        return Response(status=http_status.HTTP_204_NO_CONTENT)
+
     return Response(UserSerializer(user).data)
 
 
