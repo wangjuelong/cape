@@ -19,6 +19,7 @@ import {
   Tag,
   Upload,
   Users,
+  UsersRound,
 } from "lucide-react";
 
 export const Icon = {
@@ -37,6 +38,7 @@ export const Icon = {
   download: Download,
   refresh: RefreshCw,
   users: Users,
+  groupsRound: UsersRound,
 } as const;
 
 export type IconName = keyof typeof Icon;

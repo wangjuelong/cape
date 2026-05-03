@@ -35,6 +35,7 @@ const ADMIN_ITEMS: NavItem[] = [
   { to: "/machines", label: "Machines", icon: Icon.cog, flag: "machinelist" },
   { to: "/audit", label: "Audit", icon: Icon.doc, staffOnly: true },
   { to: "/users", label: "Users", icon: Icon.users, staffOnly: true },
+  { to: "/groups", label: "Groups", icon: Icon.groupsRound, staffOnly: true },
   { to: "/docs", label: "API Docs", icon: Icon.doc },
 ];
 

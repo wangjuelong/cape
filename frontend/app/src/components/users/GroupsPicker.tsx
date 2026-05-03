@@ -14,8 +14,8 @@ export function GroupsPicker({ user }: Props) {
   const qc = useQueryClient();
   const { showToast } = useToast();
   const groupsQ = useQuery({
-    queryKey: queryKeys.groups.list,
-    queryFn: listGroups,
+    queryKey: queryKeys.groups.list({ limit: 200 }),
+    queryFn: () => listGroups({ limit: 200 }),
     staleTime: 60_000,
   });
   const [selected, setSelected] = useState<Set<number>>(new Set(user.group_ids));
@@ -33,7 +33,7 @@ export function GroupsPicker({ user }: Props) {
     onError: () => showToast("Save failed.", "error"),
   });
 
-  const all = groupsQ.data ?? [];
+  const all = groupsQ.data?.data ?? [];
   const dirty = useMemo(() => {
     const a = new Set(user.group_ids);
     if (a.size !== selected.size) return true;
