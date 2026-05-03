@@ -14,6 +14,7 @@ const StatsRoute = lazy(() => import("@/routes/stats"));
 const MachinesRoute = lazy(() => import("@/routes/machines"));
 const AuditRoute = lazy(() => import("@/routes/audit"));
 const UsersRoute = lazy(() => import("@/routes/users"));
+const UsersDetailRoute = lazy(() => import("@/routes/users-detail"));
 const DocsRoute = lazy(() => import("@/routes/docs"));
 const TaskDetailRoute = lazy(() => import("@/routes/task-detail"));
 const LoginBridgeRoute = lazy(() => import("@/routes/login-bridge"));
@@ -71,6 +72,7 @@ export const router = createBrowserRouter([
       { path: "machines", element: withSuspense(<MachinesRoute />) },
       { path: "audit", element: withSuspense(<AuditRoute />) },
       { path: "users", element: withSuspense(<UsersRoute />) },
+      { path: "users/:id", element: withSuspense(<UsersDetailRoute />) },
       { path: "docs", element: withSuspense(<DocsRoute />) },
       { path: "tasks/:id", element: withSuspense(<TaskDetailRoute />) },
       { path: "*", element: withSuspense(<NotFoundRoute />) },
