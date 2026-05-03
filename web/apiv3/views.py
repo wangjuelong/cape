@@ -44,9 +44,11 @@ from apiv3.serializers import (
     CurrentUserSerializer,
     DroppedReportSerializer,
     FeatureFlagsSerializer,
+    GroupCreateSerializer,
     GroupDetailSerializer,
     GroupListSerializer,
     GroupSerializer,
+    GroupUpdateSerializer,
     MachineSerializer,
     MeUpdateSerializer,
     NetworkReportSerializer,
@@ -729,11 +731,40 @@ def users_bulk_action(request: Request) -> Response:
         OpenApiParameter(name="limit", type=OpenApiTypes.INT, required=False),
     ],
 )
-@api_view(["GET"])
+@api_view(["GET", "POST"])
 @permission_classes([IsAdminUser])
 def groups_list(request: Request) -> Response:
-    from django.contrib.auth.models import Group
+    from django.contrib.auth.models import Group, Permission
     from django.db.models import Count
+
+    if request.method == "POST":
+        serializer = GroupCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        validated = serializer.validated_data
+        group = Group.objects.create(name=validated["name"])
+        if validated.get("permission_ids"):
+            valid_perm_ids = list(
+                Permission.objects.filter(id__in=validated["permission_ids"])
+                .values_list("id", flat=True)
+            )
+            group.permissions.set(valid_perm_ids)
+        try:
+            from audit_log import helpers as audit
+
+            audit.log(
+                "group_create",
+                request=request,
+                actor=request.user,
+                target_type="group",
+                target_id=str(group.id),
+                target_label=group.name,
+            )
+        except Exception:
+            pass
+        return Response(
+            GroupDetailSerializer(group).data,
+            status=http_status.HTTP_201_CREATED,
+        )
 
     qs = Group.objects.annotate(
         permission_count=Count("permissions", distinct=True),
@@ -779,16 +810,56 @@ def groups_list(request: Request) -> Response:
     description="Full Group representation — id, name, permission_ids list, member_count.",
     responses={200: GroupDetailSerializer},
 )
-@api_view(["GET"])
+@api_view(["GET", "PATCH"])
 @permission_classes([IsAdminUser])
-def groups_detail(_request: Request, group_id: int) -> Response:
-    from django.contrib.auth.models import Group
+def groups_detail(request: Request, group_id: int) -> Response:
+    from django.contrib.auth.models import Group, Permission
     from django.shortcuts import get_object_or_404
 
     group = get_object_or_404(
         Group.objects.prefetch_related("permissions", "user_set"),
         pk=group_id,
     )
+
+    if request.method == "PATCH":
+        serializer = GroupUpdateSerializer(
+            data=request.data, context={"target": group}
+        )
+        serializer.is_valid(raise_exception=True)
+        validated = serializer.validated_data
+        changed: list[str] = []
+        if "name" in validated and validated["name"] != group.name:
+            group.name = validated["name"]
+            group.save(update_fields=["name"])
+            changed.append("name")
+        permissions_changed = False
+        if "permission_ids" in validated:
+            valid_ids = list(
+                Permission.objects.filter(id__in=validated["permission_ids"])
+                .values_list("id", flat=True)
+            )
+            current_ids = set(group.permissions.values_list("id", flat=True))
+            if set(valid_ids) != current_ids:
+                group.permissions.set(valid_ids)
+                permissions_changed = True
+        if changed or permissions_changed:
+            try:
+                from audit_log import helpers as audit
+
+                audit.log(
+                    "group_update",
+                    request=request,
+                    actor=request.user,
+                    target_type="group",
+                    target_id=str(group.id),
+                    target_label=group.name,
+                    fields=changed,
+                    permissions_changed=permissions_changed,
+                )
+            except Exception:
+                pass
+        group.refresh_from_db()
+
     return Response(GroupDetailSerializer(group).data)
 
 
