@@ -305,3 +305,28 @@ token_create / token_rotate / token_revoke (auth 类目)
 - Playwright: users-management.spec.mjs 3/3 PASS
 
 凭证不变 (admin / cape123!)。apiv2 token API 不变。
+
+## 2026-05-03 — Sub-spec #1: auth-strip
+
+按 `docs/superpowers/specs/2026-05-03-auth-strip-design.md` + `docs/superpowers/plans/2026-05-03-auth-strip.md` 部署。
+
+### 改动
+- `web/users/admin.py` — 重写为 7-model unregister 集中点 + autodiscover 强制其它 admin 模块加载
+- `web/web/urls.py` — `include("allauth.urls")` 替换为 `accounts/login/` + `accounts/logout/` 白名单（通过 `_CapeLoginView` 子类吞 `NoReverseMatch`）；删 TWOFA / OTPAdminSite 块
+- `web/web/settings.py` — 删 TWOFA + ACCOUNT_SIGNUP_FORM_CLASS + django_otp 注释
+- `web/web/middleware/smart_404.py` + `web/web/views.py:handler404` — 加 `/accounts/*` 和 `/admin/*` carve-out (plain 404 而非 SPA shell)
+- `conf/default/web.conf.default` — 删 `[web_auth] 2fa` + `[registration] captcha_enabled`
+- `web/templates/account/` — 删 12 个废弃模板；保留 `_auth_layout.html` / `login.html` / `logout.html`
+- `web/templates/socialaccount/` — 整目录删
+- `web/templates/account/login.html` — 删 "Forgot password?" 链接 + Sign-up 链接
+
+### 实测
+- pytest auth-strip suite: 27 case 全绿 (admin 7 + URL 15 + settings 5)
+- pytest 全量: 无 NEW regression (5 个 pre-existing apiv2/mitre 失败保持不变)
+- Playwright e2e 全量: 21/21 PASS
+- 手动 smoke (authed admin):
+  - `/accounts/login/` → 200, `/accounts/signup/` → 404, `/accounts/password/reset/` → 404
+  - `/admin/auth/user/` → 404, `/admin/auth/group/` → 404, `/admin/sites/site/` → 200 (其它 model 仍正常)
+  - `/apiv2/cuckoo/status/` + Token → 200, `/api/v3/users/?limit=1` + Token → 200
+
+凭证不变 (admin / cape123!)。下一步：sub-spec #2 (/groups SPA + apiv3 group CRUD).

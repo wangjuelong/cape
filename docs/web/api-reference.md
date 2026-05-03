@@ -603,3 +603,21 @@ const sse  = new EventSource("/api/v3/events/tasks");
 - 配置默认值：`conf/default/api.conf.default`
 - 路由源：`web/web/urls.py` + `web/<app>/urls.py`
 - 视图源：`web/apiv2/views.py`、`web/apiv3/views.py`、`web/analysis/views.py`、`web/submission/views.py` 等
+
+## Authentication Surface (post 2026-05-03 auth-strip)
+
+| Surface | Path | Method | Use |
+|---|---|---|---|
+| **Browser session** | `/accounts/login/` | GET / POST | Username + password login (allauth) |
+| **Browser session** | `/accounts/logout/` | GET / POST | Sign out |
+| **API token** | `Authorization: Token <key>` | header on `/apiv2/*` 和 `/api/v3/*` | Programmatic access；token 由 admin 在 SPA `/users/<id>` API Token tab 管理，自服务通过头像下拉 |
+
+**已下线**（404）：
+- `/accounts/signup/` — admin 通过 SPA `/users/new` 创建用户
+- `/accounts/password/reset/` 和 `/accounts/password/reset/key/<key>/` — 忘记密码 → 找 admin 用 SPA `/users/<id>/Set-password`
+- `/accounts/password/change/` — 头像下拉 modal 走 `POST /api/v3/me/password/`
+- `/accounts/email/`、`/accounts/confirm-email/<key>/` — 不做邮箱验证流
+- `/accounts/social/*` — 无第三方 OAuth provider
+- `/admin/auth/user/`、`/admin/auth/group/`、`/admin/authtoken/tokenproxy/`、`/admin/account/emailaddress/`、`/admin/socialaccount/*` — 由 SPA `/users` 替代
+
+`/admin/` 仍可访问其它 model（sites、django_recaptcha 配置等）。
