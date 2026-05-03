@@ -6,6 +6,7 @@ import { PageHead } from "@/components/shared/PageHead";
 import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/components/shared/Toast";
 import { GroupsPicker } from "@/components/users/GroupsPicker";
+import { PermissionsPicker } from "@/components/users/PermissionsPicker";
 import { SetPasswordModal } from "@/components/users/SetPasswordModal";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useUserDetail } from "@/hooks/useUsers";
@@ -81,7 +82,7 @@ export default function UsersDetailRoute() {
           <div style={{ padding: 14 }}>
             {tab === "Basic" && <BasicTab user={user} />}
             {tab === "Groups" && <GroupsPicker user={user} />}
-            {tab === "Permissions" && <Placeholder name="Permissions" />}
+            {tab === "Permissions" && <PermissionsPicker user={user} />}
             {tab === "API Token" && <Placeholder name="API Token" />}
             {tab === "Profile" && <ProfileTab user={user} />}
           </div>
