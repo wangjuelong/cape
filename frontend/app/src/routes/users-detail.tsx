@@ -6,6 +6,7 @@ import { PageHead } from "@/components/shared/PageHead";
 import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/components/shared/Toast";
 import { GroupsPicker } from "@/components/users/GroupsPicker";
+import { HistoryTab } from "@/components/users/HistoryTab";
 import { PermissionsPicker } from "@/components/users/PermissionsPicker";
 import { SetPasswordModal } from "@/components/users/SetPasswordModal";
 import { TokenSection } from "@/components/users/TokenSection";
@@ -14,7 +15,7 @@ import { useUserDetail } from "@/hooks/useUsers";
 import { deleteUser, setUserPermissions, updateUser, type UserDetail } from "@/lib/api/users";
 import { queryKeys } from "@/lib/query-keys";
 
-const TABS = ["Basic", "Groups", "Permissions", "API Token", "Profile"] as const;
+const TABS = ["Basic", "Groups", "Permissions", "API Token", "Profile", "History"] as const;
 type TabKey = (typeof TABS)[number];
 
 export default function UsersDetailRoute() {
@@ -84,6 +85,7 @@ export default function UsersDetailRoute() {
             {tab === "Permissions" && <PermissionsTab user={user} />}
             {tab === "API Token" && <TokenSection userId={user.id} username={user.username} />}
             {tab === "Profile" && <ProfileTab user={user} />}
+            {tab === "History" && <HistoryTab user={user} />}
           </div>
         </div>
       </div>
