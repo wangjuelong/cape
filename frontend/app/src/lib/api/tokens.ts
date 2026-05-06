@@ -45,6 +45,7 @@ export interface AdminTokenRow {
   is_active: boolean;
   has_token: boolean;
   token_created: string | null;
+  key: string | null;
 }
 
 export interface AdminTokensListResponse {
@@ -55,7 +56,6 @@ export interface AdminTokensListResponse {
 
 export interface AdminTokensListFilters {
   search?: string;
-  has_token?: "all" | "yes" | "no";
   cursor?: number;
   limit?: number;
 }
@@ -65,12 +65,11 @@ export async function listAdminTokens(
 ): Promise<AdminTokensListResponse> {
   const params = new URLSearchParams();
   if (filters.search) params.set("search", filters.search);
-  if (filters.has_token && filters.has_token !== "all") {
-    params.set("has_token", filters.has_token);
-  }
   if (filters.cursor !== undefined) params.set("cursor", String(filters.cursor));
   if (filters.limit !== undefined) params.set("limit", String(filters.limit));
   const qs = params.toString();
-  const { data } = await apiClient.get<AdminTokensListResponse>(`/tokens/${qs ? `?${qs}` : ""}`);
+  const { data } = await apiClient.get<AdminTokensListResponse>(
+    `/tokens/${qs ? `?${qs}` : ""}`,
+  );
   return data;
 }

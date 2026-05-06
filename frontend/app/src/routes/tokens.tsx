@@ -26,11 +26,10 @@ export default function TokensRoute() {
   const { showToast } = useToast();
 
   const search = searchParams.get("search") ?? "";
-  const hasTokenParam = (searchParams.get("has_token") ?? "all") as "all" | "yes" | "no";
 
   const filters = useMemo(
-    () => ({ search, has_token: hasTokenParam, limit: 50 }),
-    [search, hasTokenParam],
+    () => ({ search, limit: 50 }),
+    [search],
   );
 
   const q = useAdminTokensInfinite(filters);
@@ -80,17 +79,10 @@ export default function TokensRoute() {
     );
   }
 
-  function applyFilters(next: { search: string; has_token: "all" | "yes" | "no" }) {
+  function applyFilters(next: { search: string }) {
     const params = new URLSearchParams();
     if (next.search) params.set("search", next.search);
-    if (next.has_token !== "all") params.set("has_token", next.has_token);
     setSearchParams(params, { replace: true });
-  }
-
-  function onGenerate(row: AdminTokenRow) {
-    if (pendingUserId !== null) return;
-    if (!window.confirm(`Generate API token for ${row.username}?`)) return;
-    rotateM.mutate(row.user_id);
   }
 
   function onRotate(row: AdminTokenRow) {
@@ -122,11 +114,7 @@ export default function TokensRoute() {
             </span>
           </h2>
           <div style={{ padding: 12, display: "grid", gap: 12 }}>
-            <TokenFilterBar
-              initialSearch={search}
-              initialHasToken={hasTokenParam}
-              onApply={applyFilters}
-            />
+            <TokenFilterBar initialSearch={search} onApply={applyFilters} />
             {q.isLoading ? (
               <div style={{ padding: 24 }}>
                 <Spinner size={14} />
@@ -139,7 +127,6 @@ export default function TokensRoute() {
             ) : (
               <TokenListTable
                 rows={rows}
-                onGenerate={onGenerate}
                 onRotate={onRotate}
                 onRevoke={onRevoke}
                 pendingUserId={pendingUserId}
