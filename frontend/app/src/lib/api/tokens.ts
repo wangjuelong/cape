@@ -68,8 +68,6 @@ export async function listAdminTokens(
   if (filters.cursor !== undefined) params.set("cursor", String(filters.cursor));
   if (filters.limit !== undefined) params.set("limit", String(filters.limit));
   const qs = params.toString();
-  const { data } = await apiClient.get<AdminTokensListResponse>(
-    `/tokens/${qs ? `?${qs}` : ""}`,
-  );
+  const { data } = await apiClient.get<AdminTokensListResponse>(`/tokens/${qs ? `?${qs}` : ""}`);
   return data;
 }

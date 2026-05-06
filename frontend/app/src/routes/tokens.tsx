@@ -27,10 +27,7 @@ export default function TokensRoute() {
 
   const search = searchParams.get("search") ?? "";
 
-  const filters = useMemo(
-    () => ({ search, limit: 50 }),
-    [search],
-  );
+  const filters = useMemo(() => ({ search, limit: 50 }), [search]);
 
   const q = useAdminTokensInfinite(filters);
 

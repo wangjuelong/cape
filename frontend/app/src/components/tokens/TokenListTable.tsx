@@ -112,9 +112,7 @@ export function TokenListTable({ rows, onRotate, onRevoke, pendingUserId }: Prop
                 </div>
               </td>
               <td className="dim">
-                {row.token_created
-                  ? new Date(row.token_created).toISOString().slice(0, 10)
-                  : "—"}
+                {row.token_created ? new Date(row.token_created).toISOString().slice(0, 10) : "—"}
               </td>
               <td>
                 <div style={{ display: "flex", gap: 6 }}>
