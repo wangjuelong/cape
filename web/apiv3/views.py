@@ -720,20 +720,17 @@ def users_bulk_action(request: Request) -> Response:
 
 @extend_schema(
     tags=["users"],
-    summary="List every user with their API token status (admin only).",
+    summary="List active API tokens (admin only).",
     description=(
-        "Aggregated view: each row is one user with `has_token` + "
-        "`token_created`. Token write operations (Generate / Rotate / "
-        "Revoke) live on POST/DELETE /api/v3/users/<id>/token/. Supports "
-        "?search= (username/email icontains) + ?has_token= (all/yes/no) + "
-        "cursor pagination on user.id."
+        "One row per user that currently has a DRF API token. Each row "
+        "includes the full token `key` so the admin UI can offer reveal "
+        "+ copy. Token write operations (Generate / Rotate / Revoke) "
+        "live on POST/DELETE /api/v3/users/<id>/token/. Supports "
+        "?search= (username/email icontains) + cursor pagination on "
+        "user.id."
     ),
     parameters=[
         OpenApiParameter(name="search", type=OpenApiTypes.STR, required=False),
-        OpenApiParameter(
-            name="has_token", type=OpenApiTypes.STR, required=False,
-            enum=["all", "yes", "no"],
-        ),
         OpenApiParameter(name="cursor", type=OpenApiTypes.INT, required=False),
         OpenApiParameter(name="limit", type=OpenApiTypes.INT, required=False),
     ],
@@ -744,20 +741,17 @@ def tokens_list(request: Request) -> Response:
     from django.contrib.auth.models import User
     from django.db.models import Q
 
-    qs = User.objects.select_related("auth_token").order_by("id")
+    qs = (
+        User.objects.select_related("auth_token")
+        .filter(auth_token__isnull=False)
+        .order_by("id")
+    )
 
     search = request.query_params.get("search")
     if search:
         qs = qs.filter(
             Q(username__icontains=search) | Q(email__icontains=search)
         )
-
-    has_token = (request.query_params.get("has_token") or "all").lower()
-    if has_token == "yes":
-        qs = qs.filter(auth_token__isnull=False)
-    elif has_token == "no":
-        qs = qs.filter(auth_token__isnull=True)
-    # "all" or any unrecognised value → no extra filter.
 
     total = qs.count()
 

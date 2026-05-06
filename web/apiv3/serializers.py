@@ -901,6 +901,7 @@ class TokenAdminListItemSerializer(serializers.Serializer):
     is_active = serializers.BooleanField()
     has_token = serializers.SerializerMethodField()
     token_created = serializers.SerializerMethodField()
+    key = serializers.SerializerMethodField()
 
     def _token(self, user):
         # ``auth_token`` is the OneToOne reverse accessor declared on
@@ -918,3 +919,7 @@ class TokenAdminListItemSerializer(serializers.Serializer):
     def get_token_created(self, user):
         tok = self._token(user)
         return tok.created if tok else None
+
+    def get_key(self, user):
+        tok = self._token(user)
+        return tok.key if tok else None
