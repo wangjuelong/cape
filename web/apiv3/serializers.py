@@ -101,9 +101,7 @@ class CsrfTokenSerializer(serializers.Serializer):
 class UserListSerializer(serializers.ModelSerializer):
     """Compact user row for /api/v3/users/ list endpoint."""
 
-    group_count = serializers.SerializerMethodField()
     has_token = serializers.SerializerMethodField()
-    subscription = serializers.SerializerMethodField()
 
     class Meta:
         model = _DjangoUser
@@ -111,33 +109,17 @@ class UserListSerializer(serializers.ModelSerializer):
             "id", "username", "email", "first_name", "last_name",
             "is_staff", "is_superuser", "is_active",
             "last_login", "date_joined",
-            "group_count", "has_token", "subscription",
+            "has_token",
         )
-
-    def get_group_count(self, obj) -> int:
-        return obj.groups.count()
 
     def get_has_token(self, obj) -> bool:
         from rest_framework.authtoken.models import Token
         return Token.objects.filter(user=obj).exists()
 
-    def get_subscription(self, obj):
-        prof = getattr(obj, "userprofile", None)
-        return getattr(prof, "subscription", None) if prof else None
-
-
-class UserProfileNestedSerializer(serializers.Serializer):
-    """Inline UserProfile fields."""
-    subscription = serializers.CharField(allow_blank=True, required=False)
-    reports = serializers.BooleanField(required=False)
-
 
 class UserSerializer(serializers.ModelSerializer):
     """Full user representation for /api/v3/users/<id>/ detail endpoint."""
 
-    group_ids = serializers.SerializerMethodField()
-    permission_ids = serializers.SerializerMethodField()
-    userprofile = serializers.SerializerMethodField()
     has_token = serializers.SerializerMethodField()
 
     class Meta:
@@ -146,23 +128,8 @@ class UserSerializer(serializers.ModelSerializer):
             "id", "username", "email", "first_name", "last_name",
             "is_staff", "is_superuser", "is_active",
             "last_login", "date_joined",
-            "group_ids", "permission_ids", "userprofile", "has_token",
+            "has_token",
         )
-
-    def get_group_ids(self, obj) -> list[int]:
-        return list(obj.groups.values_list("id", flat=True))
-
-    def get_permission_ids(self, obj) -> list[int]:
-        return list(obj.user_permissions.values_list("id", flat=True))
-
-    def get_userprofile(self, obj):
-        prof = getattr(obj, "userprofile", None)
-        if not prof:
-            return None
-        return {
-            "subscription": prof.subscription,
-            "reports": prof.reports,
-        }
 
     def get_has_token(self, obj) -> bool:
         from rest_framework.authtoken.models import Token
@@ -179,7 +146,6 @@ class UserCreateSerializer(serializers.Serializer):
     email = serializers.EmailField(required=False, allow_blank=True)
     first_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
     last_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
-    is_staff = serializers.BooleanField(required=False, default=False)
     is_superuser = serializers.BooleanField(required=False, default=False)
     is_active = serializers.BooleanField(required=False, default=True)
 
@@ -208,22 +174,19 @@ class UserCreateSerializer(serializers.Serializer):
 
 class UserUpdateSerializer(serializers.Serializer):
     """Admin-side user update. Username NOT editable.
-    Excludes password (separate endpoint); excludes groups/permissions
-    (separate m2m endpoints)."""
+    Excludes password (separate endpoint).
+    is_staff is dropped — auto-synced to is_superuser by the view."""
 
     email = serializers.EmailField(required=False, allow_blank=True)
     first_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
     last_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
-    is_staff = serializers.BooleanField(required=False)
     is_superuser = serializers.BooleanField(required=False)
     is_active = serializers.BooleanField(required=False)
-    userprofile = UserProfileNestedSerializer(required=False)
 
     def to_internal_value(self, data):
         allowed = {
             "email", "first_name", "last_name",
-            "is_staff", "is_superuser", "is_active",
-            "userprofile",
+            "is_superuser", "is_active",
         }
         unknown = set(data.keys()) - allowed
         if unknown:
@@ -264,115 +227,6 @@ class UserSetPasswordSerializer(serializers.Serializer):
         except DjangoValidationError as exc:
             raise serializers.ValidationError(list(exc.messages))
         return value
-
-
-# ---------------------------------------------------------------------------
-# Groups + Permissions — /api/v3/groups/ + /api/v3/permissions/
-# ---------------------------------------------------------------------------
-
-
-class GroupListSerializer(serializers.Serializer):
-    """Compact group row for /api/v3/groups/ list endpoint.
-
-    ``permission_count`` and ``member_count`` come from queryset annotations
-    in the view to avoid per-row count() round-trips. Falls back to live
-    counts when serialising a non-annotated instance (e.g. from tests)."""
-
-    id = serializers.IntegerField()
-    name = serializers.CharField()
-    permission_count = serializers.SerializerMethodField()
-    member_count = serializers.SerializerMethodField()
-
-    def get_permission_count(self, obj) -> int:
-        annotated = getattr(obj, "permission_count", None)
-        if isinstance(annotated, int):
-            return annotated
-        return obj.permissions.count()
-
-    def get_member_count(self, obj) -> int:
-        annotated = getattr(obj, "member_count", None)
-        if isinstance(annotated, int):
-            return annotated
-        return obj.user_set.count()
-
-
-class GroupDetailSerializer(serializers.Serializer):
-    """Full group representation for /api/v3/groups/<id>/."""
-
-    id = serializers.IntegerField()
-    name = serializers.CharField()
-    permission_ids = serializers.SerializerMethodField()
-    member_count = serializers.SerializerMethodField()
-
-    def get_permission_ids(self, obj) -> list[int]:
-        return list(obj.permissions.values_list("id", flat=True))
-
-    def get_member_count(self, obj) -> int:
-        return obj.user_set.count()
-
-
-class GroupCreateSerializer(serializers.Serializer):
-    """Validate POST /api/v3/groups/ payload — name uniqueness + optional permission_ids."""
-
-    name = serializers.CharField(max_length=150)
-    permission_ids = serializers.ListField(
-        child=serializers.IntegerField(), required=False, default=list
-    )
-
-    def validate_name(self, value: str) -> str:
-        from django.contrib.auth.models import Group
-        if Group.objects.filter(name=value).exists():
-            raise serializers.ValidationError("Group with this name already exists.")
-        return value
-
-
-class GroupUpdateSerializer(serializers.Serializer):
-    """Validate PATCH /api/v3/groups/<id>/ payload — allowed-fields whitelist + name uniqueness exclude self."""
-
-    name = serializers.CharField(max_length=150, required=False)
-    permission_ids = serializers.ListField(
-        child=serializers.IntegerField(), required=False
-    )
-
-    def to_internal_value(self, data):
-        allowed = {"name", "permission_ids"}
-        unknown = set(data.keys()) - allowed
-        if unknown:
-            raise serializers.ValidationError(
-                {key: ["Unknown field; only name and permission_ids are editable."]
-                 for key in unknown}
-            )
-        return super().to_internal_value(data)
-
-    def validate(self, attrs):
-        name = attrs.get("name")
-        target = self.context.get("target")
-        if name and target:
-            from django.contrib.auth.models import Group
-            qs = Group.objects.filter(name=name)
-            if target.id:
-                qs = qs.exclude(pk=target.id)
-            if qs.exists():
-                raise serializers.ValidationError(
-                    {"name": ["Group with this name already exists."]}
-                )
-        return attrs
-
-
-# Backward-compat alias for any caller that imported the old name.
-GroupSerializer = GroupListSerializer
-
-
-class PermissionContentTypeSerializer(serializers.Serializer):
-    app_label = serializers.CharField()
-    model = serializers.CharField()
-
-
-class PermissionSerializer(serializers.Serializer):
-    id = serializers.IntegerField()
-    name = serializers.CharField()
-    codename = serializers.CharField()
-    content_type = PermissionContentTypeSerializer()
 
 
 # ---------------------------------------------------------------------------

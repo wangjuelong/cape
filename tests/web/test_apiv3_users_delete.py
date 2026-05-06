@@ -13,15 +13,7 @@ def _reset_throttle():
 
 @pytest.fixture
 def admin_client():
-    a = User.objects.create_user(username="admin-del", password="x", is_staff=True)
-    c = APIClient()
-    c.force_authenticate(user=a)
-    return c, a
-
-
-@pytest.fixture
-def superuser_client():
-    a = User.objects.create_user(username="su-del", password="x", is_staff=True, is_superuser=True)
+    a = User.objects.create_user(username="admin-del", password="x", is_staff=True, is_superuser=True)
     c = APIClient()
     c.force_authenticate(user=a)
     return c, a
@@ -44,17 +36,8 @@ def test_delete_self_400(admin_client):
 
 
 @pytest.mark.django_db
-def test_delete_superuser_by_non_superuser_400(admin_client):
+def test_delete_superuser_by_superuser_ok(admin_client):
     c, _ = admin_client
-    target = User.objects.create_user(username="su", is_superuser=True)
-    resp = c.delete(f"/api/v3/users/{target.id}/")
-    assert resp.status_code == 400
-    assert User.objects.filter(pk=target.id).exists()
-
-
-@pytest.mark.django_db
-def test_delete_superuser_by_superuser_ok(superuser_client):
-    c, _ = superuser_client
     target = User.objects.create_user(username="su2", is_superuser=True)
     assert c.delete(f"/api/v3/users/{target.id}/").status_code == 204
 

@@ -6,7 +6,7 @@ from rest_framework.test import APIClient
 
 @pytest.fixture
 def admin_client():
-    admin = User.objects.create_user(username="admin-tst", password="x", is_staff=True)
+    admin = User.objects.create_user(username="admin-tst", password="x", is_staff=True, is_superuser=True)
     c = APIClient()
     c.force_authenticate(user=admin)
     return c, admin
@@ -41,11 +41,11 @@ def test_list_search_username(admin_client):
 
 
 @pytest.mark.django_db
-def test_list_filter_is_staff(admin_client):
-    c, _ = admin_client
-    User.objects.create_user(username="alice", is_staff=False)
-    User.objects.create_user(username="bob", is_staff=True)
-    resp = c.get("/api/v3/users/?is_staff=true")
+def test_list_filter_is_superuser(admin_client):
+    c, admin = admin_client
+    User.objects.create_user(username="alice", is_superuser=False)
+    User.objects.create_user(username="bob", is_superuser=True)
+    resp = c.get("/api/v3/users/?is_superuser=true")
     names = {u["username"] for u in resp.json()["data"]}
     assert "bob" in names and "alice" not in names
 

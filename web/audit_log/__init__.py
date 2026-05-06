@@ -34,8 +34,4 @@ ACTIONS: tuple[tuple[str, str, str], ...] = (
     ("token_create", "API Token Created", "auth"),
     ("token_rotate", "API Token Rotated", "auth"),
     ("token_revoke", "API Token Revoked", "auth"),
-    # Group management (SPA admin group CRUD)
-    ("group_create", "Group Created", "user_mgmt"),
-    ("group_update", "Group Updated", "user_mgmt"),
-    ("group_delete", "Group Deleted", "user_mgmt"),
 )

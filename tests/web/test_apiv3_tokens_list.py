@@ -16,7 +16,7 @@ def _reset_throttle():
 @pytest.fixture
 def admin_client():
     a = User.objects.create_user(
-        username="adm-tk", email="adm@example.com", password="x", is_staff=True
+        username="adm-tk", email="adm@example.com", password="x", is_staff=True, is_superuser=True
     )
     Token.objects.create(user=a)
     c = APIClient()

@@ -6,7 +6,7 @@ re-implements per-view:
 1. ``[api] token_auth_enabled`` — global gate for token authentication
 2. ``[<endpoint>] enabled`` — per-endpoint kill switch in api.conf
 3. ``analysis.info.tlp == "red"`` — sample-level confidentiality
-4. ``UserProfile.reports`` — staff-style download permission
+4. ``is_superuser`` — single-flag admin gate (sub-spec #8 collapsed RBAC)
 
 v2 views must keep working unchanged; these helpers only apply to v3 views.
 v2 may opt-in to these helpers later when its business logic is migrated
@@ -57,29 +57,40 @@ class IsTaskTlpAllowed(permissions.BasePermission):
     message = "Task is TLP red"
 
     def has_object_permission(self, request, view, obj: Any) -> bool:
-        if request.user.is_staff:
+        if request.user.is_superuser:
             return True
         tlp = _extract_tlp(obj)
         return (tlp or "").lower() != "red"
 
 
 class CanDownloadReports(permissions.BasePermission):
-    """Mirrors v2's ``request.user.userprofile.reports`` flag.
-
-    Use on heavy artefact endpoints where the operator wants to gate
-    bulk downloads to specific accounts.
-    """
+    """Gate heavy artefact downloads to superusers or globally per ALLOW_DL_REPORTS_TO_ALL."""
 
     message = "User is not allowed to download reports"
 
     def has_permission(self, request, view) -> bool:
-        if request.user.is_staff:
+        if request.user.is_superuser:
             return True
-        profile = getattr(request.user, "userprofile", None)
-        if profile is None:
-            from django.conf import settings as dj_settings
-            return bool(getattr(dj_settings, "ALLOW_DL_REPORTS_TO_ALL", False))
-        return bool(getattr(profile, "reports", False))
+        from django.conf import settings as dj_settings
+        return bool(getattr(dj_settings, "ALLOW_DL_REPORTS_TO_ALL", False))
+
+
+class IsSuperUser(permissions.BasePermission):
+    """Single-flag admin gate after sub-spec #8 collapsed RBAC.
+
+    Replaces all uses of DRF's built-in IsAdminUser (which checks
+    is_staff). is_staff stays bound to is_superuser for Django admin
+    compatibility but no longer carries independent meaning.
+    """
+
+    message = "Superuser privileges required."
+
+    def has_permission(self, request, view):
+        return bool(
+            request.user
+            and request.user.is_authenticated
+            and request.user.is_superuser
+        )
 
 
 def _extract_tlp(obj: Any) -> str | None:
@@ -101,7 +112,7 @@ def deny_if_tlp_red(obj: Any, *, user) -> None:
     Raises ``PermissionDenied`` so the caller can let the framework's
     exception handler convert it to 403.
     """
-    if user.is_staff:
+    if user.is_superuser:
         return
     if (_extract_tlp(obj) or "").lower() == "red":
         raise PermissionDenied("Task is TLP red")

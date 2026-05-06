@@ -28,16 +28,9 @@ urlpatterns = [
     path("users/<int:user_id>/set-password/", views.users_set_password, name="users-set-password"),
     path("users/<int:user_id>/activate/", views.users_activate, name="users-activate"),
     path("users/<int:user_id>/deactivate/", views.users_deactivate, name="users-deactivate"),
-    path("users/<int:user_id>/groups/", views.users_set_groups, name="users-set-groups"),
-    path("users/<int:user_id>/permissions/", views.users_set_permissions, name="users-set-permissions"),
     path("users/<int:user_id>/token/", views.users_token, name="users-token"),
 
-    # Groups + Permissions
-    path("groups/", views.groups_list, name="groups-list"),
-    path("groups/bulk-delete/", views.groups_bulk_delete, name="groups-bulk-delete"),
-    path("groups/<int:group_id>/", views.groups_detail, name="groups-detail"),
-    path("groups/<int:group_id>/members/", views.groups_members, name="groups-members"),
-    path("permissions/", views.permissions_list, name="permissions-list"),
+    # Tokens (admin)
     path("tokens/", views.tokens_list, name="tokens-list"),
 
     # System

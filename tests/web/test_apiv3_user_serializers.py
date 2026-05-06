@@ -1,8 +1,8 @@
 """Lock-in for /api/v3/users/ list + detail serializer shapes."""
 import pytest
-from django.contrib.auth.models import Group, User
+from django.contrib.auth.models import User
 
-from apiv3.serializers import UserListSerializer, UserSerializer
+from apiv3.serializers import UserListSerializer, UserSerializer, UserUpdateSerializer
 
 
 @pytest.mark.django_db
@@ -13,21 +13,34 @@ def test_list_serializer_shape():
         "id", "username", "email", "first_name", "last_name",
         "is_staff", "is_superuser", "is_active",
         "last_login", "date_joined",
-        "group_count", "has_token", "subscription",
+        "has_token",
     }
     assert data["username"] == "alice"
-    assert data["group_count"] == 0
     assert data["has_token"] is False
 
 
 @pytest.mark.django_db
 def test_detail_serializer_shape():
     u = User.objects.create_user(username="bob", email="b@x.com")
-    g = Group.objects.create(name="testgroup")
-    u.groups.add(g)
     data = UserSerializer(u).data
-    assert "group_ids" in data
-    assert data["group_ids"] == [g.id]
-    assert "permission_ids" in data
-    assert "userprofile" in data
-    assert "has_token" in data
+    assert set(data.keys()) == {
+        "id", "username", "email", "first_name", "last_name",
+        "is_staff", "is_superuser", "is_active",
+        "last_login", "date_joined",
+        "has_token",
+    }
+    # Forbidden fields after sub-spec #8 RBAC collapse:
+    for forbidden in (
+        "groups", "user_permissions",
+        "permission_count", "permission_ids", "group_count", "group_ids",
+        "subscription", "reports_dl_allowed", "userprofile",
+    ):
+        assert forbidden not in data, f"{forbidden} should not be in detail response"
+
+
+@pytest.mark.django_db
+def test_user_update_serializer_rejects_is_staff():
+    """is_staff is no longer admin-editable; must be in the unknown-fields list."""
+    s = UserUpdateSerializer(data={"is_staff": True})
+    assert not s.is_valid()
+    assert "is_staff" in s.errors

@@ -27,10 +27,11 @@ from rest_framework.decorators import (
     permission_classes,
 )
 from rest_framework.parsers import FormParser, MultiPartParser
-from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from apiv3.permissions import IsSuperUser
 from apiv3.serializers import (
     ApiErrorSerializer,
     AttackReportSerializer,
@@ -44,16 +45,10 @@ from apiv3.serializers import (
     CurrentUserSerializer,
     DroppedReportSerializer,
     FeatureFlagsSerializer,
-    GroupCreateSerializer,
-    GroupDetailSerializer,
-    GroupListSerializer,
-    GroupSerializer,
-    GroupUpdateSerializer,
     MachineSerializer,
     MeUpdateSerializer,
     NetworkReportSerializer,
     PayloadsReportSerializer,
-    PermissionSerializer,
     ReportSummarySerializer,
     ScreenshotsReportSerializer,
     SearchPrefixesResponseSerializer,
@@ -368,7 +363,7 @@ def _parse_bool_param(value: str | None) -> bool | None:
     ],
 )
 @api_view(["GET", "POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsSuperUser])
 def users_list(request: Request) -> Response:
     from django.contrib.auth.models import User
 
@@ -385,8 +380,8 @@ def users_list(request: Request) -> Response:
             first_name=validated.get("first_name") or "",
             last_name=validated.get("last_name") or "",
         )
-        user.is_staff = validated.get("is_staff", False)
         user.is_superuser = validated.get("is_superuser", False)
+        user.is_staff = user.is_superuser  # auto-sync; sub-spec #8 dropped is_staff toggle
         user.is_active = validated.get("is_active", True)
         user.save()
         try:
@@ -460,7 +455,7 @@ def users_list(request: Request) -> Response:
 
 @extend_schema(tags=["users"], summary="User detail (admin only).")
 @api_view(["GET", "PATCH", "DELETE"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsSuperUser])
 def users_detail(request: Request, user_id: int) -> Response:
     from django.contrib.auth.models import User
     from django.shortcuts import get_object_or_404
@@ -484,6 +479,11 @@ def users_detail(request: Request, user_id: int) -> Response:
             if getattr(user, field) != value:
                 setattr(user, field, value)
                 changed.append(field)
+        # Auto-sync is_staff to is_superuser whenever the latter changes
+        # (sub-spec #8 dropped the independent is_staff toggle).
+        if "is_superuser" in changed and user.is_staff != user.is_superuser:
+            user.is_staff = user.is_superuser
+            changed.append("is_staff")
         if changed:
             user.save(update_fields=changed)
         if profile_data is not None:
@@ -545,7 +545,7 @@ def users_detail(request: Request, user_id: int) -> Response:
 
 @extend_schema(tags=["users"], summary="Reset user password (admin override).")
 @api_view(["POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsSuperUser])
 def users_set_password(request: Request, user_id: int) -> Response:
     from django.contrib.auth.models import User
     from django.shortcuts import get_object_or_404
@@ -603,14 +603,14 @@ def _users_set_active(
 
 @extend_schema(tags=["users"], summary="Activate user.")
 @api_view(["POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsSuperUser])
 def users_activate(request: Request, user_id: int) -> Response:
     return _users_set_active(request, user_id, True, "user_activate")
 
 
 @extend_schema(tags=["users"], summary="Deactivate user.")
 @api_view(["POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsSuperUser])
 def users_deactivate(request: Request, user_id: int) -> Response:
     return _users_set_active(request, user_id, False, "user_deactivate")
 
@@ -620,7 +620,7 @@ def users_deactivate(request: Request, user_id: int) -> Response:
     summary="Bulk action over a set of user IDs (activate/deactivate/delete).",
 )
 @api_view(["POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsSuperUser])
 def users_bulk_action(request: Request) -> Response:
     from django.contrib.auth.models import User
 
@@ -736,7 +736,7 @@ def users_bulk_action(request: Request) -> Response:
     ],
 )
 @api_view(["GET"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsSuperUser])
 def tokens_list(request: Request) -> Response:
     from django.contrib.auth.models import User
     from django.db.models import Q
@@ -778,432 +778,6 @@ def tokens_list(request: Request) -> Response:
     )
 
 
-# ---------------------------------------------------------------------------
-# Groups + Permissions list + per-user m2m PATCH
-# ---------------------------------------------------------------------------
-
-
-@extend_schema(
-    tags=["users"],
-    summary="List auth groups (admin only).",
-    description=(
-        "Paginated list of Django auth Groups with permission_count and "
-        "member_count annotations. Supports ?search= (icontains by name) "
-        "and ?cursor=&limit= cursor pagination."
-    ),
-    parameters=[
-        OpenApiParameter(name="search", type=OpenApiTypes.STR, required=False),
-        OpenApiParameter(name="cursor", type=OpenApiTypes.INT, required=False),
-        OpenApiParameter(name="limit", type=OpenApiTypes.INT, required=False),
-    ],
-)
-@api_view(["GET", "POST"])
-@permission_classes([IsAdminUser])
-def groups_list(request: Request) -> Response:
-    from django.contrib.auth.models import Group, Permission
-    from django.db.models import Count
-
-    if request.method == "POST":
-        serializer = GroupCreateSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        validated = serializer.validated_data
-        group = Group.objects.create(name=validated["name"])
-        if validated.get("permission_ids"):
-            valid_perm_ids = list(
-                Permission.objects.filter(id__in=validated["permission_ids"])
-                .values_list("id", flat=True)
-            )
-            group.permissions.set(valid_perm_ids)
-        try:
-            from audit_log import helpers as audit
-
-            audit.log(
-                "group_create",
-                request=request,
-                actor=request.user,
-                target_type="group",
-                target_id=str(group.id),
-                target_label=group.name,
-            )
-        except Exception:
-            pass
-        return Response(
-            GroupDetailSerializer(group).data,
-            status=http_status.HTTP_201_CREATED,
-        )
-
-    qs = Group.objects.annotate(
-        permission_count=Count("permissions", distinct=True),
-        member_count=Count("user", distinct=True),
-    ).order_by("name", "id")
-
-    search = request.query_params.get("search")
-    if search:
-        qs = qs.filter(name__icontains=search)
-
-    total = qs.count()
-
-    cursor = request.query_params.get("cursor")
-    if cursor and cursor.isdigit():
-        # Cursor on group id (stable since list is ordered by name+id).
-        qs = qs.filter(id__gt=int(cursor))
-
-    try:
-        limit = int(request.query_params.get("limit") or 20)
-    except ValueError:
-        limit = 20
-    limit = max(1, min(limit, 100))
-
-    rows = list(qs[: limit + 1])
-    next_cursor = rows[limit].id if len(rows) > limit else None
-    rows = rows[:limit]
-
-    data = [
-        {
-            "id": g.id,
-            "name": g.name,
-            "permission_count": g.permission_count,
-            "member_count": g.member_count,
-        }
-        for g in rows
-    ]
-    return Response({"data": data, "next_cursor": next_cursor, "total": total})
-
-
-@extend_schema(
-    tags=["users"],
-    summary="Group detail (admin only).",
-    description="Full Group representation — id, name, permission_ids list, member_count.",
-    responses={200: GroupDetailSerializer},
-)
-@api_view(["GET", "PATCH", "DELETE"])
-@permission_classes([IsAdminUser])
-def groups_detail(request: Request, group_id: int) -> Response:
-    from django.contrib.auth.models import Group, Permission
-    from django.shortcuts import get_object_or_404
-
-    group = get_object_or_404(
-        Group.objects.prefetch_related("permissions", "user_set"),
-        pk=group_id,
-    )
-
-    if request.method == "DELETE":
-        group_id_copy = group.id
-        group_name = group.name
-        group.delete()
-        try:
-            from audit_log import helpers as audit
-
-            audit.log(
-                "group_delete",
-                request=request,
-                actor=request.user,
-                target_type="group",
-                target_id=str(group_id_copy),
-                target_label=group_name,
-            )
-        except Exception:
-            pass
-        return Response(status=http_status.HTTP_204_NO_CONTENT)
-
-    if request.method == "PATCH":
-        serializer = GroupUpdateSerializer(
-            data=request.data, context={"target": group}
-        )
-        serializer.is_valid(raise_exception=True)
-        validated = serializer.validated_data
-        changed: list[str] = []
-        if "name" in validated and validated["name"] != group.name:
-            group.name = validated["name"]
-            group.save(update_fields=["name"])
-            changed.append("name")
-        permissions_changed = False
-        if "permission_ids" in validated:
-            valid_ids = list(
-                Permission.objects.filter(id__in=validated["permission_ids"])
-                .values_list("id", flat=True)
-            )
-            current_ids = set(group.permissions.values_list("id", flat=True))
-            if set(valid_ids) != current_ids:
-                group.permissions.set(valid_ids)
-                permissions_changed = True
-        if changed or permissions_changed:
-            try:
-                from audit_log import helpers as audit
-
-                audit.log(
-                    "group_update",
-                    request=request,
-                    actor=request.user,
-                    target_type="group",
-                    target_id=str(group.id),
-                    target_label=group.name,
-                    fields=changed,
-                    permissions_changed=permissions_changed,
-                )
-            except Exception:
-                pass
-        group.refresh_from_db()
-
-    return Response(GroupDetailSerializer(group).data)
-
-
-@extend_schema(
-    tags=["users"],
-    summary="Bulk delete groups (admin only).",
-    description=(
-        "POST ``{ids: [int, ...]}`` deletes each group; partial success is "
-        "supported. Response is ``{success: [], failed: [{id, reason}]}``."
-    ),
-)
-@api_view(["POST"])
-@permission_classes([IsAdminUser])
-def groups_bulk_delete(request: Request) -> Response:
-    from django.contrib.auth.models import Group
-
-    ids = request.data.get("ids") or []
-    if not isinstance(ids, list):
-        return _error(
-            "ids_required",
-            "ids must be a list",
-            http_code=http_status.HTTP_400_BAD_REQUEST,
-        )
-
-    success: list[int] = []
-    failed: list[dict] = []
-    for gid in ids:
-        try:
-            group = Group.objects.get(pk=gid)
-        except Group.DoesNotExist:
-            failed.append({"id": gid, "reason": "not found"})
-            continue
-        group_name = group.name
-        group.delete()
-        try:
-            from audit_log import helpers as audit
-
-            audit.log(
-                "group_delete",
-                request=request,
-                actor=request.user,
-                target_type="group",
-                target_id=str(gid),
-                target_label=group_name,
-            )
-        except Exception:
-            pass
-        success.append(gid)
-
-    return Response({"success": success, "failed": failed})
-
-
-@extend_schema(
-    tags=["users"],
-    summary="Group members (admin only).",
-    description=(
-        "GET returns paginated user list for the group. PATCH replaces "
-        "``group.user_set`` m2m with the given ``user_ids`` (invalid ids "
-        "silently dropped). Emits ``group_update`` audit row with "
-        "``metadata.members_changed=True``."
-    ),
-    parameters=[
-        OpenApiParameter(name="cursor", type=OpenApiTypes.INT, required=False),
-        OpenApiParameter(name="limit", type=OpenApiTypes.INT, required=False),
-    ],
-)
-@api_view(["GET", "PATCH"])
-@permission_classes([IsAdminUser])
-def groups_members(request: Request, group_id: int) -> Response:
-    from django.contrib.auth.models import Group, User
-    from django.shortcuts import get_object_or_404
-
-    group = get_object_or_404(Group, pk=group_id)
-
-    if request.method == "PATCH":
-        ids = request.data.get("user_ids") or []
-        if not isinstance(ids, list):
-            return _error(
-                "user_ids_required",
-                "user_ids must be a list",
-                http_code=http_status.HTTP_400_BAD_REQUEST,
-            )
-        valid_ids = list(
-            User.objects.filter(id__in=ids).values_list("id", flat=True)
-        )
-        group.user_set.set(valid_ids)
-        try:
-            from audit_log import helpers as audit
-
-            audit.log(
-                "group_update",
-                request=request,
-                actor=request.user,
-                target_type="group",
-                target_id=str(group.id),
-                target_label=group.name,
-                members_changed=True,
-            )
-        except Exception:
-            pass
-        # fall through to return current member list
-
-    qs = group.user_set.all().order_by("username")
-    total = qs.count()
-
-    cursor = request.query_params.get("cursor")
-    if cursor and cursor.isdigit():
-        qs = qs.filter(id__gt=int(cursor))
-
-    try:
-        limit = int(request.query_params.get("limit") or 20)
-    except ValueError:
-        limit = 20
-    limit = max(1, min(limit, 200))  # higher cap for member listing
-    rows = list(qs[: limit + 1])
-    next_cursor = rows[limit].id if len(rows) > limit else None
-    rows = rows[:limit]
-
-    return Response({
-        "data": UserListSerializer(rows, many=True).data,
-        "next_cursor": next_cursor,
-        "total": total,
-    })
-
-
-@extend_schema(
-    tags=["users"],
-    summary="List Django auth permissions, optionally filtered by content type.",
-    description=(
-        "Optional ``?content_type=app_label.model`` filter narrows to the "
-        "permissions of a single Django model (e.g. ``auth.user``)."
-    ),
-    responses={200: PermissionSerializer(many=True)},
-)
-@api_view(["GET"])
-@permission_classes([IsAdminUser])
-def permissions_list(request: Request) -> Response:
-    from django.contrib.auth.models import Permission
-
-    qs = Permission.objects.select_related("content_type").order_by(
-        "content_type__app_label", "content_type__model", "codename"
-    )
-    ctf = request.query_params.get("content_type")
-    if ctf and "." in ctf:
-        app, model = ctf.split(".", 1)
-        qs = qs.filter(content_type__app_label=app, content_type__model=model)
-    data = [
-        {
-            "id": p.id,
-            "name": p.name,
-            "codename": p.codename,
-            "content_type": {
-                "app_label": p.content_type.app_label,
-                "model": p.content_type.model,
-            },
-        }
-        for p in qs
-    ]
-    return Response({"data": data})
-
-
-@extend_schema(
-    tags=["users"],
-    summary="Replace a user's group membership.",
-    description=(
-        "PATCH with ``{group_ids: [int, ...]}`` replaces the user.groups "
-        "m2m. Unknown ids are silently dropped — the response reflects "
-        "the persisted state."
-    ),
-    request=inline_serializer(
-        name="UserSetGroupsRequest",
-        fields={"group_ids": serializers.ListField(child=serializers.IntegerField())},
-    ),
-    responses={200: UserSerializer},
-)
-@api_view(["PATCH"])
-@permission_classes([IsAdminUser])
-def users_set_groups(request: Request, user_id: int) -> Response:
-    from django.contrib.auth.models import Group, User
-    from django.shortcuts import get_object_or_404
-
-    user = get_object_or_404(User, pk=user_id)
-    ids = request.data.get("group_ids")
-    if ids is None:
-        ids = []
-    if not isinstance(ids, list):
-        return _error(
-            "group_ids_required",
-            "group_ids must be a list",
-            http_code=http_status.HTTP_400_BAD_REQUEST,
-        )
-    valid_ids = list(Group.objects.filter(id__in=ids).values_list("id", flat=True))
-    user.groups.set(valid_ids)
-    try:
-        from audit_log import helpers as audit
-        audit.log(
-            "user_update",
-            request=request,
-            actor=request.user,
-            target_type="user",
-            target_id=str(user.id),
-            target_label=user.username,
-            groups_changed=True,
-        )
-    except Exception:
-        pass
-    user.refresh_from_db()
-    return Response(UserSerializer(user).data)
-
-
-@extend_schema(
-    tags=["users"],
-    summary="Replace a user's direct permissions.",
-    description=(
-        "PATCH with ``{permission_ids: [int, ...]}`` replaces the "
-        "user.user_permissions m2m. Group-inherited permissions are not "
-        "affected. Unknown ids are silently dropped."
-    ),
-    request=inline_serializer(
-        name="UserSetPermissionsRequest",
-        fields={"permission_ids": serializers.ListField(child=serializers.IntegerField())},
-    ),
-    responses={200: UserSerializer},
-)
-@api_view(["PATCH"])
-@permission_classes([IsAdminUser])
-def users_set_permissions(request: Request, user_id: int) -> Response:
-    from django.contrib.auth.models import Permission, User
-    from django.shortcuts import get_object_or_404
-
-    user = get_object_or_404(User, pk=user_id)
-    ids = request.data.get("permission_ids")
-    if ids is None:
-        ids = []
-    if not isinstance(ids, list):
-        return _error(
-            "permission_ids_required",
-            "permission_ids must be a list",
-            http_code=http_status.HTTP_400_BAD_REQUEST,
-        )
-    valid_ids = list(Permission.objects.filter(id__in=ids).values_list("id", flat=True))
-    user.user_permissions.set(valid_ids)
-    try:
-        from audit_log import helpers as audit
-        audit.log(
-            "user_update",
-            request=request,
-            actor=request.user,
-            target_type="user",
-            target_id=str(user.id),
-            target_label=user.username,
-            permissions_changed=True,
-        )
-    except Exception:
-        pass
-    user.refresh_from_db()
-    return Response(UserSerializer(user).data)
-
-
 @extend_schema(
     tags=["users"],
     summary="Read / create-or-rotate / revoke another user's API token (admin only).",
@@ -1214,7 +788,7 @@ def users_set_permissions(request: Request, user_id: int) -> Response:
     responses={200: TokenSerializer, 204: None},
 )
 @api_view(["GET", "POST", "DELETE"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsSuperUser])
 def users_token(request: Request, user_id: int) -> Response:
     from django.contrib.auth.models import User
     from django.shortcuts import get_object_or_404
@@ -2036,7 +1610,7 @@ def machine_detail(_request: Request, name: str) -> Response:
     ],
 )
 @api_view(["GET"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsSuperUser])
 def audits_list(request: Request) -> Response:
     from audit_log.models import AuditEvent
     from apiv3.serializers import AuditListResponseSerializer
@@ -2136,7 +1710,7 @@ def audits_list(request: Request) -> Response:
     summary="List the action-value catalog (for SPA filter dropdown).",
 )
 @api_view(["GET"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsSuperUser])
 def audits_actions(_request: Request) -> Response:
     from audit_log import ACTIONS
     from apiv3.serializers import AuditActionListResponseSerializer

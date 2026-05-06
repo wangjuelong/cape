@@ -13,7 +13,7 @@ def _reset_throttle():
 
 @pytest.fixture
 def admin_client():
-    a = User.objects.create_user(username="adm-blk", password="x", is_staff=True)
+    a = User.objects.create_user(username="adm-blk", password="x", is_staff=True, is_superuser=True)
     c = APIClient()
     c.force_authenticate(user=a)
     return c, a

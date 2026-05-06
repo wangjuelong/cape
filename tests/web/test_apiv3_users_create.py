@@ -13,18 +13,10 @@ def _reset_throttle():
 
 @pytest.fixture
 def admin_client():
-    a = User.objects.create_user(username="admincre", password="x", is_staff=True)
+    a = User.objects.create_user(username="admincre", password="x", is_staff=True, is_superuser=True)
     c = APIClient()
     c.force_authenticate(user=a)
     return c, a
-
-
-@pytest.fixture
-def superuser_client():
-    a = User.objects.create_user(username="superuser1", password="x", is_staff=True, is_superuser=True)
-    c = APIClient()
-    c.force_authenticate(user=a)
-    return c
 
 
 @pytest.mark.django_db
@@ -86,26 +78,18 @@ def test_create_weak_password(admin_client):
 
 
 @pytest.mark.django_db
-def test_create_non_superuser_cannot_set_superuser(admin_client):
-    c, _ = admin_client  # admin is NOT superuser
-    resp = c.post(
-        "/api/v3/users/",
-        {"username": "wannabe", "password": "InitialPass987Strong!", "is_superuser": True},
-        format="json",
-    )
-    assert resp.status_code == 400
-
-
-@pytest.mark.django_db
-def test_create_superuser_can_set_superuser(superuser_client):
-    c = superuser_client
+def test_create_superuser_auto_syncs_is_staff(admin_client):
+    """Creating a user as superuser auto-syncs is_staff (sub-spec #8)."""
+    c, _ = admin_client
     resp = c.post(
         "/api/v3/users/",
         {"username": "newsuper", "password": "InitialPass987Strong!", "is_superuser": True},
         format="json",
     )
     assert resp.status_code == 201
-    assert User.objects.get(username="newsuper").is_superuser is True
+    u = User.objects.get(username="newsuper")
+    assert u.is_superuser is True
+    assert u.is_staff is True  # auto-synced
 
 
 @pytest.mark.django_db

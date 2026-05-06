@@ -11,7 +11,7 @@ from django.utils import timezone
 @pytest.fixture
 def staff_user(db):
     User = get_user_model()
-    u = User.objects.create_user(username="staff", password="staffpw1234", email="s@x", is_staff=True)
+    u = User.objects.create_user(username="staff", password="staffpw1234", email="s@x", is_staff=True, is_superuser=True)
     return u
 
 

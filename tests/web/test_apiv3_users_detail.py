@@ -1,12 +1,12 @@
 """Integration tests for GET /api/v3/users/<id>/ admin user detail."""
 import pytest
-from django.contrib.auth.models import Group, User
+from django.contrib.auth.models import User
 from rest_framework.test import APIClient
 
 
 @pytest.fixture
 def admin_client():
-    admin = User.objects.create_user(username="admin-d", password="x", is_staff=True)
+    admin = User.objects.create_user(username="admin-d", password="x", is_staff=True, is_superuser=True)
     c = APIClient()
     c.force_authenticate(user=admin)
     return c, admin
@@ -16,16 +16,26 @@ def admin_client():
 def test_detail_returns_full_shape(admin_client):
     c, _ = admin_client
     target = User.objects.create_user(username="alice", email="a@x.com")
-    g = Group.objects.create(name="testgroup")
-    target.groups.add(g)
     resp = c.get(f"/api/v3/users/{target.id}/")
     assert resp.status_code == 200
     body = resp.json()
     assert body["username"] == "alice"
-    assert body["group_ids"] == [g.id]
-    assert "permission_ids" in body
-    assert "userprofile" in body
     assert "has_token" in body
+
+
+@pytest.mark.django_db
+def test_user_detail_response_omits_groups_permissions_userprofile(admin_client):
+    c, _ = admin_client
+    target = User.objects.create_user(username="alice2")
+    resp = c.get(f"/api/v3/users/{target.id}/")
+    assert resp.status_code == 200
+    body = resp.json()
+    for forbidden in (
+        "groups", "user_permissions",
+        "permission_count", "permission_ids", "group_count", "group_ids",
+        "subscription", "reports_dl_allowed", "userprofile",
+    ):
+        assert forbidden not in body, f"{forbidden} should not be in response"
 
 
 @pytest.mark.django_db

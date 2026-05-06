@@ -13,7 +13,7 @@ def _reset_throttle():
 
 @pytest.fixture
 def admin_client():
-    a = User.objects.create_user(username="admin-u", password="x", is_staff=True)
+    a = User.objects.create_user(username="admin-u", password="x", is_staff=True, is_superuser=True)
     c = APIClient()
     c.force_authenticate(user=a)
     return c, a
@@ -35,31 +35,32 @@ def test_patch_basic_fields(admin_client):
 
 
 @pytest.mark.django_db
-def test_patch_userprofile_inline(admin_client):
-    c, _ = admin_client
-    target = User.objects.create_user(username="bob")
-    resp = c.patch(
-        f"/api/v3/users/{target.id}/",
-        {"userprofile": {"subscription": "10/m", "reports": True}},
-        format="json",
-    )
-    assert resp.status_code == 200
-    target.refresh_from_db()
-    assert target.userprofile.subscription == "10/m"
-    assert target.userprofile.reports is True
-
-
-@pytest.mark.django_db
-def test_patch_non_superuser_cannot_promote_to_superuser(admin_client):
+def test_patch_promote_to_superuser_auto_syncs_is_staff(admin_client):
+    """Promoting via is_superuser=True auto-syncs is_staff (sub-spec #8)."""
     c, _ = admin_client
     target = User.objects.create_user(username="alice")
+    assert target.is_staff is False
     resp = c.patch(
         f"/api/v3/users/{target.id}/",
         {"is_superuser": True}, format="json",
     )
-    assert resp.status_code == 400
+    assert resp.status_code == 200
     target.refresh_from_db()
-    assert target.is_superuser is False
+    assert target.is_superuser is True
+    assert target.is_staff is True  # auto-synced
+
+
+@pytest.mark.django_db
+def test_patch_rejects_is_staff_field(admin_client):
+    """is_staff is no longer admin-editable; the serializer should reject it."""
+    c, _ = admin_client
+    target = User.objects.create_user(username="alice")
+    resp = c.patch(
+        f"/api/v3/users/{target.id}/",
+        {"is_staff": True}, format="json",
+    )
+    assert resp.status_code == 400
+    assert "is_staff" in resp.json().get("error_value", {}) or "is_staff" in str(resp.content)
 
 
 @pytest.mark.django_db
