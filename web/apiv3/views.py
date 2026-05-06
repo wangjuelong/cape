@@ -701,11 +701,11 @@ def users_bulk_action(request: Request) -> Response:
 
 @extend_schema(
     tags=["users"],
-    summary="List active API tokens (admin only).",
+    summary="List all users and their API tokens (admin only).",
     description=(
-        "One row per user that currently has a DRF API token. Each row "
-        "includes the full token `key` so the admin UI can offer reveal "
-        "+ copy. Token write operations (Generate / Rotate / Revoke) "
+        "Returns all users; key is null when no token exists. Each row "
+        "includes the token `key` (or null) so the admin UI can show token "
+        "status. Token write operations (Generate / Rotate / Revoke) "
         "live on POST/DELETE /api/v3/users/<id>/token/. Supports "
         "?search= (username/email icontains) + cursor pagination on "
         "user.id."
@@ -722,11 +722,7 @@ def tokens_list(request: Request) -> Response:
     from django.contrib.auth.models import User
     from django.db.models import Q
 
-    qs = (
-        User.objects.select_related("auth_token")
-        .filter(auth_token__isnull=False)
-        .order_by("id")
-    )
+    qs = User.objects.select_related("auth_token").order_by("id")
 
     search = request.query_params.get("search")
     if search:

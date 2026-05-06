@@ -54,17 +54,22 @@ def test_tokens_list_returns_envelope_with_full_key(admin_client):
 
 
 @pytest.mark.django_db
-def test_tokens_list_only_returns_users_with_tokens(admin_client):
-    c, _admin = admin_client
+def test_tokens_list_returns_all_users_token_or_not(admin_client):
+    c, _admin = admin_client  # admin has token (fixture creates it)
     User.objects.create_user(username="bob")  # no token
-    User.objects.create_user(username="carol")  # no token
     alice = User.objects.create_user(username="alice")
     Token.objects.create(user=alice)
 
     resp = c.get("/api/v3/tokens/")
-    usernames = {row["username"] for row in resp.json()["data"]}
-    # Only adm-tk (admin fixture, has token) and alice — bob/carol have no token.
-    assert usernames == {"adm-tk", "alice"}
+    rows = {row["username"]: row for row in resp.json()["data"]}
+    # All 3 users present.
+    assert {"adm-tk", "alice", "bob"} <= set(rows.keys())
+    # bob's row has key=null since no token.
+    assert rows["bob"]["key"] is None
+    assert rows["bob"]["has_token"] is False
+    # alice's row has full 40-char hex key.
+    assert rows["alice"]["has_token"] is True
+    assert isinstance(rows["alice"]["key"], str) and len(rows["alice"]["key"]) == 40
 
 
 @pytest.mark.django_db
