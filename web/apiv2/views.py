@@ -1101,15 +1101,13 @@ def tasks_report(request, task_id, report_format="json", make_zip=False):
         resp = {"error": True, "error_value": "Task Report API is Disabled"}
         return Response(resp)
 
-    allow_dl = False
-    if hasattr(request.user, "userprofile") and request.user.userprofile.reports:
-        allow_dl = True
-    # check if allowed to download to all + if no if user has permissions
-    if not settings.ALLOW_DL_REPORTS_TO_ALL and allow_dl is False:
+    # Sub-spec #8 dropped per-user userprofile.reports — global
+    # web_cfg.general.reports_dl_allowed_to_all is the sole gate now.
+    if not settings.ALLOW_DL_REPORTS_TO_ALL:
         return render(
             request,
             "error.html",
-            {"error": "You don't have permissions to download reports. Ask admin to enable it for you in user profile."},
+            {"error": "You don't have permissions to download reports. Ask admin to enable it globally."},
         )
 
     check = validate_task(task_id)

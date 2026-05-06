@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import sys
 
-from django.conf import settings
 from django.db.models import Q
 from django.middleware.csrf import get_token
 from django.views.decorators.csrf import ensure_csrf_cookie
@@ -165,18 +164,13 @@ def me(request: Request) -> Response:
                 # Audit failure must not break the API call.
                 pass
 
-    profile = getattr(user, "userprofile", None)
     payload = {
         "username": user.get_username(),
         "email": user.email or None,
         "is_staff": user.is_staff,
         "is_superuser": user.is_superuser,
-        "subscription": getattr(profile, "subscription", None) if profile else None,
-        "reports_dl_allowed": (
-            user.is_staff
-            or bool(getattr(profile, "reports", False))
-            or bool(getattr(settings, "ALLOW_DL_REPORTS_TO_ALL", False))
-        ),
+        "first_name": user.first_name,
+        "last_name": user.last_name,
     }
     return Response(CurrentUserSerializer(payload).data)
 
@@ -400,7 +394,7 @@ def users_list(request: Request) -> Response:
             UserSerializer(user).data, status=http_status.HTTP_201_CREATED
         )
 
-    qs = User.objects.all().select_related("userprofile").prefetch_related("groups")
+    qs = User.objects.all()
 
     search = request.query_params.get("search")
     if search:
@@ -460,12 +454,7 @@ def users_detail(request: Request, user_id: int) -> Response:
     from django.contrib.auth.models import User
     from django.shortcuts import get_object_or_404
 
-    user = get_object_or_404(
-        User.objects.select_related("userprofile").prefetch_related(
-            "groups", "user_permissions"
-        ),
-        pk=user_id,
-    )
+    user = get_object_or_404(User, pk=user_id)
 
     if request.method == "PATCH":
         serializer = UserUpdateSerializer(
@@ -473,7 +462,6 @@ def users_detail(request: Request, user_id: int) -> Response:
         )
         serializer.is_valid(raise_exception=True)
         validated = dict(serializer.validated_data)
-        profile_data = validated.pop("userprofile", None)
         changed: list[str] = []
         for field, value in validated.items():
             if getattr(user, field) != value:
@@ -486,13 +474,6 @@ def users_detail(request: Request, user_id: int) -> Response:
             changed.append("is_staff")
         if changed:
             user.save(update_fields=changed)
-        if profile_data is not None:
-            prof = user.userprofile  # auto-created via post_save signal
-            for k, v in profile_data.items():
-                if getattr(prof, k) != v:
-                    setattr(prof, k, v)
-                    changed.append(f"userprofile.{k}")
-            prof.save()
         if changed:
             try:
                 from audit_log import helpers as audit

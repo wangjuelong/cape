@@ -92,3 +92,15 @@ def test_get_still_works(authed_client):
     resp = client.get("/api/v3/me/")
     assert resp.status_code == 200
     assert resp.json()["username"] == "me-test"
+
+
+@pytest.mark.django_db
+def test_me_view_omits_subscription_and_reports_dl_allowed(authed_client):
+    client, _ = authed_client
+    resp = client.get("/api/v3/me/")
+    assert resp.status_code == 200
+    body = resp.json()
+    # Sub-spec #8 (strip RBAC) deleted UserProfile entirely; per-user
+    # subscription / reports_dl_allowed are gone in favor of global config.
+    assert "subscription" not in body
+    assert "reports_dl_allowed" not in body

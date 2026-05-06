@@ -24,19 +24,29 @@ class SubscriptionRateThrottle(UserRateThrottle):
 
         On success calls `throttle_success`.
         On failure calls `throttle_failure`.
+
+        Sub-spec #8 (strip RBAC) removed per-user UserProfile.subscription —
+        the rate now comes from a single global value:
+        api.conf [api] default_subscription_ratelimit. Staff still bypass.
         """
         if request.user.is_staff:
             # No throttling
             return True
 
         if request.user.is_authenticated:
-            if request.user.userprofile.subscription:
-                requests, duration = self.parse_rate(request.user.userprofile.subscription)
-                # Override the default from settings.py
-                self.duration = duration
-                self.num_requests = int(requests)
+            from lib.cuckoo.common.web_utils import apiconf as api_cfg
+
+            default = getattr(api_cfg.api, "default_subscription_ratelimit", None)
+            if default:
+                try:
+                    requests, duration = self.parse_rate(default)
+                    self.duration = duration
+                    self.num_requests = int(requests)
+                except Exception:
+                    # Malformed config — fall through to settings.py default rate.
+                    pass
             else:
-                # No limit == unlimited plan
+                # No global limit == unlimited plan
                 return True
 
         # Original logic from the parent method...

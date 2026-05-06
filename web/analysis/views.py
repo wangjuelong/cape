@@ -382,19 +382,14 @@ def file(request, category, task_id, dlfile):
 @require_safe
 @conditional_login_required(login_required, settings.WEB_AUTHENTICATION)
 def filereport(request, task_id, category):
-    # check if allowed to download to all + if no if user has permissions
-    if not settings.ALLOW_DL_REPORTS_TO_ALL and (
-        request.user.is_anonymous
-        or (
-            hasattr(request.user, "userprofile")
-            and hasattr(request.user.userprofile, "reports")
-            and not request.user.userprofile.reports
-        )
-    ):
+    # check if allowed to download to all (sub-spec #8 dropped per-user
+    # userprofile.reports — global web_cfg.general.reports_dl_allowed_to_all
+    # is the sole gate now).
+    if not settings.ALLOW_DL_REPORTS_TO_ALL and request.user.is_anonymous:
         return render(
             request,
             "error.html",
-            {"error": "You don't have permissions to download reports. Ask admin to enable it for you in user profile."},
+            {"error": "You don't have permissions to download reports. Ask admin to enable it globally."},
         )
 
     formats = {

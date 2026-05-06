@@ -19,8 +19,8 @@ class CurrentUserSerializer(serializers.Serializer):
     email = serializers.CharField(allow_null=True, allow_blank=True)
     is_staff = serializers.BooleanField()
     is_superuser = serializers.BooleanField()
-    subscription = serializers.CharField(allow_null=True)
-    reports_dl_allowed = serializers.BooleanField()
+    first_name = serializers.CharField(allow_blank=True, required=False)
+    last_name = serializers.CharField(allow_blank=True, required=False)
 
 
 class MeUpdateSerializer(serializers.Serializer):
