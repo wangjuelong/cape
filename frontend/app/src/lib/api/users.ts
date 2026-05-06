@@ -13,14 +13,9 @@ export interface UserListRow {
   date_joined: string;
   group_count: number;
   has_token: boolean;
-  subscription: string | null;
 }
 
-export interface UserDetail extends Omit<UserListRow, "group_count" | "subscription"> {
-  group_ids: number[];
-  permission_ids: number[];
-  userprofile: { subscription: string; reports: boolean } | null;
-}
+export type UserDetail = Omit<UserListRow, "group_count">;
 
 export interface UserListFilters {
   search?: string;
@@ -57,7 +52,6 @@ export interface UserUpdatePayload {
   is_staff?: boolean;
   is_superuser?: boolean;
   is_active?: boolean;
-  userprofile?: { subscription?: string; reports?: boolean };
 }
 
 export interface BulkActionPayload {
@@ -115,20 +109,5 @@ export async function deactivateUser(id: number): Promise<UserDetail> {
 
 export async function bulkAction(payload: BulkActionPayload): Promise<BulkActionResponse> {
   const { data } = await apiClient.post<BulkActionResponse>("/users/bulk-action/", payload);
-  return data;
-}
-
-export async function setUserGroups(id: number, group_ids: number[]): Promise<UserDetail> {
-  const { data } = await apiClient.patch<UserDetail>(`/users/${id}/groups/`, { group_ids });
-  return data;
-}
-
-export async function setUserPermissions(
-  id: number,
-  permission_ids: number[],
-): Promise<UserDetail> {
-  const { data } = await apiClient.patch<UserDetail>(`/users/${id}/permissions/`, {
-    permission_ids,
-  });
   return data;
 }

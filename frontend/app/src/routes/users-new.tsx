@@ -21,7 +21,6 @@ export default function UsersNewRoute() {
   const [email, setEmail] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [isStaff, setIsStaff] = useState(false);
   const [isSuperuser, setIsSuperuser] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -71,7 +70,6 @@ export default function UsersNewRoute() {
       email,
       first_name: firstName,
       last_name: lastName,
-      is_staff: isStaff,
       is_superuser: isSuperuser,
     });
   }
@@ -135,7 +133,6 @@ export default function UsersNewRoute() {
                 style={inputStyle}
               />
             </Field>
-            <Toggle label="is_staff" checked={isStaff} onChange={setIsStaff} />
             {meIsSuper && (
               <Toggle label="is_superuser" checked={isSuperuser} onChange={setIsSuperuser} />
             )}

@@ -132,6 +132,4 @@ export interface CurrentUser {
   email: string | null;
   is_staff: boolean;
   is_superuser: boolean;
-  subscription: string | null;
-  reports_dl_allowed: boolean;
 }

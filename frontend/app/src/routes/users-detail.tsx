@@ -1,22 +1,62 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { PageHead } from "@/components/shared/PageHead";
 import { Spinner } from "@/components/ui/spinner";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/components/shared/Toast";
-import { GroupsPicker } from "@/components/users/GroupsPicker";
-import { HistoryTab } from "@/components/users/HistoryTab";
-import { PermissionsPicker } from "@/components/users/PermissionsPicker";
 import { SetPasswordModal } from "@/components/users/SetPasswordModal";
-import { TokenSection } from "@/components/users/TokenSection";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useUserDetail } from "@/hooks/useUsers";
-import { deleteUser, setUserPermissions, updateUser, type UserDetail } from "@/lib/api/users";
+import { deleteUser, updateUser, type UserDetail } from "@/lib/api/users";
 import { queryKeys } from "@/lib/query-keys";
 
-const TABS = ["Basic", "Groups", "Permissions", "API Token", "Profile", "History"] as const;
-type TabKey = (typeof TABS)[number];
+const inputStyle: React.CSSProperties = {
+  padding: "5px 8px",
+  background: "var(--color-bg-2)",
+  border: "1px solid var(--color-border)",
+  borderRadius: 3,
+  fontSize: 12,
+  width: "100%",
+};
+
+const inputStyleRO: React.CSSProperties = { ...inputStyle, opacity: 0.6 };
+
+function Centered({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 40 }}>
+      {children}
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label style={{ display: "block" }}>
+      <span style={{ display: "block", fontSize: 11, color: "var(--color-fg-2)", marginBottom: 3 }}>
+        {label}
+      </span>
+      {children}
+    </label>
+  );
+}
+
+function Toggle({
+  label, checked, onChange, disabled,
+}: { label: string; checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
+  return (
+    <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 12 }}>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        disabled={disabled}
+      />
+      {label}
+    </label>
+  );
+}
 
 export default function UsersDetailRoute() {
   const params = useParams<{ id: string }>();
@@ -24,91 +64,49 @@ export default function UsersDetailRoute() {
   const navigate = useNavigate();
   const me = useCurrentUser();
   const userQ = useUserDetail(id);
-  const [tab, setTab] = useState<TabKey>("Basic");
 
   if (me.isLoading || userQ.isLoading) {
-    return (
-      <Centered>
-        <Spinner size={14} />
-      </Centered>
-    );
+    return <Centered><Spinner size={14} /></Centered>;
   }
-  if (!me.data?.is_staff) {
+  if (!me.data?.is_superuser) {
     navigate("/", { replace: true });
     return null;
   }
   if (userQ.error || !userQ.data) {
     return (
-      <Centered>
-        <div className="dim">User not found.</div>
-      </Centered>
+      <div style={{ padding: 24, maxWidth: 480, margin: "40px auto" }}>
+        <Alert variant="destructive">
+          <AlertTitle>User not found</AlertTitle>
+          <AlertDescription>{userQ.error ? String(userQ.error) : "Unknown user"}</AlertDescription>
+        </Alert>
+      </div>
     );
   }
-
-  const user = userQ.data;
-
-  return (
-    <>
-      <PageHead crumbs={["CAPE", "Admin", "Users", user.username]} />
-      <div className="scroll" style={{ padding: 14 }}>
-        <div className="panel">
-          <div
-            style={{
-              padding: "0 14px",
-              borderBottom: "1px solid var(--color-border)",
-              display: "flex",
-              gap: 4,
-            }}
-          >
-            {TABS.map((t) => (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
-                style={{
-                  background: "transparent",
-                  border: 0,
-                  borderBottom:
-                    tab === t ? "2px solid var(--color-accent-strong)" : "2px solid transparent",
-                  padding: "10px 12px",
-                  fontSize: 12,
-                  color: tab === t ? "var(--color-fg-0)" : "var(--color-fg-2)",
-                  cursor: "pointer",
-                }}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
-          <div style={{ padding: 14 }}>
-            {tab === "Basic" && <BasicTab user={user} />}
-            {tab === "Groups" && <GroupsPicker user={user} />}
-            {tab === "Permissions" && <PermissionsTab user={user} />}
-            {tab === "API Token" && <TokenSection userId={user.id} username={user.username} />}
-            {tab === "Profile" && <ProfileTab user={user} />}
-            {tab === "History" && <HistoryTab user={user} />}
-          </div>
-        </div>
-      </div>
-    </>
-  );
+  return <Page user={userQ.data} />;
 }
 
-function BasicTab({ user }: { user: UserDetail }) {
+function Page({ user }: { user: UserDetail }) {
   const me = useCurrentUser();
-  const qc = useQueryClient();
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const { showToast } = useToast();
-  const [pwOpen, setPwOpen] = useState(false);
+  const isSelf = me.data?.username === user.username;
+  const meIsSuper = !!me.data?.is_superuser;
 
   const [email, setEmail] = useState(user.email);
   const [firstName, setFirstName] = useState(user.first_name);
   const [lastName, setLastName] = useState(user.last_name);
-  const [isStaff, setIsStaff] = useState(user.is_staff);
   const [isActive, setIsActive] = useState(user.is_active);
   const [isSuper, setIsSuper] = useState(user.is_superuser);
+  const [pwOpen, setPwOpen] = useState(false);
 
-  const meIsSuper = me.data?.is_superuser ?? false;
-  const isSelf = me.data?.username === user.username;
+  useEffect(() => {
+    setEmail(user.email);
+    setFirstName(user.first_name);
+    setLastName(user.last_name);
+    setIsActive(user.is_active);
+    setIsSuper(user.is_superuser);
+  }, [user]);
 
   const update = useMutation({
     mutationFn: () =>
@@ -116,13 +114,13 @@ function BasicTab({ user }: { user: UserDetail }) {
         email,
         first_name: firstName,
         last_name: lastName,
-        is_staff: isStaff,
         is_active: isActive,
-        ...(meIsSuper ? { is_superuser: isSuper } : {}),
+        is_superuser: isSuper,
       }),
-    onSuccess: (data) => {
-      qc.setQueryData(queryKeys.users.detail(user.id), data);
+    onSuccess: () => {
       showToast("User updated.", "success");
+      qc.invalidateQueries({ queryKey: queryKeys.users.detail(user.id) });
+      qc.invalidateQueries({ queryKey: queryKeys.users.all });
     },
     onError: () => showToast("Update failed.", "error"),
   });
@@ -130,15 +128,11 @@ function BasicTab({ user }: { user: UserDetail }) {
   const del = useMutation({
     mutationFn: () => deleteUser(user.id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.users.all });
       showToast(`Deleted ${user.username}.`, "success");
+      qc.invalidateQueries({ queryKey: queryKeys.users.all });
       navigate("/users");
     },
-    onError: (e: unknown) => {
-      const msg = (e as { response?: { data?: { error_value?: string } } })?.response?.data
-        ?.error_value;
-      showToast(msg ?? "Delete failed.", "error");
-    },
+    onError: () => showToast("Delete failed.", "error"),
   });
 
   function confirmDelete() {
@@ -147,201 +141,70 @@ function BasicTab({ user }: { user: UserDetail }) {
   }
 
   return (
-    <div style={{ display: "grid", gap: 12, maxWidth: 480 }}>
-      <Field label="Username (read-only)">
-        <input readOnly value={user.username} style={inputStyleRO} />
-      </Field>
-      <Field label="Email">
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          style={inputStyle}
-        />
-      </Field>
-      <Field label="First name">
-        <input
-          value={firstName}
-          onChange={(e) => setFirstName(e.target.value)}
-          style={inputStyle}
-        />
-      </Field>
-      <Field label="Last name">
-        <input value={lastName} onChange={(e) => setLastName(e.target.value)} style={inputStyle} />
-      </Field>
-      <Toggle label="Staff" checked={isStaff} onChange={setIsStaff} />
-      <Toggle label="Active" checked={isActive} onChange={setIsActive} disabled={isSelf} />
-      {meIsSuper && <Toggle label="Superuser" checked={isSuper} onChange={setIsSuper} />}
-
-      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-        <button className="btn primary" onClick={() => update.mutate()} disabled={update.isPending}>
-          {update.isPending ? "Saving…" : "Save"}
-        </button>
-        <button className="btn" onClick={() => setPwOpen(true)}>
-          Set password
-        </button>
-        <div style={{ flex: 1 }} />
-        <button className="btn danger" onClick={confirmDelete} disabled={isSelf || del.isPending}>
-          {del.isPending ? "Deleting…" : "Delete user"}
-        </button>
+    <>
+      <PageHead crumbs={["CAPE", "Admin", "Users", user.username]} />
+      <div className="scroll" style={{ padding: 14 }}>
+        <div className="panel" style={{ maxWidth: 540 }}>
+          <h2 className="panel-h" style={{ margin: 0 }}>{user.username}</h2>
+          <div style={{ padding: 14, display: "grid", gap: 10 }}>
+            <Field label="Username (read-only)">
+              <input readOnly value={user.username} style={inputStyleRO} />
+            </Field>
+            <Field label="Email">
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                style={inputStyle}
+              />
+            </Field>
+            <Field label="First name">
+              <input
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                style={inputStyle}
+              />
+            </Field>
+            <Field label="Last name">
+              <input
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                style={inputStyle}
+              />
+            </Field>
+            <Toggle label="Active" checked={isActive} onChange={setIsActive} disabled={isSelf} />
+            {meIsSuper && (
+              <Toggle label="Superuser" checked={isSuper} onChange={setIsSuper} />
+            )}
+            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+              <button
+                className="btn primary"
+                onClick={() => update.mutate()}
+                disabled={update.isPending}
+              >
+                {update.isPending ? "Saving…" : "Save"}
+              </button>
+              <button className="btn" onClick={() => setPwOpen(true)}>
+                Set password
+              </button>
+              <div style={{ flex: 1 }} />
+              <button
+                className="btn danger"
+                onClick={confirmDelete}
+                disabled={isSelf || del.isPending}
+              >
+                {del.isPending ? "Deleting…" : "Delete user"}
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
-
       <SetPasswordModal
         open={pwOpen}
         onOpenChange={setPwOpen}
         userId={user.id}
         username={user.username}
       />
-    </div>
+    </>
   );
 }
-
-function PermissionsTab({ user }: { user: UserDetail }) {
-  const [permissionIds, setPermissionIds] = useState<number[]>(user.permission_ids);
-  const qc = useQueryClient();
-  const { showToast } = useToast();
-
-  useEffect(() => {
-    setPermissionIds(user.permission_ids);
-  }, [user.permission_ids]);
-
-  const dirty = useMemo(() => {
-    const a = new Set(user.permission_ids);
-    if (a.size !== permissionIds.length) return true;
-    for (const id of permissionIds) if (!a.has(id)) return true;
-    return false;
-  }, [permissionIds, user.permission_ids]);
-
-  const mutation = useMutation({
-    mutationFn: () => setUserPermissions(user.id, permissionIds),
-    onSuccess: (data) => {
-      qc.setQueryData(queryKeys.users.detail(user.id), data);
-      showToast("Permissions saved.", "success");
-    },
-    onError: () => showToast("Save failed.", "error"),
-  });
-
-  return (
-    <div style={{ display: "grid", gap: 12, maxWidth: 600 }}>
-      <PermissionsPicker
-        value={permissionIds}
-        onChange={setPermissionIds}
-        disabled={mutation.isPending}
-      />
-      <button
-        className="btn primary"
-        disabled={!dirty || mutation.isPending}
-        onClick={() => mutation.mutate()}
-        style={{ alignSelf: "flex-start" }}
-      >
-        {mutation.isPending ? "Saving…" : "Save permissions"}
-      </button>
-    </div>
-  );
-}
-
-function ProfileTab({ user }: { user: UserDetail }) {
-  const qc = useQueryClient();
-  const { showToast } = useToast();
-  const [sub, setSub] = useState(user.userprofile?.subscription ?? "");
-  const [reports, setReports] = useState(user.userprofile?.reports ?? false);
-
-  const m = useMutation({
-    mutationFn: () => updateUser(user.id, { userprofile: { subscription: sub, reports } }),
-    onSuccess: (data) => {
-      qc.setQueryData(queryKeys.users.detail(user.id), data);
-      showToast("Profile saved.", "success");
-    },
-    onError: () => showToast("Save failed.", "error"),
-  });
-
-  return (
-    <div style={{ display: "grid", gap: 12, maxWidth: 480, fontSize: 12 }}>
-      <Field label="Subscription">
-        <input value={sub} onChange={(e) => setSub(e.target.value)} style={inputStyle} />
-      </Field>
-      <Toggle label="Reports allowed" checked={reports} onChange={setReports} />
-      <div className="dim" style={{ fontSize: 11 }}>
-        Last login: {user.last_login ?? "never"} · Joined: {user.date_joined}
-      </div>
-      <button
-        className="btn primary"
-        onClick={() => m.mutate()}
-        disabled={m.isPending}
-        style={{ alignSelf: "flex-start" }}
-      >
-        {m.isPending ? "Saving…" : "Save profile"}
-      </button>
-    </div>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div style={{ display: "grid", gap: 4 }}>
-      <label style={{ fontSize: 11, color: "var(--color-fg-1)" }}>{label}</label>
-      {children}
-    </div>
-  );
-}
-
-function Toggle({
-  label,
-  checked,
-  onChange,
-  disabled,
-}: {
-  label: string;
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  disabled?: boolean;
-}) {
-  return (
-    <label
-      style={{
-        display: "flex",
-        gap: 8,
-        alignItems: "center",
-        fontSize: 12,
-        opacity: disabled ? 0.6 : 1,
-      }}
-    >
-      <input
-        type="checkbox"
-        checked={checked}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.checked)}
-      />
-      <span>{label}</span>
-    </label>
-  );
-}
-
-function Centered({ children }: { children: React.ReactNode }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        flex: 1,
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 40,
-        fontSize: 12,
-        color: "var(--color-fg-2)",
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-const inputStyle: React.CSSProperties = {
-  height: 28,
-  padding: "0 8px",
-  fontSize: 12,
-  border: "1px solid var(--color-border)",
-  background: "var(--color-bg-2)",
-  color: "var(--color-fg-0)",
-  borderRadius: 3,
-};
-const inputStyleRO: React.CSSProperties = { ...inputStyle, opacity: 0.6, cursor: "not-allowed" };
