@@ -82,6 +82,12 @@ export default function TokensRoute() {
     setSearchParams(params, { replace: true });
   }
 
+  function onGenerate(row: AdminTokenRow) {
+    if (pendingUserId !== null) return;
+    if (!window.confirm(`Generate API token for ${row.username}?`)) return;
+    rotateM.mutate(row.user_id);
+  }
+
   function onRotate(row: AdminTokenRow) {
     if (pendingUserId !== null) return;
     if (
@@ -124,6 +130,7 @@ export default function TokensRoute() {
             ) : (
               <TokenListTable
                 rows={rows}
+                onGenerate={onGenerate}
                 onRotate={onRotate}
                 onRevoke={onRevoke}
                 pendingUserId={pendingUserId}

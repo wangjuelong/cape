@@ -7,6 +7,7 @@ import type { AdminTokenRow } from "@/lib/api/tokens";
 
 interface Props {
   rows: AdminTokenRow[];
+  onGenerate: (row: AdminTokenRow) => void;
   onRotate: (row: AdminTokenRow) => void;
   onRevoke: (row: AdminTokenRow) => void;
   pendingUserId: number | null;
@@ -17,7 +18,7 @@ function maskToken(key: string): string {
   return `${key.slice(0, 6)}…${key.slice(-4)}`;
 }
 
-export function TokenListTable({ rows, onRotate, onRevoke, pendingUserId }: Props) {
+export function TokenListTable({ rows, onGenerate, onRotate, onRevoke, pendingUserId }: Props) {
   const { showToast } = useToast();
   const [revealedIds, setRevealedIds] = useState<Set<number>>(new Set());
 
@@ -65,21 +66,21 @@ export function TokenListTable({ rows, onRotate, onRevoke, pendingUserId }: Prop
           return (
             <tr key={row.user_id} style={{ opacity: row.is_active ? 1 : 0.6 }}>
               <td>
-                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                  <code
-                    className="mono"
-                    style={{
-                      padding: "3px 6px",
-                      background: "var(--color-bg-2)",
-                      border: "1px solid var(--color-border)",
-                      borderRadius: 3,
-                      wordBreak: "break-all",
-                      flex: 1,
-                    }}
-                  >
-                    {display}
-                  </code>
-                  {row.key && (
+                {row.key ? (
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <code
+                      className="mono"
+                      style={{
+                        padding: "3px 6px",
+                        background: "var(--color-bg-2)",
+                        border: "1px solid var(--color-border)",
+                        borderRadius: 3,
+                        wordBreak: "break-all",
+                        flex: 1,
+                      }}
+                    >
+                      {display}
+                    </code>
                     <button
                       type="button"
                       className="btn ghost"
@@ -88,18 +89,20 @@ export function TokenListTable({ rows, onRotate, onRevoke, pendingUserId }: Prop
                     >
                       {revealed ? <EyeOff size={14} /> : <Eye size={14} />}
                     </button>
-                  )}
-                  {row.key && revealed && (
-                    <button
-                      type="button"
-                      className="btn ghost"
-                      title="Copy"
-                      onClick={() => copy(row.key!)}
-                    >
-                      <Copy size={14} />
-                    </button>
-                  )}
-                </div>
+                    {revealed && (
+                      <button
+                        type="button"
+                        className="btn ghost"
+                        title="Copy"
+                        onClick={() => copy(row.key!)}
+                      >
+                        <Copy size={14} />
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <span className="dim">⊘ None</span>
+                )}
               </td>
               <td>
                 <div>
@@ -116,22 +119,35 @@ export function TokenListTable({ rows, onRotate, onRevoke, pendingUserId }: Prop
               </td>
               <td>
                 <div style={{ display: "flex", gap: 6 }}>
-                  <button
-                    type="button"
-                    className="btn primary"
-                    disabled={busy}
-                    onClick={() => onRotate(row)}
-                  >
-                    {busy ? "…" : "Rotate"}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn danger"
-                    disabled={busy}
-                    onClick={() => onRevoke(row)}
-                  >
-                    Revoke
-                  </button>
+                  {row.key ? (
+                    <>
+                      <button
+                        type="button"
+                        className="btn primary"
+                        disabled={busy}
+                        onClick={() => onRotate(row)}
+                      >
+                        {busy ? "…" : "Rotate"}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn danger"
+                        disabled={busy}
+                        onClick={() => onRevoke(row)}
+                      >
+                        Revoke
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn primary"
+                      disabled={busy}
+                      onClick={() => onGenerate(row)}
+                    >
+                      {busy ? "…" : "Generate"}
+                    </button>
+                  )}
                 </div>
               </td>
             </tr>

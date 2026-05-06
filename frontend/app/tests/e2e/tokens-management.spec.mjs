@@ -1,9 +1,9 @@
 /**
- * /tokens admin top-level page (sub-spec #7 redesign):
- * 1 row = 1 active token; Token column is the primary subject with
- * mask + reveal + copy. Generate has moved to /users/<id>/Tokens —
- * test 4 generates the temp user's token from there before asserting
- * its row appears in /tokens.
+ * /tokens admin top-level page:
+ * 1 row = 1 user (with or without a token). Rows without a token show
+ * `⊘ None` + a Generate button. Rows with a token show the masked key
+ * + Reveal/Copy + Rotate/Revoke. Revoke leaves the row visible (with
+ * the Generate button restored).
  */
 import { expect, test } from "@playwright/test";
 
@@ -66,7 +66,7 @@ test("row reveals full token then masks again, copy button works", async ({ page
   await expect(code).toHaveText(/^[a-f0-9]{6}…[a-f0-9]{4}$/);
 });
 
-test("temp user appears after token generation, then rotate + revoke removes it", async ({ page }) => {
+test("generate → rotate (with reveal modal) → revoke leaves row with Generate button", async ({ page }) => {
   test.setTimeout(120000);
   const tmpUser = `e2e-tok-${Date.now()}`;
   const tmpPass = "Throwaway1!";
@@ -82,39 +82,40 @@ test("temp user appears after token generation, then rotate + revoke removes it"
   await page.getByRole("button", { name: /Create user/ }).click();
   await page.waitForURL(/\/users\/\d+$/, { timeout: 10000 });
 
-  // 2. Generate token from the user-detail Tokens tab (Generate is no
-  //    longer on the /tokens page).
-  await page.getByRole("button", { name: "API Token" }).click();
-  await page.getByRole("button", { name: /^Generate token$/ }).click();
-  // Inline reveal in the per-user TokenSection — wait for the mono code
-  // block to populate with a 40-hex key.
-  await expect(
-    page.locator("code.mono").filter({ hasText: /^[a-f0-9]{30,}$/ }).first(),
-  ).toBeVisible({ timeout: 8000 });
-
-  // 3. /tokens now lists the temp user.
+  // 2. Open /tokens, find the tmpUser row, click Generate.
   await page.goto(`${SPA}/tokens?search=${encodeURIComponent(tmpUser)}`);
   await page.waitForTimeout(1500);
   const row = page.locator("tr", { hasText: tmpUser });
   await expect(row).toBeVisible();
-  await expect(row.locator("code").first()).toHaveText(/^[a-f0-9]{6}…[a-f0-9]{4}$/);
+  await expect(row).toContainText("⊘");
 
-  // 4. Rotate. window.confirm() comes first — accept it.
   page.once("dialog", (d) => d.accept());
-  await row.getByRole("button", { name: /^Rotate$/ }).click();
-  // Reveal dialog appears with new full key.
+  await row.getByRole("button", { name: /^Generate$/ }).click();
+
+  // 3. RevealDialog opens with the new full key.
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible({ timeout: 8000 });
   await expect(dialog.locator("code")).toHaveText(/^[a-f0-9]{30,}$/);
   await dialog.getByRole("button", { name: "Close" }).last().click();
   await expect(dialog).toBeHidden();
 
-  // 5. Revoke — row should disappear from /tokens (no token = not listed).
+  // 4. Row now shows masked token + Rotate / Revoke.
+  await expect(row.locator("code").first()).toHaveText(/^[a-f0-9]{6}…[a-f0-9]{4}$/);
+
+  // 5. Rotate: another RevealDialog with new key.
+  page.once("dialog", (d) => d.accept());
+  await row.getByRole("button", { name: /^Rotate$/ }).click();
+  await expect(dialog).toBeVisible({ timeout: 8000 });
+  await dialog.getByRole("button", { name: "Close" }).last().click();
+  await expect(dialog).toBeHidden();
+
+  // 6. Revoke: row remains, Token col shows ⊘, Generate button replaces Rotate/Revoke.
   page.once("dialog", (d) => d.accept());
   await row.getByRole("button", { name: /^Revoke$/ }).click();
-  await expect(row).toBeHidden({ timeout: 8000 });
+  await expect(row.getByRole("button", { name: /^Generate$/ })).toBeVisible({ timeout: 8000 });
+  await expect(row).toContainText("⊘");
 
-  // 6. Cleanup: delete the temp user via /users list.
+  // 7. Cleanup: delete the temp user.
   await page.goto(`${SPA}/users?search=${encodeURIComponent(tmpUser)}`);
   await page.waitForTimeout(1500);
   await page.getByRole("link", { name: tmpUser }).first().click();
