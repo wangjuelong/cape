@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Plus } from "lucide-react";
 
 import { PageHead } from "@/components/shared/PageHead";
 import { Spinner } from "@/components/ui/spinner";
@@ -9,9 +10,10 @@ import { useToast } from "@/components/shared/Toast";
 import { TokenFilterBar } from "@/components/tokens/TokenFilterBar";
 import { TokenListTable } from "@/components/tokens/TokenListTable";
 import { TokenRevealDialog } from "@/components/tokens/TokenRevealDialog";
+import { AddTokenModal } from "@/components/tokens/AddTokenModal";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useAdminTokensInfinite } from "@/hooks/useTokensAdmin";
-import { rotateUserToken, revokeUserToken, type AdminTokenRow } from "@/lib/api/tokens";
+import { revokeUserToken, type AdminTokenRow } from "@/lib/api/tokens";
 import { queryKeys } from "@/lib/query-keys";
 
 interface RevealState {
@@ -19,39 +21,25 @@ interface RevealState {
   tokenKey: string;
 }
 
-export default function TokensRoute() {
+export default function SettingsRoute() {
   const me = useCurrentUser();
   const [searchParams, setSearchParams] = useSearchParams();
   const qc = useQueryClient();
   const { showToast } = useToast();
 
   const search = searchParams.get("search") ?? "";
-
   const filters = useMemo(() => ({ search, limit: 50 }), [search]);
-
   const q = useAdminTokensInfinite(filters);
 
-  const rows: AdminTokenRow[] = useMemo(() => q.data?.pages.flatMap((p) => p.data) ?? [], [q.data]);
+  const rows: AdminTokenRow[] = useMemo(
+    () => q.data?.pages.flatMap((p) => p.data) ?? [],
+    [q.data],
+  );
   const total = q.data?.pages[0]?.total ?? 0;
 
   const [reveal, setReveal] = useState<RevealState | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
   const [pendingUserId, setPendingUserId] = useState<number | null>(null);
-
-  const rotateM = useMutation({
-    mutationFn: (userId: number) => rotateUserToken(userId),
-    onMutate: (userId) => setPendingUserId(userId),
-    onSuccess: (data, userId) => {
-      const username = rows.find((r) => r.user_id === userId)?.username ?? `user #${userId}`;
-      if (data.key) {
-        setReveal({ username, tokenKey: data.key });
-      }
-      qc.invalidateQueries({ queryKey: queryKeys.tokens.adminAll });
-      qc.invalidateQueries({ queryKey: queryKeys.tokens.user(userId) });
-      showToast(`Token rotated for ${username}.`, "success");
-    },
-    onError: () => showToast("Token operation failed.", "error"),
-    onSettled: () => setPendingUserId(null),
-  });
 
   const revokeM = useMutation({
     mutationFn: (userId: number) => revokeUserToken(userId),
@@ -59,18 +47,19 @@ export default function TokensRoute() {
     onSuccess: (_data, userId) => {
       qc.invalidateQueries({ queryKey: queryKeys.tokens.adminAll });
       qc.invalidateQueries({ queryKey: queryKeys.tokens.user(userId) });
+      qc.invalidateQueries({ queryKey: queryKeys.users.all });
       showToast("Token revoked.", "success");
     },
     onError: () => showToast("Revoke failed.", "error"),
     onSettled: () => setPendingUserId(null),
   });
 
-  if (me.data && !me.data.is_staff) {
+  if (me.data && !me.data.is_superuser) {
     return (
       <div style={{ padding: 24, maxWidth: 480, margin: "40px auto" }}>
         <Alert variant="destructive">
           <AlertTitle>Forbidden</AlertTitle>
-          <AlertDescription>Token administration is restricted to staff users.</AlertDescription>
+          <AlertDescription>Settings is restricted to superusers.</AlertDescription>
         </Alert>
       </div>
     );
@@ -82,40 +71,46 @@ export default function TokensRoute() {
     setSearchParams(params, { replace: true });
   }
 
-  function onGenerate(row: AdminTokenRow) {
-    if (pendingUserId !== null) return;
-    if (!window.confirm(`Generate API token for ${row.username}?`)) return;
-    rotateM.mutate(row.user_id);
-  }
-
-  function onRotate(row: AdminTokenRow) {
-    if (pendingUserId !== null) return;
-    if (
-      !window.confirm(
-        `Rotate token for ${row.username}?\n\nExisting key will stop working immediately.`,
-      )
-    )
-      return;
-    rotateM.mutate(row.user_id);
-  }
-
   function onRevoke(row: AdminTokenRow) {
     if (pendingUserId !== null) return;
-    if (!window.confirm(`Revoke ${row.username}'s token? This cannot be undone.`)) return;
+    if (!window.confirm(`Revoke ${row.username}'s token?\n\nThis cannot be undone.`)) return;
     revokeM.mutate(row.user_id);
+  }
+
+  function onAddSuccess(username: string, tokenKey: string) {
+    setAddOpen(false);
+    setReveal({ username, tokenKey });
+    qc.invalidateQueries({ queryKey: queryKeys.tokens.adminAll });
+    qc.invalidateQueries({ queryKey: queryKeys.users.all });
   }
 
   return (
     <>
-      <PageHead crumbs={["CAPE", "Admin", "Tokens"]} />
+      <PageHead crumbs={["CAPE", "Admin", "Settings"]} />
       <div className="scroll" style={{ padding: 14 }}>
         <div className="panel">
-          <h2 className="panel-h" style={{ margin: 0 }}>
-            Tokens{" "}
-            <span className="dim" style={{ fontSize: 11 }}>
-              ({total})
-            </span>
-          </h2>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "8px 12px",
+              borderBottom: "1px solid var(--color-border)",
+            }}
+          >
+            <h2 className="panel-h" style={{ margin: 0 }}>
+              API Tokens{" "}
+              <span className="dim" style={{ fontSize: 11 }}>({total})</span>
+            </h2>
+            <button
+              type="button"
+              className="btn primary"
+              onClick={() => setAddOpen(true)}
+              style={{ display: "flex", gap: 4, alignItems: "center" }}
+            >
+              <Plus size={14} /> Add Token
+            </button>
+          </div>
           <div style={{ padding: 12, display: "grid", gap: 12 }}>
             <TokenFilterBar initialSearch={search} onApply={applyFilters} />
             {q.isLoading ? (
@@ -130,8 +125,6 @@ export default function TokensRoute() {
             ) : (
               <TokenListTable
                 rows={rows}
-                onGenerate={onGenerate}
-                onRotate={onRotate}
                 onRevoke={onRevoke}
                 pendingUserId={pendingUserId}
               />
@@ -151,6 +144,12 @@ export default function TokensRoute() {
           </div>
         </div>
       </div>
+      {addOpen && (
+        <AddTokenModal
+          onClose={() => setAddOpen(false)}
+          onSuccess={onAddSuccess}
+        />
+      )}
       {reveal && (
         <TokenRevealDialog
           username={reveal.username}

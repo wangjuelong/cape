@@ -9,14 +9,13 @@ const RecentRoute = lazy(() => import("@/routes/recent"));
 const PendingRoute = lazy(() => import("@/routes/pending"));
 const SearchRoute = lazy(() => import("@/routes/search"));
 const CompareRoute = lazy(() => import("@/routes/compare"));
-const ConfigsRoute = lazy(() => import("@/routes/configs"));
 const StatsRoute = lazy(() => import("@/routes/stats"));
 const MachinesRoute = lazy(() => import("@/routes/machines"));
 const AuditRoute = lazy(() => import("@/routes/audit"));
 const UsersRoute = lazy(() => import("@/routes/users"));
 const UsersNewRoute = lazy(() => import("@/routes/users-new"));
 const UsersDetailRoute = lazy(() => import("@/routes/users-detail"));
-const TokensRoute = lazy(() => import("@/routes/tokens"));
+const SettingsRoute = lazy(() => import("@/routes/settings"));
 const DocsRoute = lazy(() => import("@/routes/docs"));
 const TaskDetailRoute = lazy(() => import("@/routes/task-detail"));
 const LoginBridgeRoute = lazy(() => import("@/routes/login-bridge"));
@@ -68,7 +67,6 @@ export const router = createBrowserRouter([
       { path: "compare", element: withSuspense(<CompareRoute />) },
       { path: "compare/:left", element: withSuspense(<CompareRoute />) },
       { path: "compare/:left/:right", element: withSuspense(<CompareRoute />) },
-      { path: "configs", element: withSuspense(<ConfigsRoute />) },
       { path: "stats", element: <Navigate to="/stats/7" replace /> },
       { path: "stats/:days", element: withSuspense(<StatsRoute />) },
       { path: "machines", element: withSuspense(<MachinesRoute />) },
@@ -76,7 +74,7 @@ export const router = createBrowserRouter([
       { path: "users", element: withSuspense(<UsersRoute />) },
       { path: "users/new", element: withSuspense(<UsersNewRoute />) },
       { path: "users/:id", element: withSuspense(<UsersDetailRoute />) },
-      { path: "tokens", element: withSuspense(<TokensRoute />) },
+      { path: "settings", element: withSuspense(<SettingsRoute />) },
       { path: "docs", element: withSuspense(<DocsRoute />) },
       { path: "tasks/:id", element: withSuspense(<TaskDetailRoute />) },
       { path: "*", element: withSuspense(<NotFoundRoute />) },

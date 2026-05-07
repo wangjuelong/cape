@@ -24,7 +24,6 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/recent", label: "Recent", icon: Icon.list, flag: "tasklist" },
   { to: "/pending", label: "Pending", icon: Icon.pulse, flag: "tasklist" },
   { to: "/search", label: "Search", icon: Icon.search, flag: "extendedtasksearch" },
-  { to: "/configs", label: "Configs", icon: Icon.tag },
   // Compare: upstream nav doesn't expose this — users enter via the
   // "Compare" button on a task detail page (/compare/<task_id>/). The
   // SPA route still exists but is intentionally not advertised here.
@@ -35,7 +34,7 @@ const ADMIN_ITEMS: NavItem[] = [
   { to: "/machines", label: "Machines", icon: Icon.cog, flag: "machinelist" },
   { to: "/audit", label: "Audit", icon: Icon.doc, staffOnly: true },
   { to: "/users", label: "Users", icon: Icon.users, staffOnly: true },
-  { to: "/tokens", label: "Tokens", icon: Icon.keyRound, staffOnly: true },
+  { to: "/settings", label: "Settings", icon: Icon.cog, staffOnly: true },
   { to: "/docs", label: "API Docs", icon: Icon.doc },
 ];
 

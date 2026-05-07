@@ -23,6 +23,7 @@ export interface UserListFilters {
   is_superuser?: boolean;
   is_active?: boolean;
   group?: string;
+  has_token?: "yes" | "no";
   cursor?: number;
   limit?: number;
   ordering?: string;
