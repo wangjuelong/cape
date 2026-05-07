@@ -43,8 +43,16 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 function Toggle({
-  label, checked, onChange, disabled,
-}: { label: string; checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
+  label,
+  checked,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  disabled?: boolean;
+}) {
   return (
     <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 12 }}>
       <input
@@ -66,7 +74,11 @@ export default function UsersDetailRoute() {
   const userQ = useUserDetail(id);
 
   if (me.isLoading || userQ.isLoading) {
-    return <Centered><Spinner size={14} /></Centered>;
+    return (
+      <Centered>
+        <Spinner size={14} />
+      </Centered>
+    );
   }
   if (!me.data?.is_superuser) {
     navigate("/", { replace: true });
@@ -145,7 +157,9 @@ function Page({ user }: { user: UserDetail }) {
       <PageHead crumbs={["CAPE", "Admin", "Users", user.username]} />
       <div className="scroll" style={{ padding: 14 }}>
         <div className="panel" style={{ maxWidth: 540 }}>
-          <h2 className="panel-h" style={{ margin: 0 }}>{user.username}</h2>
+          <h2 className="panel-h" style={{ margin: 0 }}>
+            {user.username}
+          </h2>
           <div style={{ padding: 14, display: "grid", gap: 10 }}>
             <Field label="Username (read-only)">
               <input readOnly value={user.username} style={inputStyleRO} />
@@ -173,9 +187,7 @@ function Page({ user }: { user: UserDetail }) {
               />
             </Field>
             <Toggle label="Active" checked={isActive} onChange={setIsActive} disabled={isSelf} />
-            {meIsSuper && (
-              <Toggle label="Superuser" checked={isSuper} onChange={setIsSuper} />
-            )}
+            {meIsSuper && <Toggle label="Superuser" checked={isSuper} onChange={setIsSuper} />}
             <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
               <button
                 className="btn primary"
