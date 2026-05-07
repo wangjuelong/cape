@@ -41,10 +41,10 @@ test("/settings list renders heading + admin row with masked token (4*4)", async
   const adminRow = page.locator("tr", { hasText: USER });
   await expect(adminRow).toBeVisible();
   await expect(adminRow.locator("code").first()).toHaveText(/^[a-f0-9]{4}\*{4}[a-f0-9]{4}$/);
-  // No Reveal/Copy/Rotate buttons on the row — only Revoke.
+  // No Reveal/Rotate buttons; Copy + Revoke present.
   await expect(adminRow.getByRole("button", { name: "Reveal" })).toHaveCount(0);
-  await expect(adminRow.getByRole("button", { name: "Copy" })).toHaveCount(0);
   await expect(adminRow.getByRole("button", { name: "Rotate" })).toHaveCount(0);
+  await expect(adminRow.getByRole("button", { name: /Copy/ })).toBeVisible();
   await expect(adminRow.getByRole("button", { name: "Revoke" })).toBeVisible();
 });
 

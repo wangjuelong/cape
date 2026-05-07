@@ -1,5 +1,7 @@
 import { Link } from "react-router-dom";
+import { Copy } from "lucide-react";
 
+import { useToast } from "@/components/shared/Toast";
 import type { AdminTokenRow } from "@/lib/api/tokens";
 
 interface Props {
@@ -14,6 +16,17 @@ function maskToken(key: string): string {
 }
 
 export function TokenListTable({ rows, onRevoke, pendingUserId }: Props) {
+  const { showToast } = useToast();
+
+  async function copy(key: string) {
+    try {
+      await navigator.clipboard.writeText(key);
+      showToast("Token copied to clipboard.", "success");
+    } catch {
+      showToast("Copy failed — clipboard permission denied.", "error");
+    }
+  }
+
   if (rows.length === 0) {
     return (
       <div className="dim" style={{ padding: 16 }}>
@@ -27,7 +40,7 @@ export function TokenListTable({ rows, onRevoke, pendingUserId }: Props) {
         <tr>
           <th style={{ width: 200 }}>Username</th>
           <th>Token</th>
-          <th style={{ width: 140 }}>Actions</th>
+          <th style={{ width: 180 }}>Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -55,14 +68,26 @@ export function TokenListTable({ rows, onRevoke, pendingUserId }: Props) {
                 </code>
               </td>
               <td>
-                <button
-                  type="button"
-                  className="btn danger"
-                  disabled={busy}
-                  onClick={() => onRevoke(row)}
-                >
-                  {busy ? "…" : "Revoke"}
-                </button>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button
+                    type="button"
+                    className="btn ghost"
+                    title="Copy token to clipboard"
+                    disabled={!row.key}
+                    onClick={() => row.key && copy(row.key)}
+                    style={{ display: "flex", gap: 4, alignItems: "center" }}
+                  >
+                    <Copy size={12} /> Copy
+                  </button>
+                  <button
+                    type="button"
+                    className="btn danger"
+                    disabled={busy}
+                    onClick={() => onRevoke(row)}
+                  >
+                    {busy ? "…" : "Revoke"}
+                  </button>
+                </div>
               </td>
             </tr>
           );
