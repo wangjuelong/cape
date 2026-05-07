@@ -1,4 +1,8 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { DayPicker } from "react-day-picker";
+import { enUS } from "date-fns/locale";
+import { format } from "date-fns";
+import "react-day-picker/style.css";
 
 import type { AuditActionDescriptor, AuditFilters } from "@/lib/api/audits";
 
@@ -8,14 +12,116 @@ interface AuditFilterBarProps {
   onApply: (filters: AuditFilters) => void;
 }
 
+function parseISODate(iso: string | undefined): Date | undefined {
+  if (!iso) return undefined;
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? undefined : d;
+}
+
+function fmt(d: Date | undefined): string {
+  return d ? format(d, "yyyy-MM-dd") : "";
+}
+
+interface DatePickerFieldProps {
+  value: Date | undefined;
+  onChange: (d: Date | undefined) => void;
+  placeholder: string;
+  title: string;
+}
+
+function DatePickerField({ value, onChange, placeholder, title }: DatePickerFieldProps) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      if (!open) return;
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [open]);
+
+  const triggerStyle: React.CSSProperties = {
+    height: 28,
+    padding: "0 8px",
+    background: "var(--color-bg-2)",
+    border: "1px solid var(--color-border)",
+    color: value ? "var(--color-fg-0)" : "var(--color-fg-2)",
+    borderRadius: 3,
+    fontFamily: "var(--font-sans)",
+    fontSize: 11.5,
+    outline: "none",
+    width: 120,
+    textAlign: "left",
+    cursor: "pointer",
+  };
+
+  return (
+    <div ref={wrapRef} style={{ position: "relative" }}>
+      <button
+        type="button"
+        title={title}
+        onClick={() => setOpen((v) => !v)}
+        style={triggerStyle}
+      >
+        {value ? fmt(value) : placeholder}
+      </button>
+      {open && (
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(100% + 4px)",
+            left: 0,
+            zIndex: 50,
+            background: "var(--color-bg-1)",
+            border: "1px solid var(--color-border)",
+            borderRadius: 4,
+            padding: 4,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
+          }}
+        >
+          <DayPicker
+            mode="single"
+            locale={enUS}
+            selected={value}
+            onSelect={(d) => {
+              onChange(d ?? undefined);
+              setOpen(false);
+            }}
+            showOutsideDays
+            footer={
+              value ? (
+                <button
+                  type="button"
+                  className="btn ghost"
+                  style={{ width: "100%", marginTop: 4, fontSize: 11 }}
+                  onClick={() => {
+                    onChange(undefined);
+                    setOpen(false);
+                  }}
+                >
+                  Clear
+                </button>
+              ) : null
+            }
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function AuditFilterBar({ initial, catalog, onApply }: AuditFilterBarProps) {
   const [actor, setActor] = useState(initial.actor ?? "");
   const [action, setAction] = useState(
     Array.isArray(initial.action) ? initial.action.join(",") : (initial.action ?? ""),
   );
   const [targetUser, setTargetUser] = useState(initial.target_user ?? "");
-  const [since, setSince] = useState(initial.since?.slice(0, 10) ?? "");
-  const [until, setUntil] = useState(initial.until?.slice(0, 10) ?? "");
+  const [since, setSince] = useState<Date | undefined>(parseISODate(initial.since));
+  const [until, setUntil] = useState<Date | undefined>(parseISODate(initial.until));
   const [successFilter, setSuccessFilter] = useState<"any" | "true" | "false">(
     initial.success === undefined ? "any" : initial.success ? "true" : "false",
   );
@@ -26,8 +132,8 @@ export function AuditFilterBar({ initial, catalog, onApply }: AuditFilterBarProp
       actor: actor.trim() || undefined,
       action: action.trim() || undefined,
       target_user: targetUser.trim() || undefined,
-      since: since ? new Date(since + "T00:00:00Z").toISOString() : undefined,
-      until: until ? new Date(until + "T23:59:59Z").toISOString() : undefined,
+      since: since ? new Date(fmt(since) + "T00:00:00Z").toISOString() : undefined,
+      until: until ? new Date(fmt(until) + "T23:59:59Z").toISOString() : undefined,
       success: successFilter === "any" ? undefined : successFilter === "true",
     });
   }
@@ -36,8 +142,8 @@ export function AuditFilterBar({ initial, catalog, onApply }: AuditFilterBarProp
     setActor("");
     setAction("");
     setTargetUser("");
-    setSince("");
-    setUntil("");
+    setSince(undefined);
+    setUntil(undefined);
     setSuccessFilter("any");
     onApply({});
   }
@@ -69,21 +175,19 @@ export function AuditFilterBar({ initial, catalog, onApply }: AuditFilterBarProp
         marginBottom: 14,
       }}
     >
-      <input
-        style={{ ...inputStyle, width: 120 }}
-        type="date"
+      <DatePickerField
         value={since}
-        onChange={(e) => setSince(e.target.value)}
+        onChange={setSince}
+        placeholder="Since (UTC)"
         title="Since (UTC)"
       />
       <span className="dim" style={{ fontSize: 11 }}>
         →
       </span>
-      <input
-        style={{ ...inputStyle, width: 120 }}
-        type="date"
+      <DatePickerField
         value={until}
-        onChange={(e) => setUntil(e.target.value)}
+        onChange={setUntil}
+        placeholder="Until (UTC)"
         title="Until (UTC)"
       />
       <input
