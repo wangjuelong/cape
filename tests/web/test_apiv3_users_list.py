@@ -1,6 +1,7 @@
 """Integration tests for GET /api/v3/users/ admin user list."""
 import pytest
 from django.contrib.auth.models import User
+from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient
 
 
@@ -71,3 +72,33 @@ def test_list_rejects_non_staff(regular_client):
 @pytest.mark.django_db
 def test_list_rejects_anonymous():
     assert APIClient().get("/api/v3/users/").status_code == 401
+
+
+@pytest.mark.django_db
+def test_users_list_filter_has_token_yes(admin_client):
+    c, admin = admin_client
+    Token.objects.create(user=admin)
+    alice = User.objects.create_user(username="alice")
+    Token.objects.create(user=alice)
+    User.objects.create_user(username="bob")  # no token
+
+    resp = c.get("/api/v3/users/?has_token=yes")
+    usernames = {row["username"] for row in resp.json()["data"]}
+    # bob excluded.
+    assert "bob" not in usernames
+    assert {"alice"} <= usernames
+
+
+@pytest.mark.django_db
+def test_users_list_filter_has_token_no(admin_client):
+    c, admin = admin_client
+    Token.objects.create(user=admin)
+    alice = User.objects.create_user(username="alice")
+    Token.objects.create(user=alice)
+    User.objects.create_user(username="bob")  # no token
+
+    resp = c.get("/api/v3/users/?has_token=no")
+    usernames = {row["username"] for row in resp.json()["data"]}
+    # alice + admin excluded.
+    assert "alice" not in usernames
+    assert "bob" in usernames

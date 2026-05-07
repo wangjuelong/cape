@@ -351,6 +351,7 @@ def _parse_bool_param(value: str | None) -> bool | None:
         OpenApiParameter(name="is_superuser", type=OpenApiTypes.BOOL, required=False),
         OpenApiParameter(name="is_active", type=OpenApiTypes.BOOL, required=False),
         OpenApiParameter(name="group", type=OpenApiTypes.STR, required=False),
+        OpenApiParameter(name="has_token", type=OpenApiTypes.STR, required=False, enum=["yes", "no"], description="Filter users by whether they have an API token."),
         OpenApiParameter(name="cursor", type=OpenApiTypes.INT, required=False),
         OpenApiParameter(name="limit", type=OpenApiTypes.INT, required=False),
         OpenApiParameter(name="ordering", type=OpenApiTypes.STR, required=False),
@@ -416,6 +417,12 @@ def users_list(request: Request) -> Response:
             qs = qs.filter(groups__id=int(group))
         else:
             qs = qs.filter(groups__name=group)
+
+    has_token = request.query_params.get("has_token")
+    if has_token == "yes":
+        qs = qs.filter(auth_token__isnull=False)
+    elif has_token == "no":
+        qs = qs.filter(auth_token__isnull=True)
 
     ordering = request.query_params.get("ordering") or "-date_joined"
     if ordering not in _USERS_LIST_ALLOWED_ORDERING:
@@ -703,12 +710,8 @@ def users_bulk_action(request: Request) -> Response:
     tags=["users"],
     summary="List all users and their API tokens (admin only).",
     description=(
-        "Returns all users; key is null when no token exists. Each row "
-        "includes the token `key` (or null) so the admin UI can show token "
-        "status. Token write operations (Generate / Rotate / Revoke) "
-        "live on POST/DELETE /api/v3/users/<id>/token/. Supports "
-        "?search= (username/email icontains) + cursor pagination on "
-        "user.id."
+        "Returns only users with active API tokens. Each row includes the full "
+        "token key for admin reveal/copy in the issuance modal."
     ),
     parameters=[
         OpenApiParameter(name="search", type=OpenApiTypes.STR, required=False),
@@ -722,7 +725,11 @@ def tokens_list(request: Request) -> Response:
     from django.contrib.auth.models import User
     from django.db.models import Q
 
-    qs = User.objects.select_related("auth_token").order_by("id")
+    qs = (
+        User.objects.select_related("auth_token")
+        .filter(auth_token__isnull=False)
+        .order_by("id")
+    )
 
     search = request.query_params.get("search")
     if search:
